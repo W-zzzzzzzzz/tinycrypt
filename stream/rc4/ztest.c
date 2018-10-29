@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include "rc4.h"
 
@@ -97,7 +98,7 @@ typedef struct _RC4Z_CTX_T {
 } RC4Z_CTX;
 #pragma pack (pop)
 
-void RC4z (RC4Z_CTX*);
+void RC4Z (RC4Z_CTX*);
 
 void run_tests (void)
 {
