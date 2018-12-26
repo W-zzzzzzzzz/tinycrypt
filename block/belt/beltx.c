@@ -27,10 +27,14 @@
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
 
-#include "belt.h"
+#define R(v,n)(((v)<<(n))|((v)>>(32-(n))))
+#define X(u,v)t=u,u=v,v=t
+#define F(n)for(i=0;i<n;i++)
+typedef unsigned char B;
+typedef unsigned int W;
 
 // sbox
-const uint8_t H[256] =
+B H[256] =
 { 0xB1, 0x94, 0xBA, 0xC8, 0x0A, 0x08, 0xF5, 0x3B,
   0x36, 0x6D, 0x00, 0x8E, 0x58, 0x4A, 0x5D, 0xE4,
   0x85, 0x04, 0xFA, 0x9D, 0x1B, 0xB6, 0xC7, 0xAC,
@@ -64,51 +68,28 @@ const uint8_t H[256] =
   0xD4, 0xEF, 0xD9, 0xB4, 0x3A, 0x62, 0x28, 0x75,
   0x91, 0x14, 0x10, 0xEA, 0x77, 0x6C, 0xDA, 0x1D };
 
-// substitute 32-bits
-uint32_t G(uint32_t x, w256_t *key, int idx, int r) {
-    int   i;
-    w32_t u;
+// non-linear layer
+W G(W x, W *key, int idx, int r) {
+    W i;
+    union { B b[4]; W w;}u;
+    
+    u.w = key[idx&7]+x;
 
-    u.w = key->w[idx & 7] + x;
-
-    for (i=0; i<4; i++) {
-      u.b[i] = H[u.b[i]];
-    }
-    u.w = ROTL32(u.w, r);
-    return u.w;
+    F(4)u.b[i]=H[u.b[i]];
+    return R(u.w,r);
 }
 
-// perform only encryption
-void belt_encryptx(void *data, void *key)
-{
-    uint32_t i, j, t, e;
-    w128_t  *x=(w128_t*)data;
-    w256_t  *k=(w256_t*)key;
+void belt(void*mk,void*data) {
+    W a,b,c,d,i,j,t,e,*x=(W*)data,*k=(W*)mk;
     
-    #define a x->w[0]
-    #define b x->w[1]
-    #define c x->w[2]
-    #define d x->w[3]
+    a=x[0],b=x[1],c=x[2],d=x[3];
     
-    // apply 8 rounds
-    for (i=1, j=0; i<=8; j += 7, i++) {
-      b ^= G(a,     k, j+0, 5);
-      c ^= G(d,     k, j+1,21);
-      a -= G(b,     k, j+2,13);
-      e  = G(b + c, k, j+3,21);
-      e ^= i;
-      b += e;
-      c -= e;
-      d += G(c,     k, j+4,13);
-      b ^= G(a,     k, j+5,21);
-      c ^= G(d,     k, j+6, 5);
-      
-      XCHG(a, b);
-      XCHG(c, d);
-      XCHG(b, c);
+    for(i=0,j=0;i<8;) {
+      b^=G(a,k,j++,5),c^=G(d,k,j++,21),
+      a-=G(b,k,j++,13),e=G(b+c,k,j++,21),
+      e^=++i,b+=e,c-=e,d+=G(c,k,j++,13),
+      b^=G(a,k,j++,21),c^=G(d,k,j++, 5),
+      X(a,b),X(c,d),X(b,c);
     }
-    XCHG(a, b);
-    XCHG(c, d);
-    XCHG(b, c);
+    x[0]=b,x[1]=d,x[2]=a,x[3]=c;
 }
-

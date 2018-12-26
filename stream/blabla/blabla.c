@@ -29,9 +29,13 @@
   
 #include "blabla.h"
 
+#define R(v,n)(((v)>>(n))|((v)<<(64-(n))))
+#define F(n)for(i=0;i<n;i++)
+#define X(a,b)(t)=(a),(a)=(b),(b)=(t)
+typedef unsigned long long W;
+
 // setup the key
-void bb20_setkey(bb20_ctx *c, void *key, void *nonce)
-{
+void bb20_setkey(bb20_ctx *c, void *key, void *nonce) {
     c->q[ 0] = 0x6170786593810fab;
     c->q[ 1] = 0x3320646ec7398aee;
     c->q[ 2] = 0x79622d3217318274;
@@ -53,78 +57,40 @@ void bb20_setkey(bb20_ctx *c, void *key, void *nonce)
     memcpy(&c->q[14], nonce, 16);
 }
 
-// permutation function from blake2b
-void F(uint64_t s[16])
-{
-    int         i;
-    uint64_t    a, b, c, d, t, idx;
-    uint32_t    r;
+void bb20_stream(bb20_ctx*s, uint64_t*x) {
+    uint64_t a,b,c,d,i,t,r;
+    uint16_t v[8]={0xC840,0xD951,0xEA62,0xFB73,
+                   0xFA50,0xCB61,0xD872,0xE943};
+            
+    F(16)x[i]=s->q[i];
     
-    uint16_t idx16[8]=
-    { 0xC840, 0xD951, 0xEA62, 0xFB73,    // column index
-      0xFA50, 0xCB61, 0xD872, 0xE943 };  // diagonal index
-    
-    for (i=0; i<8; i++) {
-      idx = idx16[i];
-        
-      a = (idx         & 0xF);
-      b = ((idx >>  4) & 0xF);
-      c = ((idx >>  8) & 0xF);
-      d = ((idx >> 12) & 0xF);
-  
-      r = 0x3F101820;
+    F(80) {
+      d=v[i%8];
+      a=(d&15);b=(d>>4&15);
+      c=(d>>8&15);d>>=12;
       
-      // The quarter-round
-      do {
-        s[a]+= s[b]; 
-        s[d] = ROTR64(s[d] ^ s[a], r & 0xFF);
-        XCHG(c, a);
-        XCHG(d, b);
-        r >>= 8;
-      } while (r != 0);
-    }    
-}
-
-// generate stream of bytes
-void bb20_stream (bb20_ctx *c, w1024_t *x)
-{
-    int i;
-
-    // copy state to x
-    memcpy(x->b, c->b, BB20_STATE_LEN);
-    
-    // apply 20 rounds of permutation function
-    for (i=0; i<20; i+=2) {
-      F(x->q);
+      for(r=0x3F101820;r;r>>=8)
+        x[a]+=x[b],
+        x[d]=R(x[d]^x[a],(r&255)),
+        X(a,c),X(b,d);
     }
-    // add state to x
-    for (i=0; i<16; i++) {
-      x->q[i] += c->q[i];
-    }
-    // update 64-bit counter
-    c->q[13]++;
+    F(16)x[i]+=s->q[i];
+    s->q[13]++;
 }
-
 
 // encrypt or decrypt stream of len-bytes
-void bb20_encrypt (uint64_t len, void *in, bb20_ctx *ctx) 
-{
-    uint64_t r, i;
-    w1024_t  s;
-    uint8_t  *p=(uint8_t*)in;
+void bb20_encrypt (uint64_t len, void *in, bb20_ctx *ctx) {
+    uint64_t i, r, s[16];
+    uint8_t  *p=(uint8_t*)in, *c=(uint8_t*)&s[0];
     
     while (len) {      
-      bb20_stream(ctx, &s);
+      bb20_stream(ctx, s);
       
       r = MIN(len, BB20_BLK_LEN);
       
       // XOR input with stream
-      for (i=0; i<r; i++) {
-        p[i] ^= s.b[i];
-      }
-    
-      len -= r;
-      p   += r;
+      for(i=0;i<r;i++)p[i]^=c[i];
+      len -= r; p+= r;
     }
 }
 

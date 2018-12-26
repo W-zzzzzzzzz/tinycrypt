@@ -5,6 +5,8 @@
 
 #include "belt.h"
 
+void belt(void*mk,void*data);
+
 int equ(uint8_t x[], uint8_t y[], int len) {
     return memcmp(x, y, len)==0;
 }
@@ -76,7 +78,7 @@ int main() {
 
     memcpy (outenc, inenc, 16);
     //belt_encrypt(outenc, keyenc, BELT_ENCRYPT);
-    belt_encryptx(outenc, keyenc);
+    belt(keyenc,outenc);
 
     printf("\nEncryption : %s\n\n", equ(outenc, v1, 16) ? "OK" : "FAILED");
     bin2hex("m", inenc, sizeof(inenc));
@@ -87,7 +89,7 @@ int main() {
 
     memcpy (outdec, indec, 16);
     //belt_encrypt(outdec, keydec, BELT_DECRYPT);
-
+/**
     printf("\n\nDecryption : %s\n\n", equ(outdec, v2, 16) ? "OK" : "FAILED");
     printf("c: ");
     for (i = 0; i < 16; ++i) { printf("%02X ", indec[i]); }
@@ -95,7 +97,7 @@ int main() {
     for (i = 0; i < 16; ++i) { printf("%02X ", keydec[i]); }
     printf("\nm: ");
     for (i = 0; i < 16; ++i) { printf("%02X ", outdec[i]); }
-    printf("\n");
+    printf("\n");*/
 
     return 0;
 }
