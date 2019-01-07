@@ -29,11 +29,13 @@
 
 #include "b2s.h"
 
+typedef unsigned int W;
+
 // G mixing function
-void G(uint32_t *s, uint32_t *m, uint64_t sigma) 
+void G(W *s, W *m, uint64_t sigma) 
 {
-    int      i, j;
-    uint32_t a, b, c, d, r, t, idx;
+    int i, j;
+    W   a, b, c, d, r, t, idx;
     
     uint16_t idx16[8]=
     { 0xC840, 0xD951, 0xEA62, 0xFB73,    // column index

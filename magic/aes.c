@@ -24,7 +24,7 @@ uint8_t gf_mul(uint8_t x, uint8_t y, uint8_t p)
       if (y & 1) {
         z ^= x;
       }
-      x = (x << 1) ^ (x & 0x80 ? p : 0x00);
+      x = (x << 1) ^ (x >> 7) * p;
       y >>= 1;
     }
     return z;

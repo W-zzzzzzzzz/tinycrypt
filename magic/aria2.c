@@ -53,7 +53,6 @@ uint8_t matmul8(uint8_t x, const uint8_t m[8][8])
 }
 
 // Prints out Aria sboxes S1 and S2
-
 int main()
 {
 	int i, x, j;
