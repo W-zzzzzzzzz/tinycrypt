@@ -7,6 +7,15 @@
 
 #include "sm4.h"
 
+void bin2hex(char *s, void *p, int len) {
+    int i;
+    printf("%-10s : ", s);
+    for (i=0; i<len; i++) {
+      printf ("%02x ", ((uint8_t*)p)[i]);
+    }
+    printf("\n");
+}
+
 uint8_t tv_plain[]=
 { 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
   0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10 };
@@ -23,34 +32,22 @@ uint8_t tv_key[]=
 { 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
   0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10 };
   
-// The constant parameter CK
-//
-// generate CK constant for index i
+void sm4(void*,void*);
 
-uint32_t CKX(int i)
-{
-    int      j;
-    uint32_t ck=0;
-
-    for (j=0; j<4; j++) {
-      ck <<= 8;
-      ck |= U8V((((i << 2) + j) * 7));
-    }
-    return ck;
-}
-  
 int main(void)
 {
   sm4_ctx  c;
   //uint32_t i;
   int      equ;
   
-  sm4_setkey(&c, tv_key, SM4_ENCRYPT);
+  //sm4_setkey(&c, tv_key, SM4_ENCRYPT);
   
   //for (i=0; i<1000000; i++) {
-    sm4_encrypt(&c, tv_plain);
+    sm4(tv_key, tv_plain);
   //}
   
+  bin2hex("ciphertext", tv_cipher,16);
+  bin2hex("result", tv_plain,16);
   equ = memcmp(tv_cipher, tv_plain, 16)==0;
   printf ("SM4 Test %s\n", equ ? "succeeded" : "failed");
   

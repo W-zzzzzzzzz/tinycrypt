@@ -29,6 +29,40 @@
 
 #include "sm4.h"
 
+#define DYNAMIC 1
+#define rev __builtin_bswap32
+
+#ifdef DYNAMIC
+uint8_t affine(uint8_t x) {     
+    uint8_t m=0xA7,s=0,t;
+    
+    do {
+      for(t=x&m;t;t>>=1)s^=(t&1);
+      s = (s>>1)|(s<<7);
+      m = (m<<1)|(m>>7);
+    } while(m!=0xA7);
+    
+    return s^0xD3; 
+}
+
+uint8_t S(uint8_t x) {
+    uint8_t i, c, y;
+    
+    // affine transformation
+    x = affine(x);
+    
+    // multiplicative inverse
+    // uses x^8 + x^7 + x^6 + x^5 + x^4 + x^2 + 1 as IRP
+    if (x) {
+      for(c=i=0,y=1;--i;y=(!c&&y==x)?c=1:y,y^=(y<<1)^(y>>7)*0xF5);
+      x=y;
+    }
+    // affine transformation
+    return affine(x);
+}
+
+#else
+
 static const uint8_t S[256] = {
   0xd6, 0x90, 0xe9, 0xfe, 0xcc, 0xe1, 0x3d, 0xb7, 
   0x16, 0xb6, 0x14, 0xc2, 0x28, 0xfb, 0x2c, 0x05,
@@ -63,6 +97,8 @@ static const uint8_t S[256] = {
   0x18, 0xf0, 0x7d, 0xec, 0x3a, 0xdc, 0x4d, 0x20, 
   0x79, 0xee, 0x5f, 0x3e, 0xd7, 0xcb, 0x39, 0x48 };
 
+#endif
+
 // Mixer-substitution T
 //
 // T is a substitution that generates 32 bits from 32 bits T : Z32
@@ -78,7 +114,11 @@ uint32_t T(uint32_t x, int t)
     
     // apply non-linear substitution
     for (i=0; i<4; i++) {
-      u.b[i] = S[u.b[i]];
+      #ifdef DYNAMIC
+        u.b[i] = S(u.b[i]);
+      #else
+        u.b[i] = S[u.b[i]];
+      #endif
     }
     // apply linear substitution
     if (t==0)
@@ -109,17 +149,7 @@ uint32_t F(uint32_t x0, uint32_t x1,
 // The constant parameter CK
 //
 // generate CK constant for index i
-#ifdef TABLE
-uint32_t CK[]=
-{ 0x00070e15, 0x1c232a31, 0x383f464d, 0x545b6269,
-  0x70777e85, 0x8c939aa1, 0xa8afb6bd, 0xc4cbd2d9,
-  0xe0e7eef5, 0xfc030a11, 0x181f262d, 0x343b4249,
-  0x50575e65, 0x6c737a81, 0x888f969d, 0xa4abb2b9,
-  0xc0c7ced5, 0xdce3eaf1, 0xf8ff060d, 0x141b2229,
-  0x30373e45, 0x4c535a61, 0x686f767d, 0x848b9299,
-  0xa0a7aeb5, 0xbcc3cad1, 0xd8dfe6ed, 0xf4fb0209,
-  0x10171e25, 0x2c333a41, 0x484f565d, 0x646b7279 };
-#else
+#ifdef DYNAMIC
 uint32_t CK(int i)
 {
     int      j;
@@ -131,17 +161,77 @@ uint32_t CK(int i)
     }
     return ck;
 }
+#else
+uint32_t CK[]=
+{ 0x00070e15, 0x1c232a31, 0x383f464d, 0x545b6269,
+  0x70777e85, 0x8c939aa1, 0xa8afb6bd, 0xc4cbd2d9,
+  0xe0e7eef5, 0xfc030a11, 0x181f262d, 0x343b4249,
+  0x50575e65, 0x6c737a81, 0x888f969d, 0xa4abb2b9,
+  0xc0c7ced5, 0xdce3eaf1, 0xf8ff060d, 0x141b2229,
+  0x30373e45, 0x4c535a61, 0x686f767d, 0x848b9299,
+  0xa0a7aeb5, 0xbcc3cad1, 0xd8dfe6ed, 0xf4fb0209,
+  0x10171e25, 0x2c333a41, 0x484f565d, 0x646b7279 };
 #endif
   
+#define R(v,n)(((v)>>(n))|((v)<<(32-(n))))
+#define FX(n)for(j=0;j<n;j++)
+#define X(x,y)t=x,x=y,y=t;
+typedef unsigned char B;
+typedef unsigned int W;
+
+void sm4(void*mk, void*in) {
+    uint32_t i, j, t, k[4], x[4];
+    uint32_t fk[4]={0xa3b1bac6,0x56aa3350,0x677d9197,0xb27022dc};
+    // load the key and plaintext
+    for(i=0;i<4;i++) {
+      k[i]=rev(((uint32_t*)mk)[i])^fk[i];
+      x[i]=rev(((uint32_t*)in)[i]);
+    }
+    // generate 32 sub keys and encrypt plaintext
+    for(i=0; i<32; i++) {
+      // add round constant to subkey
+      t=k[(i+1)%4]^k[(i+2)%4]^k[(i+3)%4]^CK(i);
+      // apply non-linear substitution to subkey
+      FX(4) t=(t&-256)|S(t),t=R(t,8);
+      k[i%4]^=t^R(t,19)^R(t,9);
+      // encrypt 32-bits
+      t=x[(i+1)%4]^x[(i+2)%4]^x[(i+3)%4]^k[i%4];
+      // apply non-linear substitution to 32-bits
+      FX(4) t=(t&-256)|S(t),t=R(t,8);
+      x[i%4]^=R(t,30)^R(t,22)^R(t,14)^R(t,8)^t;
+    }
+    X(x[0],x[3]); X(x[1],x[2]);
+    for(i=0;i<4;i++) ((uint32_t*)in)[i]=rev(x[i]);
+}
+
+// swapping bytes *shouldn't* affect the cipher
+void sm4_encrypt(sm4_ctx *c, void *buf) {
+    uint32_t x0, x1, x2, x3, i, t;
+    uint32_t *rk=c->rk;
+    uint32_t *x=(uint32_t*)buf;
+    
+    x0 = rev(x[0]); x1 = rev(x[1]);
+    x2 = rev(x[2]); x3 = rev(x[3]);
+    
+    for (i=0; i<32; i++) {
+      x0 = F(x0, x1, x2, x3, rk[i]);
+      XCHG(x0, x1);
+      XCHG(x1, x2);
+      XCHG(x2, x3);
+    }    
+    x[0] = rev(x3); x[1] = rev(x2);
+    x[2] = rev(x1); x[3] = rev(x0);
+}
+
+
 void sm4_setkey(sm4_ctx *c, const void *key, int enc) {
     uint32_t t, rk0, rk1, rk2, rk3; 
-    int      i;    
+    int      i;
+    uint32_t *k=(uint32_t*)key;
     
     // load the key
-    rk0 = SWAP32(((uint32_t*)key)[0]);
-    rk1 = SWAP32(((uint32_t*)key)[1]);
-    rk2 = SWAP32(((uint32_t*)key)[2]);
-    rk3 = SWAP32(((uint32_t*)key)[3]);
+    rk0 = rev(k[0]); rk1 = rev(k[1]);
+    rk2 = rev(k[2]); rk3 = rev(k[3]);
     
     // xor FK values
     rk0 ^= 0xa3b1bac6; rk1 ^= 0x56aa3350;
@@ -149,10 +239,10 @@ void sm4_setkey(sm4_ctx *c, const void *key, int enc) {
     
     // generate 32 sub keys
     for (i=0; i<32; i++) {
-      #ifdef TABLE
-        rk0 ^= T(rk1 ^ rk2 ^ rk3 ^ CK[i], 0);
-      #else  
+      #ifdef DYNAMIC
         rk0 ^= T(rk1 ^ rk2 ^ rk3 ^ CK(i), 0);
+      #else  
+        rk0 ^= T(rk1 ^ rk2 ^ rk3 ^ CK[i], 0);
       #endif
       c->rk[i] = rk0;
       XCHG(rk0, rk1);
@@ -166,25 +256,3 @@ void sm4_setkey(sm4_ctx *c, const void *key, int enc) {
       }
     }
 }
-
-// swapping bytes *shouldn't* affect the cipher
-
-void sm4_encrypt(sm4_ctx *c, void *buf)
-{
-    uint32_t x0, x1, x2, x3, i, t;
-    uint32_t *rk=c->rk;
-    uint32_t *x=(uint32_t*)buf;
-    
-    x0 = SWAP32(x[0]); x1 = SWAP32(x[1]);
-    x2 = SWAP32(x[2]); x3 = SWAP32(x[3]);
-    
-    for (i=0; i<32; i++) {
-      x0 = F(x0, x1, x2, x3, rk[i]);
-      XCHG(x0, x1);
-      XCHG(x1, x2);
-      XCHG(x2, x3);
-    }    
-    x[0] = SWAP32(x3); x[1] = SWAP32(x2);
-    x[2] = SWAP32(x1); x[3] = SWAP32(x0);
-}
-

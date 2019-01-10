@@ -7,46 +7,31 @@
 #include <stdlib.h>
 #include <string.h>
   
-uint8_t affine(uint8_t x){     
-    uint8_t A1=0xA7, r=0, s, t, i;     
-
-    for (i=0; i<8; i++) {      
-      t = x & A1;         
-      s = 0;
-               
-      while (t) {             
-        s ^= (t & 1);             
-        t >>= 1;         
-      }         
-      r |= (s << i);         
-      A1 = (A1 << 1) | (A1 >> 7); 
-    }
-    return r ^ 0xD3; 
+uint8_t affine(uint8_t x) {     
+    uint8_t m=0xA7,s=0,t;
+    
+    do {
+      for(t=x&m;t;t>>=1)s^=(t&1);
+      s = (s>>1)|(s<<7);
+      m = (m<<1)|(m>>7);
+    } while(m!=0xA7);
+    return s^0xD3; 
 }
 
-// IRP : x^8 + x^7 + x^6 + x^5 + x^4 + x^2 + 1
-//
 uint8_t SM4(uint8_t x) {
-    uint8_t i, y, z, t;
+    uint8_t i, y, c;
     
     // affine transformation
-    x = y = affine(x);
+    x = affine(x);
     
-    // inverse
-    for (i=14; --i;) {
-      t = (i & 1) ? y : x;
-      z = 0;
-      while (t) {
-        if (t & 1) {
-          z ^= y;
-        }
-        y = (y << 1) ^ (y >> 7) * 0xF5;
-        t >>= 1;
-      }
-      y = z;
+    // multiplicative inverse
+    // uses x^8 + x^7 + x^6 + x^5 + x^4 + x^2 + 1 as IRP
+    if (x) {
+      for(c=i=0,y=1;--i;y=(!c&&y==x)?c=1:y,y^=(y<<1)^(y>>7)*0xF5);
+      x=y;
     }
     // affine transformation
-    return affine(y);
+    return affine(x);
 }
 
 #ifdef TEST
@@ -96,6 +81,12 @@ int main(void) {
       printf(" %02x", s[i]);
     }
     
+    for(i=0;i<256;i++) {
+      if (s[i] != sbox[i]) {
+        printf(" - failed at element %i\n", i);
+        break;
+      }
+    }
     printf("\n\n SM4 Sbox Test %s.\n",
       memcmp(s, sbox, 256)==0 ? "passed" : "failed"); 
     return 0; 
