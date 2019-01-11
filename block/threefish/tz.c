@@ -27,86 +27,40 @@
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
 
+// Threefish-256 (encryption only)
+// author: odzhan
 
-#include <stdint.h>
-#include <string.h>
+#define F(a,b)for(a=0;a<b;a++)
+#define R(v,n)(((v)<<(n))|((v)>>(64-(n))))
+typedef unsigned long long W;
+typedef unsigned char B;
 
-#include "threefish.h"
+void threefish(void*mk, void*data) {
+    W c[8],i,j,r,*x=(W*)data,t,
+      rc[2]=
+      { 0x203a2e190517340eULL,
+        0x20160c2125283910ULL };
 
-// for 256-bit keys
-typedef struct _key_t {
-  uint64_t k[5], t[3];
-} key_t;
-
-#define K(s) (((uint64_t*)key)[(s)])
-#define T(s) (((uint64_t*)tweak)[(s)])
-
-void add_key(key_t *c, void *data, uint8_t s)
-{
-    int i;
-    uint64_t x0, x1, x2;
-    uint64_t *x=(uint64_t*)data;
+    c[4]=0x1BD11BDAA9FC1A22ULL;
     
-    for (i=0; i<4; i++) {
-      x0 = x[i];
-      x1 = c->k[(s + i) % 5];
-      x2 = 0;
-      
-      if (i==1) x2 = c->t[s % 3];
-      if (i==2) x2 = c->t[(s+1) % 3];
-      if (i==3) x2 = s;
-
-      x[i] = x0 + x1 + x2;
-    }
-}
-
-void threefish(void *key, void *tweak, void *data)
-{
-    int      i, j, r, s=0;
-    uint64_t t; 
-    key_t    c;
-    uint64_t *x=(uint64_t*)data;  
-    
-    uint8_t rc[16] = 
-    { 14, 52, 23,  5, 25, 46, 58, 32, 
-      16, 57, 40, 37, 33, 12, 22, 32};
-
-    // copy key and tweak to local buffers  
-    memcpy((void*)c.k, key,   32);
-    memcpy((void*)c.t, tweak, 16);
-    
-    c.k[4] = 0x1BD11BDAA9FC1A22ULL;
-    
-    // initialize subkeys
-    for(i=0; i<4; i++){
-      c.k[4] ^= K(i);
-    }
-    c.t[2] = T(0) ^ T(1); 
-    
+    // initialize key and tweak
+    F(i,4)c[4]^=c[i]=((W*)mk)[i];
+    F(i,2)c[i+5]=((W*)mk)[i+4];
+    c[7]=c[5]^c[6];
     // apply 72 rounds
-    for (i=0; i<72; i++)
-    {
+    for(i=0;;i++) {
       // add key every 4 rounds
-      if((i & 3) == 0) {
-        add_key(&c, data, s);
-        s++;
+      if((i&3)==0) {
+        t=0;F(j,4)x[j]+=c[((i/4)+j)%5]+t,
+        t=(j<2)?c[(((i/4)+j)%3)+5]:i/4;
       }
-        
-      // apply mixing function
-      for (j=0; j<4; j += 2) {
-        r = rc[(i & 7) + (j << 2)];
-
-        x[j]   += x[j+1];
-        x[j+1]  = ROTL64(x[j+1], r);
-        x[j+1] ^= x[j];    
-      }
-      
+      if(i==72)break;
+      // mixing function
+      for(j=0;j<4;j+=2)
+        r=((B*)rc)[(i&7)+(j<<2)],x[j]+=x[j+1],
+        x[j+1]=R(x[j+1],r),x[j+1]^=x[j];
       // permute
-      t    = x[1];
-      x[1] = x[3];
-      x[3] = t;
+      t=x[1],x[1]=x[3],x[3]=t;
     }
-    // add key
-    add_key(&c, data, s);
 }
 

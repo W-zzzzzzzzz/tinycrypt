@@ -4,8 +4,8 @@
 
 #include <stdio.h>
 #include <string.h>
-
-#include "threefish.h"
+#include <stdint.h>
+#include <stdlib.h>
 
 uint64_t three_256_00_key[]    = { 0L, 0L, 0L, 0L };
 uint64_t three_256_00_input[]  = { 0L, 0L, 0L, 0L };
@@ -48,44 +48,23 @@ void print_bytes(char *s, void *p, int len)
   }
 }
  
-int main(void)
-{
-  threefish_ctx_t ctx;
+void threefish(void*,void*);
+
+int main(void) {
   int i;
-  uint8_t t[32];
+  union { uint8_t b[64]; uint64_t q[8]; } mk;
+  uint8_t data[32];
   
-  for (i=0; i<2; i++)
-  {
-    memcpy (t, tv[i].input, 32);
-    
-    //print_bytes("Key", tv[i].key, 32);
-    //print_bytes("Input", tv[i].input, 32);
-    //print_bytes("Tweak", tv[i].tweak, 16);
-    
-    memset (&ctx, 0, sizeof (ctx));
-    //printf ("\n\nSetting up key for test # %i", (i+1));
-    threefish_setkey (&ctx, tv[i].key, tv[i].tweak);
-    //print_bytes("CTX", &ctx, sizeof(ctx));
-    
-    //printf ("\nEncrypting plaintext");
-    threefish_encrypt(&ctx, tv[i].input, THREEFISH_ENCRYPT);
-    //threefish(tv[i].key, tv[i].tweak, tv[i].input);
-    
-    //print_bytes("Ciphertext", tv[i].input, 32);
-    //print_bytes("Expected", tv[i].result, 32);
+  for (i=0; i<2; i++) {
+    memcpy(&mk.b[0],  tv[i].key,   32);
+    memcpy(&mk.b[32], tv[i].tweak, 16);
+    memcpy(data,      tv[i].input, 32);
   
-    if (memcmp(tv[i].input, tv[i].result, 32)==0) {
-      printf ("\nEncryption OK");
-    } else printf("\nEncryption failed");
-  
-    threefish_encrypt(&ctx, tv[i].input, THREEFISH_DECRYPT);
-  
-    //print_bytes("Plaintext", tv[i].input, 32);
-    //print_bytes("Expected", t, 32);
-    
-    if (memcmp(t, tv[i].input, 32)==0) {
-      printf ("\nDecryption OK");
-    } else printf("\nDecryption failed");
+    threefish(&mk, data);
+
+    if (memcmp(data, tv[i].result, 32)==0) {
+      printf ("Threefish encryption OK\n");
+    } else printf("Threefish encryption failed\n");
   }
   return 0;
 }
