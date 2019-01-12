@@ -58,7 +58,7 @@ B S(B x) {
     return AX(x);
 }
 
-void sm4(void*mk, void*in) {
+void sm4(void*mk,void*in) {
     W *p,c,i,j,s,t,k[4],x[4];
     W fk[4]={0xa3b1bac6,0x56aa3350,0x677d9197,0xb27022dc};
     // load the key and plaintext
@@ -66,8 +66,7 @@ void sm4(void*mk, void*in) {
     // encrypt plaintext
     F(i,32) {
       // calculate round constant
-      F(j,4)t<<=8,t|=((((i<<2)+j)*7)&255);
-      
+      F(j,4)t<<=8,t|=((((i*4)+j)*7)&255);
       F(s,2) {
         p=(s)?x:k;
         // add round constant or sub key
@@ -76,7 +75,7 @@ void sm4(void*mk, void*in) {
         F(j,4)t=(t&-256)|S(t),t=R(t,8);
         // linear layer
         t=p[i%4]^=t^((s) ? 
-          R(t,30)^R(t,22)^R(t,14)^R(t,8) : R(t,19)^R(t,9));
+          R(t,30)^R(t,22)^R(t,14)^R(t,8):R(t,19)^R(t,9));
       }
     }
     // swap
@@ -98,4 +97,6 @@ nothing. Little-endian should be the preferred storage of data, because
 almost 100% of the CPUs in circulation use little-endian mode. Not that
 there's anything wrong with the 90s, but we're not in the 90s anymore.
 This cipher was probably designed around the same time as AES.
+
+It's a poorly designed cipher.
 */
