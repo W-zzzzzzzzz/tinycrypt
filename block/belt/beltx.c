@@ -70,13 +70,11 @@ B H[256] =
 
 // non-linear + linear layer
 W G(W x, W *key, int idx, int r) {
-    W i;
-    union { B b[4]; W w;}u;
+    W i, w;
     
-    u.w = key[idx&7]+x;
-
-    F(4)u.b[i]=H[u.b[i]];
-    return R(u.w,r);
+    w = key[idx&7]+x;
+    F(4)w=(w&-256)|H[w&255],w=R(w,8);
+    return R(w, r);
 }
 
 void belt(void*mk,void*data) {

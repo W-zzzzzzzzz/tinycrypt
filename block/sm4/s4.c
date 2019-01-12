@@ -34,7 +34,7 @@ typedef unsigned char B;
 typedef unsigned int W;
 #define rev __builtin_bswap32
 
-B affine(B x) {     
+B AX(B x) {     
     B m=0xA7,s=0,t;
     do {
       for(t=x&m;t;t>>=1)s^=(t&1);
@@ -47,7 +47,7 @@ B affine(B x) {
 B S(B x) {
     B i, c, y;
     // affine transformation
-    x = affine(x);
+    x = AX(x);
     // multiplicative inverse
     // uses x^8 + x^7 + x^6 + x^5 + x^4 + x^2 + 1 as IRP
     if (x) {
@@ -55,31 +55,47 @@ B S(B x) {
       x=y;
     }
     // affine transformation
-    return affine(x);
+    return AX(x);
 }
 
 void sm4(void*mk, void*in) {
-    W c,i,j,t,k[4],x[4];
+    W *p,c,i,j,s,t,k[4],x[4];
     W fk[4]={0xa3b1bac6,0x56aa3350,0x677d9197,0xb27022dc};
     // load the key and plaintext
     F(i,4)k[i]=rev(((W*)mk)[i])^fk[i],x[i]=rev(((W*)in)[i]);
     // encrypt plaintext
     F(i,32) {
-      // add round constant
-      F(j,4)c<<=8,c|=((((i<<2)+j)*7)&255);
-      t=k[(i+1)%4]^k[(i+2)%4]^k[(i+3)%4]^c;
-      // non-linear layer
-      F(j,4)t=(t&-256)|S(t),t=R(t,8);
-      // linear layer
-      k[i%4]^=t^R(t,19)^R(t,9);
-      t=x[(i+1)%4]^x[(i+2)%4]^x[(i+3)%4]^k[i%4];
-      // non-linear layer
-      F(j,4)t=(t&-256)|S(t),t=R(t,8);
-      // linear layer
-      x[i%4]^=R(t,30)^R(t,22)^R(t,14)^R(t,8)^t;
+      // calculate round constant
+      F(j,4)t<<=8,t|=((((i<<2)+j)*7)&255);
+      
+      F(s,2) {
+        p=(s)?x:k;
+        // add round constant or sub key
+        t=p[(i+1)%4]^p[(i+2)%4]^p[(i+3)%4]^t;
+        // non-linear layer
+        F(j,4)t=(t&-256)|S(t),t=R(t,8);
+        // linear layer
+        t=p[i%4]^=t^((s) ? 
+          R(t,30)^R(t,22)^R(t,14)^R(t,8) : R(t,19)^R(t,9));
+      }
     }
     // swap
     X(x[0],x[3]);X(x[1],x[2]);
     // store ciphertext
     F(i,4)((W*)in)[i]=rev(x[i]);
 }
+
+
+/**
+
+There are some operations within the SM4 cipher that I would argue aren't
+necessary at all. First is the byte swap operation before and after
+encryption. Second is the swap/permutation of values at the end of
+encryption. Neither of these should affect the security of the cipher,
+yet it is something that you will see used in various block ciphers. 
+e.g Blowfish,Bel-T, DES. IMHO, it's just a wasted operation that achieves
+nothing. Little-endian should be the preferred storage of data, because
+almost 100% of the CPUs in circulation use little-endian mode. Not that
+there's anything wrong with the 90s, but we're not in the 90s anymore.
+This cipher was probably designed around the same time as AES.
+*/

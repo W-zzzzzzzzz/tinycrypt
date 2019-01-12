@@ -47,6 +47,7 @@ void threefish(void*mk, void*data) {
     F(i,4)c[4]^=c[i]=((W*)mk)[i];
     F(i,2)c[i+5]=((W*)mk)[i+4];
     c[7]=c[5]^c[6];
+    
     // apply 72 rounds
     for(i=0;;i++) {
       // add key every 4 rounds
