@@ -74,8 +74,7 @@ void sm4(void*mk,void*in) {
         // non-linear layer
         F(j,4)t=(t&-256)|S(t),t=R(t,8);
         // linear layer
-        t=p[i%4]^=t^((s) ? 
-          R(t,30)^R(t,22)^R(t,14)^R(t,8):R(t,19)^R(t,9));
+        t=p[i%4]^=t^((s)?R(t,30)^R(t,22)^R(t,14)^R(t,8):R(t,19)^R(t,9));
       }
     }
     // swap
@@ -90,13 +89,14 @@ void sm4(void*mk,void*in) {
 There are some operations within the SM4 cipher that I would argue aren't
 necessary at all. First is the byte swap operation before and after
 encryption. Second is the swap/permutation of values at the end of
-encryption. Neither of these should affect the security of the cipher,
-yet it is something that you will see used in various block ciphers. 
+encryption. Omission of this shouldn't affect the security of the cipher.
+
+Despite this, we see similar operations used in various block ciphers. 
 e.g Blowfish,Bel-T, DES. IMHO, it's just a wasted operation that achieves
 nothing. Little-endian should be the preferred storage of data, because
 almost 100% of the CPUs in circulation use little-endian mode. Not that
 there's anything wrong with the 90s, but we're not in the 90s anymore.
 This cipher was probably designed around the same time as AES.
 
-It's a poorly designed cipher.
+It's a poorly designed cipher based on AES.
 */
