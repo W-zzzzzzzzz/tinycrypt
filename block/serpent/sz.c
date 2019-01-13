@@ -50,8 +50,8 @@ void sbox(W *x, W idx) {
 
     for(i=0;i<16;i+=2) {
       t=sbox[idx%8][i/2];
-      s[i+0]=LO_NIBBLE(t);
-      s[i+1]=HI_NIBBLE(t);
+      s[i+0]=LO(t);
+      s[i+1]=HI(t);
     }
     
     // initial permutation
@@ -64,7 +64,7 @@ void sbox(W *x, W idx) {
     }
     
     for(i=0;i<16;i++)
-      p[i]=(s[HI_NIBBLE(p[i])]<<4)|s[LO_NIBBLE(p[i])];
+      p[i]=(s[HI(p[i])]<<4)|s[LO(p[i])];
 
     // final permutation
     for(i=0;i<4;i++) {
@@ -104,16 +104,11 @@ void serpent(void*mk,void*in) {
       
       // linear layer
       if(++i!=32) {
-        x[0]=R(x[0],19);
-        x[2]=R(x[2],29);
-        x[1]^=x[0]^x[2];
-        x[3]^=x[2]^(x[0]<<3);
-        x[1]=R(x[1],31);
-        x[3]=R(x[3],25);
-        x[0]^=x[1]^x[3];
-        x[2]^=x[3]^(x[1]<<7);
-        x[0]=R(x[0],27);
-        x[2]=R(x[2],10);
+        x[0]=R(x[0],19);x[2]=R(x[2],29);
+        x[1]^=x[0]^x[2];x[3]^=x[2]^(x[0]<<3);
+        x[1]=R(x[1],31);x[3]=R(x[3],25);
+        x[0]^=x[1]^x[3];x[2]^=x[3]^(x[1]<<7);
+        x[0]=R(x[0],27);x[2]=R(x[2],10);
       }
     }
 }
