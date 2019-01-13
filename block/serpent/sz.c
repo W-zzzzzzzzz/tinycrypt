@@ -34,6 +34,44 @@
 
 typedef unsigned char B;
 typedef unsigned int W;
+void sbox(W*, W);
+
+void serpent(void*mk,void*in) {
+    W i,j,s,t,rk[4],k[8],*x=in;
+
+    // copy 256-bit master key to local buffer
+    for(i=0;i<8;i++)k[i]=((W*)mk)[i];
+      
+    for(i=0;;) {
+      // create a round key
+      for(j=0;j<4;j++) {
+        rk[j]=R((k[0]^k[3]^k[5]^k[7]^0x9e3779b9UL^i*4+j),21);
+        for(s=0;s<7;s++) k[s]=k[s+1];
+        k[7]=rk[j];
+      }
+      // non-linear layer
+      sbox(rk,3-i);
+      
+      // add round key
+      x[0]^=rk[0];x[1]^=rk[1];
+      x[2]^=rk[2];x[3]^=rk[3];
+
+      // end after 32 rounds
+      if(i==32)break;
+      
+      // non-linear layer
+      sbox(x,i);
+      
+      // linear layer
+      if(++i!=32) {
+        x[0]=R(x[0],19);x[2]=R(x[2],29);
+        x[1]^=x[0]^x[2];x[3]^=x[2]^(x[0]<<3);
+        x[1]=R(x[1],31);x[3]=R(x[3],25);
+        x[0]^=x[1]^x[3];x[2]^=x[3]^(x[1]<<7);
+        x[0]=R(x[0],27);x[2]=R(x[2],10);
+      }
+    }
+}
 
 void sbox(W *x, W idx) {
     B s[16],p[16],t,i,j,c;
@@ -72,43 +110,6 @@ void sbox(W *x, W idx) {
         c=((W*)p)[i]&1;
         ((W*)p)[i]>>=1;
         x[j%4]=(c<<31)|(x[j%4]>>1);
-      }
-    }
-}
-
-void serpent(void*mk,void*in) {
-    W i,j,s,t,rk[4],k[8],*x=in;
-
-    // copy 256-bit master key to local buffer
-    for(i=0;i<8;i++)k[i]=((W*)mk)[i];
-      
-    for(i=0;;) {
-      // create a round key
-      for(j=0;j<4;j++) {
-        rk[j]=R((k[0]^k[3]^k[5]^k[7]^0x9e3779b9UL^i*4+j),21);
-        for(s=0;s<7;s++) k[s]=k[s+1];
-        k[7]=rk[j];
-      }
-      // non-linear layer
-      sbox(rk,3-i);
-      
-      // add round key
-      x[0]^=rk[0];x[1]^=rk[1];
-      x[2]^=rk[2];x[3]^=rk[3];
-
-      // end after 32 rounds
-      if(i==32)break;
-      
-      // non-linear layer
-      sbox(x,i);
-      
-      // linear layer
-      if(++i!=32) {
-        x[0]=R(x[0],19);x[2]=R(x[2],29);
-        x[1]^=x[0]^x[2];x[3]^=x[2]^(x[0]<<3);
-        x[1]=R(x[1],31);x[3]=R(x[3],25);
-        x[0]^=x[1]^x[3];x[2]^=x[3]^(x[1]<<7);
-        x[0]=R(x[0],27);x[2]=R(x[2],10);
       }
     }
 }
