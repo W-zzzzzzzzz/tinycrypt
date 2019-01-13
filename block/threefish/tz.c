@@ -58,8 +58,8 @@ void threefish(void*mk, void*data) {
       if(i==72)break;
       // mixing function
       for(j=0;j<4;j+=2)
-        r=((B*)rc)[(i&7)+(j<<2)],x[j]+=x[j+1],
-        x[j+1]=R(x[j+1],r),x[j+1]^=x[j];
+        r=((B*)rc)[(i%8)+(j<<2)],x[j]+=x[j+1],
+        x[j+1] =R(x[j+1],r),x[j+1]^=x[j];
       // permute
       t=x[1],x[1]=x[3],x[3]=t;
     }

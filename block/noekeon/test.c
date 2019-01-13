@@ -1,77 +1,46 @@
 
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
 
 #include "noekeon.h"
 
-// direct mode test vectors
-char tv_key[] = "000102030405060708090A0B0C0D0E0F";
-char tv_pt[]  = "ED1F7C59EC86A49E2C6C22AE20B4AEDE";
-char tv_ct[]  = "00112233445566778899AABBCCDDEEFF";
+  uint8_t ct[]=
+  { 0xd0, 0x36, 0x19, 0x4c, 0xc6, 0x70, 0x3b, 0x6e,
+    0x32, 0xcc, 0x2b, 0x6f, 0xa4, 0xd1, 0x21, 0x40 };
 
-int _isxdigit (int c)
-{
-  return (c >= '0' && c <= '9') || 
-         (c >= 'a' && c <= 'f') ||
-         (c >= 'A' && c <= 'F');
-}
+  uint8_t pt[]=
+  { 0xed, 0x1f, 0x7c, 0x59, 0xec, 0x86, 0xa4, 0x9e,
+    0x2c, 0x6c, 0x22, 0xae, 0x20, 0xb4, 0xae, 0xde };
 
-uint32_t hex2bin (void *bin, char hex[]) {
-  uint32_t len, i;
-  uint32_t x;
-  uint8_t *p=(uint8_t*)bin;
-  
-  len = strlen (hex);
-  
-  if ((len & 1) != 0) {
-    return 0; 
-  }
-  
-  for (i=0; i<len; i++) {
-    if (_isxdigit((int)hex[i]) == 0) {
-      return 0; 
-    }
-  }
-  
-  for (i=0; i<len / 2; i++) {
-    sscanf (&hex[i * 2], "%2x", &x);
-    p[i] = (uint8_t)x;
-  } 
-  return len / 2;
-} 
-
+  uint8_t key[]=
+  { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
+    
 void print_bytes(char *s, void *p, int len) {
-  int i;
-  printf("%s : ", s);
-  for (i=0; i<len; i++) {
-    printf ("%02x ", ((uint8_t*)p)[i]);
-  }
-  putchar('\n');
+    int i;
+    printf("%s : ", s);
+    for (i=0; i<len; i++) {
+      printf ("%02x ", ((uint8_t*)p)[i]);
+    }
+    putchar('\n');
 }
+
+void noekeon(void*, void*);
 
 int main(void)
 {
-  uint8_t       pt1[16], ct[16], pt2[16], ctx[16];
-  int           equ;
-  
-  hex2bin (ct, tv_ct);
-  hex2bin (pt1, tv_pt);
-  hex2bin (pt2, tv_pt);
-  hex2bin (&ctx, tv_key);
+    uint8_t pt1[16];
+    int     equ;
     
-  Noekeonx(&ctx, pt1, NOEKEON_ENCRYPT);
-  equ = memcmp (pt1, ct, 16)==0;
+    memcpy(pt1, pt, 16);
+ 
+    noekeon(key, pt1);
 
-  printf ("\nEncryption : %s : ",
-      equ ? "OK" : "FAILED"); 
-  print_bytes("CT", pt1, 16);
-  
-  Noekeonx(&ctx, pt1, NOEKEON_DECRYPT);
-  equ = memcmp (pt1, pt2, 16)==0;
-  
-  printf ("\nDecryption : %s : ",
-      equ ? "OK" : "FAILED"); 
-  print_bytes("PT", pt1, 16);      
-  return 0;
+    equ = memcmp (pt1, ct, 16)==0;
+
+    printf ("\nEncryption : %s : ",
+        equ ? "OK" : "FAILED"); 
+        
+    print_bytes("CT", pt1, 16);    
+    return 0;
 }

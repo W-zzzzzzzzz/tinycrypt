@@ -1,8 +1,11 @@
 
-// test unit for CHAM cipher
+// test unit for CHAM 128/128 cipher
 // odzhan
 
 #include "cham.h"
+
+#include <stdio.h>
+#include <string.h>
 
 void print_bytes(char *s, void *p, int len) {
   int i;
@@ -13,27 +16,27 @@ void print_bytes(char *s, void *p, int len) {
   printf("\n\n");
 }
 
-int main()
+void cham(void*,void*);
+
+int main(void)
 {
-	uint32_t key[4]   = {0x03020100, 0x07060504, 0x0b0a0908, 0x0f0e0d0c};
-	uint32_t plain[4] = {0x33221100, 0x77665544, 0xbbaa9988, 0xffeeddcc};
+  uint32_t key[4]   = {0x03020100, 0x07060504, 0x0b0a0908, 0x0f0e0d0c};
+  uint32_t plain[4] = {0x33221100, 0x77665544, 0xbbaa9988, 0xffeeddcc};
   uint32_t cipher[4]= {0xc3746034, 0xb55700c5, 0x8d64ec32, 0x489332f7};  
   
-  uint32_t buf[4];
-  uint32_t subkeys[2*KW];
+  uint32_t result[4];
   int      equ;
   
   printf("\nCHAM128/128 Test\n\n");
   
-  memcpy(buf, plain, 16);
-
-	cham128_setkey(key, subkeys);
-  //print_bytes("subkeys", subkeys, 2*KW*4);
-	cham128_encrypt(subkeys, buf);
-  equ = memcmp(buf, cipher, 16)==0;
+  memcpy(result, plain, 16);
+  cham(key, result);
+  
+  equ = memcmp(result, cipher, 16)==0;
   printf("Encryption %s\n", equ ? "OK" : "FAILED");
   
-	cham128_decrypt(subkeys, buf);
-  equ = memcmp(buf, plain, 16)==0;
-  printf("Decryption %s\n", equ ? "OK" : "FAILED");
+  print_bytes("Plaintext", plain, 16);
+  print_bytes("Ciphertext", cipher, 16);
+  print_bytes("Result", result, 16);
+  return 0;
 } 
