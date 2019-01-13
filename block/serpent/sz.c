@@ -29,16 +29,15 @@
 
 #define R(v,n)(((v)>>(n))|((v)<<(32-(n))))
 #define X(a,b)t=a,a=b,b=t
-
-#define HI_NIBBLE(b) (((b) >> 4) & 0x0F)
-#define LO_NIBBLE(b) ((b) & 0x0F)
+#define HI_NIBBLE(b)(((b)>>4)&0x0F)
+#define LO_NIBBLE(b)((b)&0x0F)
 
 typedef unsigned char B;
 typedef unsigned int W;
 
 // substitution box
 void subbytes (W *in, W idx) {
-    B s[16], p[16], i, t, n, m, cy;
+    B s[16],p[16],t,i,j,c;
     
     B sbox[8][8] = 
     { { 0x83, 0x1F, 0x6A, 0xB5, 0xDE, 0x24, 0x07, 0xC9 },
@@ -50,30 +49,30 @@ void subbytes (W *in, W idx) {
       { 0x27, 0x5C, 0x48, 0xB6, 0x9E, 0xF1, 0x3D, 0x0A },
       { 0xD1, 0x0F, 0x8E, 0xB2, 0x47, 0xAC, 0x39, 0x65 }};
 
-    for(i=0; i<16; i+=2) {
-      t = sbox[idx%8][i/2];
-      s[i+0] = LO_NIBBLE(t);
-      s[i+1] = HI_NIBBLE(t);
+    for(i=0;i<16;i+=2) {
+      t=sbox[idx%8][i/2];
+      s[i+0]=LO_NIBBLE(t);
+      s[i+1]=HI_NIBBLE(t);
     }
     
     // initial permutation
-    for(n=0; n<16; n++) {
-      for(m=0; m<8; m++) {
-        cy = in[m%4] & 1;
-        in[m%4] >>= 1;
-        p[n] = (cy << 7) | (p[n] >> 1);
+    for(i=0;i<16;i++) {
+      for(j=0;j<8;j++) {
+        c=in[j%4]&1;
+        in[j%4]>>=1;
+        p[i]=(c<<7)|(p[i]>>1);
       }
     }
     
-    for(i=0; i<16; i++)
+    for(i=0;i<16;i++)
       p[i]=(s[HI_NIBBLE(p[i])]<<4)|s[LO_NIBBLE(p[i])];
 
     // final permutation
-    for(n=0; n<4; n++) {
-      for(m=0; m<32; m++) {
-        cy = ((W*)p)[n] & 1;
-        ((W*)p)[n] >>= 1;
-        in[m%4] = (cy << 31) | (in[m%4] >> 1);
+    for(i=0;i<4;i++) {
+      for(j=0;j<32;j++) {
+        c=((W*)p)[i]&1;
+        ((W*)p)[i]>>=1;
+        in[j%4]=(c<<31)|(in[j%4]>>1);
       }
     }
 }
@@ -97,6 +96,7 @@ void serpent(void*mk,void*in) {
       x[0]^=rk[0];x[1]^=rk[1];
       x[2]^=rk[2];x[3]^=rk[3];
 
+      // end after 32 rounds
       if(i==32)break;
       
       // non-linear layer
