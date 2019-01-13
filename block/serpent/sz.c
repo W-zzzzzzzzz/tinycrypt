@@ -29,8 +29,8 @@
 
 #define R(v,n)(((v)>>(n))|((v)<<(32-(n))))
 #define X(a,b)t=a,a=b,b=t
-#define HI_NIBBLE(b)(((b)>>4)&0x0F)
-#define LO_NIBBLE(b)((b)&0x0F)
+#define HI(b)(((b)>>4)&0x0F)
+#define LO(b)((b)&0x0F)
 
 typedef unsigned char B;
 typedef unsigned int W;
