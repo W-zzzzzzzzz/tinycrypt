@@ -35,8 +35,7 @@
 typedef unsigned char B;
 typedef unsigned int W;
 
-// substitution box
-void subbytes (W *in, W idx) {
+void sbox(W *x, W idx) {
     B s[16],p[16],t,i,j,c;
     
     B sbox[8][8] = 
@@ -58,8 +57,8 @@ void subbytes (W *in, W idx) {
     // initial permutation
     for(i=0;i<16;i++) {
       for(j=0;j<8;j++) {
-        c=in[j%4]&1;
-        in[j%4]>>=1;
+        c=x[j%4]&1;
+        x[j%4]>>=1;
         p[i]=(c<<7)|(p[i]>>1);
       }
     }
@@ -72,7 +71,7 @@ void subbytes (W *in, W idx) {
       for(j=0;j<32;j++) {
         c=((W*)p)[i]&1;
         ((W*)p)[i]>>=1;
-        in[j%4]=(c<<31)|(in[j%4]>>1);
+        x[j%4]=(c<<31)|(x[j%4]>>1);
       }
     }
 }
@@ -90,7 +89,8 @@ void serpent(void*mk,void*in) {
         for(s=0;s<7;s++) k[s]=k[s+1];
         k[7]=rk[j];
       }
-      subbytes(rk,3-i);
+      // non-linear layer
+      sbox(rk,3-i);
       
       // add round key
       x[0]^=rk[0];x[1]^=rk[1];
@@ -100,7 +100,7 @@ void serpent(void*mk,void*in) {
       if(i==32)break;
       
       // non-linear layer
-      subbytes(x,i);
+      sbox(x,i);
       
       // linear layer
       if(++i!=32) {
