@@ -59,18 +59,18 @@ B S(B x) {
 }
 
 void sm4(void*mk,void*in) {
-    W *p,c,i,j,s,t,k[4],x[4];
+    W *p,c,i,j,s,t,x[8];
     W fk[4]={0xa3b1bac6,0x56aa3350,0x677d9197,0xb27022dc};
     // load the key and plaintext
-    F(i,4)k[i]=rev(((W*)mk)[i])^fk[i],x[i]=rev(((W*)in)[i]);
+    F(i,4)x[i]=rev(((W*)mk)[i])^fk[i],x[i+4]=rev(((W*)in)[i]);
     // encrypt plaintext
     F(i,32) {
       // calculate round constant
       F(j,4)t<<=8,t|=((((i*4)+j)*7)&255);
       F(s,2) {
-        p=(s)?x:k;
+        p=&x[s*4];
         // add round constant or sub key
-        t=p[(i+1)%4]^p[(i+2)%4]^p[(i+3)%4]^t;
+        t^=p[(i+1)%4]^p[(i+2)%4]^p[(i+3)%4];
         // non-linear layer
         F(j,4)t=(t&-256)|S(t),t=R(t,8);
         // linear layer
@@ -78,7 +78,7 @@ void sm4(void*mk,void*in) {
       }
     }
     // swap
-    X(x[0],x[3]);X(x[1],x[2]);
+    X(x[0+4],x[3+4]);X(x[1+4],x[2+4]);
     // store ciphertext
-    F(i,4)((W*)in)[i]=rev(x[i]);
+    F(i,4)((W*)in)[i]=rev(x[i+4]);
 }
