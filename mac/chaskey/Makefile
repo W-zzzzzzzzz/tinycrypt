@@ -1,4 +1,4 @@
 msvc:
-    cl /nologo /O2 /Ot /DTEST blabla.c
+		cl /nologo /Os /Ot /DTEST test.c chaskey.c
 all:
-    gcc -DTEST -Wall -O2 -Ot blabla.c -oblabla   
+		gcc -DTEST -Wall -Os test.c chaskey.c -otest   

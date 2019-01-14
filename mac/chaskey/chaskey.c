@@ -36,9 +36,8 @@ void chas_setkey(void *out, void *in)
   
   memcpy (out, in, 16);
   
-  for (i=0; i<2; i++)
-  {
-    k[4] = (k[0] + k[0]) ^ 0x87 * (k[3] >> 31); 
+  for (i=0; i<2; i++) {
+    k[4] = (k[0] + k[0]) ^ (-(k[3] >> 31) & 0x87);
     k[5] = (k[1] + k[1]) | (k[0] >> 31); 
     k[6] = (k[2] + k[2]) | (k[1] >> 31); 
     k[7] = (k[3] + k[3]) | (k[2] >> 31);
@@ -51,8 +50,7 @@ void chas_permute(uint32_t v[])
 {
   int i=12;
   
-  do
-  {
+  do {
     v[0] += v[1]; 
     v[1]=ROTL32(v[1], 5); 
     v[1] ^= v[0]; 
@@ -88,8 +86,7 @@ void chas_mac (uint8_t *tag,
   memcpy(v.b, key, 16);
 
   // absorb message 
-  for (;;)
-  {
+  for (;;) {
     len = (msglen < 16) ? msglen : 16;
     
     // xor w128_t with msg data
@@ -99,7 +96,7 @@ void chas_mac (uint8_t *tag,
     if (msglen <= 16) {
       if (msglen < 16) {
         // final? add padding bit
-        v.b[msglen] ^= 0x01;
+        v.b[msglen] ^= 1;
       }
       key += (msglen == 16) ? 16 : 32;
       break;

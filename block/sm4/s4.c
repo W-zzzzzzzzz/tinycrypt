@@ -51,7 +51,7 @@ B S(B x) {
     // multiplicative inverse
     // uses x^8 + x^7 + x^6 + x^5 + x^4 + x^2 + 1 as IRP
     if (x) {
-      for(c=i=0,y=1;--i;y=(!c&&y==x)?c=1:y,y^=(y<<1)^(y>>7)*0xF5);
+      for(c=i=0,y=1;--i;y=(!c&&y==x)?c=1:y,y^=(y<<1)^((-(y>>7))&0xF5));
       x=y;
     }
     // affine transformation

@@ -3,6 +3,8 @@
 // 
 #include "chaskey.h"
 
+#include <stdio.h>
+
 const uint32_t vectors[64][4] =
 {
   { 0x43CB1F41, 0x51EBA0C2, 0xFF0A8AC3, 0x7EE3F642 },

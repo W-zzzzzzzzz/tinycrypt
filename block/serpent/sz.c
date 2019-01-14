@@ -31,6 +31,7 @@
 #define X(a,b)t=a,a=b,b=t
 #define HI(b)(((b)>>4)&0x0F)
 #define LO(b)((b)&0x0F)
+#define F(a,b)for(a=0;a<b;a++)
 
 typedef unsigned char B;
 typedef unsigned int W;
@@ -40,13 +41,13 @@ void serpent(void*mk,void*in) {
     W i,j,s,t,rk[4],k[8],*x=in;
 
     // copy 256-bit master key to local buffer
-    for(i=0;i<8;i++)k[i]=((W*)mk)[i];
+    F(i,8)k[i]=((W*)mk)[i];
       
     for(i=0;;) {
       // create a round key
-      for(j=0;j<4;j++) {
+      F(j,4) {
         rk[j]=R((k[0]^k[3]^k[5]^k[7]^0x9e3779b9UL^i*4+j),21);
-        for(s=0;s<7;s++) k[s]=k[s+1];
+        F(s,7)k[s]=k[s+1];
         k[7]=rk[j];
       }
       // non-linear layer
@@ -93,20 +94,19 @@ void sbox(W *x, W idx) {
     }
     
     // initial permutation
-    for(i=0;i<16;i++) {
-      for(j=0;j<8;j++) {
+    F(i,16) {
+      F(j,8) {
         c=x[j%4]&1;
         x[j%4]>>=1;
         p[i]=(c<<7)|(p[i]>>1);
       }
     }
     
-    for(i=0;i<16;i++)
-      p[i]=(s[HI(p[i])]<<4)|s[LO(p[i])];
+    F(i,16)p[i]=(s[HI(p[i])]<<4)|s[LO(p[i])];
 
     // final permutation
-    for(i=0;i<4;i++) {
-      for(j=0;j<32;j++) {
+    F(i,4) {
+      F(j,32) {
         c=((W*)p)[i]&1;
         ((W*)p)[i]>>=1;
         x[j%4]=(c<<31)|(x[j%4]>>1);
