@@ -76,12 +76,14 @@ B H(B x) {
     if(x==10) return 0;
     if(x<10) x++;
     
-    for(i=0;i<x;i++) {
-      for(j=0;j<116;j++)
+    do {
+      j=116;
+      do {
         w=t&99,
         w^=w>>1,w^=w>>2,w^=w>>4,
         t=t>>1|w<<7;
-    }
+      } while(--j);
+    } while (--x);
     return t;
 }
 #endif
@@ -90,7 +92,7 @@ B H(B x) {
 W G(W x, W *key, int idx, int r) {
     W i, w;
     
-    w=key[idx&7]+x;
+    w=key[idx%8]+x;
     F(4)w=(w&-256)| 
 #ifdef LUT
       H[w&255],
