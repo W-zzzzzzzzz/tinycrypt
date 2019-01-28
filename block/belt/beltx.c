@@ -33,6 +33,7 @@
 typedef unsigned char B;
 typedef unsigned int W;
 
+#ifdef LUT
 // sbox
 B H[256] =
   { 0xB1, 0x94, 0xBA, 0xC8, 0x0A, 0x08, 0xF5, 0x3B,
@@ -67,13 +68,36 @@ B H[256] =
     0x69, 0x74, 0xC5, 0x51, 0xEB, 0x23, 0x29, 0x21,
     0xD4, 0xEF, 0xD9, 0xB4, 0x3A, 0x62, 0x28, 0x75,
     0x91, 0x14, 0x10, 0xEA, 0x77, 0x6C, 0xDA, 0x1D };
+#else
+B H(B x) {
+    W i, j;
+    B t = 0x1d, w;
+    
+    if(x==10) return 0;
+    if(x<10) x++;
+    
+    for(i=0;i<x;i++) {
+      for(j=0;j<116;j++)
+        w=t&99,
+        w^=w>>1,w^=w>>2,w^=w>>4,
+        t=t>>1|w<<7;
+    }
+    return t;
+}
+#endif
 
 // non-linear + linear layer
 W G(W x, W *key, int idx, int r) {
     W i, w;
     
-    w = key[idx&7]+x;
-    F(4)w=(w&-256)|H[w&255],w=R(w,8);
+    w=key[idx&7]+x;
+    F(4)w=(w&-256)| 
+#ifdef LUT
+      H[w&255],
+#else
+      H(w&255),
+#endif
+      w=R(w,8);
     return R(w, r);
 }
 
@@ -83,10 +107,10 @@ void belt(void*mk,void*data) {
     a=x[0],b=x[1],c=x[2],d=x[3];
     
     for(i=0,j=0;i<8;) {
-      b^=G(a,k,j++,5),c^=G(d,k,j++,21),
-      a-=G(b,k,j++,13),e=G(b+c,k,j++,21),
-      e^=++i,b+=e,c-=e,d+=G(c,k,j++,13),
-      b^=G(a,k,j++,21),c^=G(d,k,j++, 5),
+      b^=G(a,k,j++, 5),c^=G(d,k,j++,  21),
+      a-=G(b,k,j++,13),e =G(b+c,k,j++,21),
+      e^=++i,b+=e,c-=e,d+=G(c,k,j++,  13),
+      b^=G(a,k,j++,21),c^=G(d,k,j++,   5),
       X(a,b),X(c,d),X(b,c);
     }
     x[0]=b,x[1]=d,x[2]=a,x[3]=c;

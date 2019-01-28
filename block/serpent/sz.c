@@ -40,30 +40,22 @@ void sbox(W*, W);
 void serpent(void*mk,void*in) {
     W i,j,s,t,rk[4],k[8],*x=in;
 
-    // copy 256-bit master key to local buffer
     F(i,8)k[i]=((W*)mk)[i];
       
     for(i=0;;) {
-      // create a round key
       F(j,4) {
         rk[j]=R((k[0]^k[3]^k[5]^k[7]^0x9e3779b9UL^i*4+j),21);
         F(s,7)k[s]=k[s+1];
         k[7]=rk[j];
       }
-      // non-linear layer
       sbox(rk,3-i);
       
-      // add round key
       x[0]^=rk[0];x[1]^=rk[1];
       x[2]^=rk[2];x[3]^=rk[3];
-
-      // end after 32 rounds
-      if(i==32)break;
       
-      // non-linear layer
+      if(i==32)break;
       sbox(x,i);
       
-      // linear layer
       if(++i!=32) {
         x[0]=R(x[0],19);x[2]=R(x[2],29);
         x[1]^=x[0]^x[2];x[3]^=x[2]^(x[0]<<3);

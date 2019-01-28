@@ -32,7 +32,7 @@
 
 #include "../../macros.h"
 
-#define w64_t_LEN 8
+#define DES_BLK_LEN 8
 #define DES_ROUNDS 16
 
 #define ROTTABLE      0x7EFC 
@@ -53,12 +53,8 @@ extern "C" {
 #endif
 
   void des_str2key (void*, w64_t*);
-	void des_setkey (des_ctx*, void *);
-  void des_enc (des_ctx*, void*, void*, int);
-
-  void des_str2keyx (void*, w64_t*);
-	void des_setkeyx (des_ctx*, void *);
-  void des_encx (des_ctx*, void*, void*, int);
+	void des_setkey (uint8_t ks[128], void *);
+  void des_enc (uint8_t ks[128], void*, void*, int);
 	
   void des3_enc (void*, void*, void*, void*, void*);
   void des3_dec (void*, void*, void*, void*, void*);
@@ -68,12 +64,6 @@ uint32_t des_cbc_dec (void*, void*, void*, uint32_t, void*);
   
 #ifdef __cplusplus
 }
-#endif
-
-#ifdef USE_ASM
-#define des_str2key(x,y) des_str2keyx(x,y)
-#define des_setkey(x,y) des_setkeyx(x,y)
-#define des_enc(w,x,y,z) des_encx(w,x,y,z)
 #endif
 
 #endif

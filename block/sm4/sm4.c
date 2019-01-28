@@ -29,10 +29,9 @@
 
 #include "sm4.h"
 
-#define DYNAMIC 1
 #define rev __builtin_bswap32
 
-#ifdef DYNAMIC
+#ifndef LUT
 uint8_t affine(uint8_t x) {     
     uint8_t m=0xA7,s=0,t;
     

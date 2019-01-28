@@ -54,8 +54,10 @@ endstruc
   
   %ifndef BIN
     global _des_str2keyx
-    global _des_setkeyx
-    global _des_encx
+    global des_setkey
+    global _des_setkey
+    global des_enc
+    global _des_enc
   %endif
   
 ; esi = permutation table
@@ -175,10 +177,11 @@ df_l3:
     popfd
     ret
   
-_des_setkeyx:
+_des_setkey:
 des_setkey:
     pushad
     mov    ebx, [esp+32+8]  ; input
+    mov    ebp, 07EFCh
     
     ; alloc space for k1, k2
     pushad
@@ -197,14 +200,10 @@ sk_l1:
     push   edi
     lea    edi, [ebx+8]      ; edi=k2
     add    esi, (shiftkey_permtab - pc1_permtab)
-    ;mov    esi, shiftkey_permtab
     call   edx               ; permutex
-    push   1
-    pop    eax
-    shl    eax, cl
-    test   eax, 07EFCh
-    xchg   ebx, edi          ; ebx=k2, edi=k1
-    jz     sk_l2
+    xchg   ebx, edi
+    shr    ebp, 1
+    jnc    sk_l2
     ; permute (shiftkey_permtab, &k2, &k1);
     call   edx               ; permutex
     mov    ebx, edi          ; ebx=k1
@@ -234,8 +233,8 @@ sk_l2:
 %define L ebp
 %define R edx
   
-_des_encx:
-des_encx:
+_des_enc:
+des_enc:
     pushad
     mov    ebp, esp
     
@@ -289,8 +288,8 @@ de_l2:
     popad
     ret
     
-_des_str2keyx:
-des_str2keyx:
+_des_str2key:
+des_str2key:
     pushad
     mov    esi, [esp+32+4] ; str
     mov    edi, [esp+32+8] ; key

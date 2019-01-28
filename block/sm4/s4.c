@@ -32,6 +32,7 @@
 #define X(x,y)t=x,x=y,y=t;
 typedef unsigned char B;
 typedef unsigned int W;
+
 #define rev __builtin_bswap32
 
 B AX(B x) {     
