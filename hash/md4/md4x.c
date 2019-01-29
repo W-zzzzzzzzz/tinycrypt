@@ -26,68 +26,61 @@
   STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
-  
+
 #define R(v,n)(((v)<<(n))|((v)>>(32-(n))))
 #define F(n)for(i=0;i<n;i++)
-
-#define rev32(x) __builtin_bswap32(x)
-#define rev64(x) __builtin_bswap64(x)
 
 typedef unsigned long long Q;
 typedef unsigned int W;
 typedef unsigned char B;
 
-typedef struct _sha1_ctx {
-    W s[5];
+typedef struct _md4_ctx {
+    W s[4];
     union {
       B b[64];
       W w[16];
       Q q[8];
     }x;
     Q len;
-}sha1_ctx;
+}md4_ctx;
 
-void sha1_compress(sha1_ctx*c) {
-    W t,i,w[80],x[5];
+#define FF(x,y,z)((z)^((x)&((y)^(z))))
+#define GG(x,y,z)(((x)& (y))|((z)&((x)|(y))))
+#define HH(x,y,z)((x)^(y)^(z))
 
-    F(16)w[i]=rev32(c->x.w[i]);
+void md4_compress(md4_ctx*c) {
+    W i,t,s[4]; 
+    B r[16]={3,7,11,19,3,5,9,13,3,9,11,15};
+    B g[16]={0,4,8,12,1,5,9,13,2,6,10,14,3,7,11,15};
+    B h[16]={0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15};
+
+    F(4)s[i]=c->s[i];
     
-    for(i=16;i<80;i++)
-      w[i]=R(w[i-3]^w[i-8]^w[i-14]^w[i-16],1);
-    
-    F(5)x[i]=c->s[i];
-    
-    F(80) {
-      if(i<20){
-        t=(x[3]^(x[1]&(x[2]^x[3])))+0x5A827999L;
-      } else if(i<40) {
-        t=(x[1]^x[2]^x[3])+0x6ED9EBA1L;
-      } else if(i<60) {
-        t=((x[1]&x[2])|(x[3]&(x[1]|x[2])))+0x8F1BBCDCL;
+    F(48) {
+      if(i<16){
+        s[0]+=FF(s[1],s[2],s[3])+c->x.w[i];
+        t=r[i%4];
+      } else if(i<32){
+        s[0]+=GG(s[1],s[2],s[3])+c->x.w[g[i%16]]+0x5a827999L;
+        t=r[4+i%4];
       } else {
-        t=(x[1]^x[2]^x[3])+0xCA62C1D6L;
+        s[0]+=HH(s[1],s[2],s[3])+c->x.w[h[i%16]]+0x6ed9eba1L;
+        t=r[8+i%4];
       }
-      t+=R(x[0],5)+x[4]+w[i];
-      x[4]=x[3];x[3]=x[2];x[2]=R(x[1],30);x[1]=x[0];x[0]=t;
+      t=R(s[0],t);s[0]=s[3];s[3]=s[2];s[2]=s[1];s[1]=t;
     }
-    F(5)c->s[i]+=x[i];
+    F(4)c->s[i]+=s[i];
 }
 
-/************************************************
- *
- * initialize context
- *
- ************************************************/
-void sha1_init(sha1_ctx*c) {
-    c->s[0] = 0x67452301;
-    c->s[1] = 0xefcdab89;
-    c->s[2] = 0x98badcfe;
-    c->s[3] = 0x10325476;
-    c->s[4] = 0xc3d2e1f0;
-    c->len  = 0;
+void md4_init(md4_ctx*c) {
+    c->s[0]=0x67452301;
+    c->s[1]=0xefcdab89;
+    c->s[2]=0x98badcfe;
+    c->s[3]=0x10325476;
+    c->len =0;
 }
 
-void sha1_update(sha1_ctx*c,void*in,W len) {
+void md4_update(md4_ctx*c,void*in,W len) {
     B *p=in;
     W r,i,idx;
 
@@ -98,26 +91,26 @@ void sha1_update(sha1_ctx*c,void*in,W len) {
       r=len<(64-idx)?len:(64-idx);
       F(r)c->x.b[i]=p[i];
       if((idx+r)<64)break;
-      sha1_compress(c);
+      md4_compress(c);
       len-=r;
       idx=0;
       p+=r;
     }
 }
 
-void sha1_final(void*h,sha1_ctx*c) {
+void md4_final(void*h,md4_ctx*c) {
     W i,len,*p=h;
     
     len=c->len&63;
     F(64-len)c->x.b[len+i]=0;
     c->x.b[len]=0x80;
     if(len>=56) {
-      sha1_compress(c);
+      md4_compress(c);
       F(16)c->x.w[i]=0;
     }
-    c->x.q[7]=rev64((Q)c->len*8);
-    sha1_compress(c);
-    F(5)p[i]=rev32(c->s[i]);
+    c->x.q[7]=c->len*8;
+    md4_compress(c);
+    F(4)p[i]=c->s[i];
 }
 
 #ifdef TEST
@@ -134,18 +127,16 @@ char *tv_str[] =
   "message digest",
   "abcdefghijklmnopqrstuvwxyz",
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-  "12345678901234567890123456789012345678901234567890123456789012345678901234567890"
-};
+  "12345678901234567890123456789012345678901234567890123456789012345678901234567890" };
 
 char *tv_hash[] =
-{ "da39a3ee5e6b4b0d3255bfef95601890afd80709",
-  "86f7e437faa5a7fce15d1ddcb9eaeaea377667b8",
-  "a9993e364706816aba3e25717850c26c9cd0d89d",
-  "c12252ceda8be8994d5fa0290a47231c1d16aae3",
-  "32d10c7b8cf96570ca04ce37f2a19d84240d3a89",
-  "761c457bf73b14d27e9e9265c46f4b4dda11f940",
-  "50abf5706a150990a08b2c5ea40fa0e585554732"
-};
+{ "31d6cfe0d16ae931b73c59d7e0c089c0",
+  "bde52cb31de33e46245e05fbdbd6fb24",
+  "a448017aaf21d8525fc10ae87aa6729d",
+  "d9130a8164549fe818874806e1c7014b",
+  "d79e1c308aa5bbcdeea8ed63df412da9",
+  "043f8582f241db351ce627e153e7f0e4",
+  "e33b4ddc9c38f2199c3e7b164fcc0536" };
 
 
 size_t hex2bin (void *bin, char hex[]) {
@@ -175,31 +166,32 @@ size_t hex2bin (void *bin, char hex[]) {
 void bin2hex(uint8_t *x) {
     int i;
     
-    for (i=0; i<20; i++)
+    for (i=0; i<16; i++)
       printf(" %02X", x[i]);
     printf("\n");
 }
 
 int main(void) {
   
-    uint8_t  h[20], r[20];
-    int      i, fail=0;
-    sha1_ctx c;
+    uint8_t h[16], r[16];
+    int     i, fail=0;
+    md4_ctx c;
     
     for(i=0;i<sizeof(tv_hash)/sizeof(char*);i++) {
       hex2bin(h, tv_hash[i]);
       
-      sha1_init(&c);
-      sha1_update(&c, tv_str[i], strlen(tv_str[i]));
-      sha1_final(r, &c);
+      md4_init(&c);
+      md4_update(&c, tv_str[i], strlen(tv_str[i]));
+      md4_final(r, &c);
       
-      if(memcmp(h, r, 20)) {
+      if(memcmp(h, r, 16)) {
+        bin2hex(h);
         bin2hex(r);
         printf ("Hash for test vector %i failed\n", i+1);
         fail++;
       }     
     }
-    if(!fail) printf ("All SHA-1 tests passed\n");  
+    if(!fail) printf ("All MD4 tests passed\n");  
     return 0;
 }
 #endif
