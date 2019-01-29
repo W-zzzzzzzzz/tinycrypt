@@ -64,30 +64,22 @@ B S[256] = {
   0x59, 0xA6, 0x74, 0xD2, 0xE6, 0xF4, 0xB4, 0xC0,
   0xD1, 0x66, 0xAF, 0xC2, 0x39, 0x4B, 0x63, 0xB6 };
 
-B M(B x, B y) {
-    B z=0;
-
-    while(y) {
-      if(y&1)z^=x;
-      x=(x<<1)^((-(x>>7))&0xc3);
-      y>>=1;
-    }
-    return z;
-}
-
 void kuz_lt(B *p) {
-    B i, j, x;
+    B i,j,t,x,y,z;
     B m[16] = {
       0x94, 0x20, 0x85, 0x10, 0xC2, 0xC0, 0x01, 0xFB,
       0x01, 0xC0, 0xC2, 0x10, 0x85, 0x20, 0x94, 0x01 };
 
     F(16) {
-      x=p[15];
+      t=p[15];
       for(i=14;(char)i>=0;i--) {
-        p[i+1]=p[i];
-        x^=M(p[i],m[i]);
+        for(x=p[i],y=m[i],z=0,p[i+1]=x;y;y>>=1) {
+          if(y&1)z^=x;
+          x=(x<<1)^((-(x>>7))&0xc3);
+        }
+        t^=z;
       }
-      p[0]=x;
+      p[0]=t;
     }
 }
 
