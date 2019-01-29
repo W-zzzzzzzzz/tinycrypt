@@ -75,25 +75,25 @@ uint8_t M(uint8_t x, uint8_t y) {
 }
 
 void kuz_lt(uint8_t *p) {
-    int     i, j;
-    uint8_t x;
+    int8_t  j;
+    uint8_t i, x;
 
     uint8_t m[16] = {
       0x94, 0x20, 0x85, 0x10, 0xC2, 0xC0, 0x01, 0xFB,
       0x01, 0xC0, 0xC2, 0x10, 0x85, 0x20, 0x94, 0x01 };
 
-    for(j=0;j<16;j++) {
+    for(i=0;i<16;i++) {
       x=p[15];
-      for(i=14;i>=0;i--) {
-        p[i+1]=p[i];
-        x^=M(p[i],m[i]);
+      for(j=14;j>=0;j--) {
+        p[j+1]=p[j];
+        x^=M(p[j],m[j]);
       }
       p[0]=x;
     }
 }
 
 void kuz_subbytes(uint8_t *p) {
-    int i;
+    uint8_t i;
 
     for(i=0;i<16;i++) {
       p[i]=S[p[i]];
