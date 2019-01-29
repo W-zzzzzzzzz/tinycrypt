@@ -84,17 +84,17 @@ void kuz_lt(B *p) {
 }
 
 void kuznyechik(void*mk,void*data) {
-    B c[16],t[32],r=0,i=0,j,k,*x=data;
+    B c[16],k[32],r,i,j,t,*x=data;
 
     // copy master key to local buffer
-    F(32)t[j]=((B*)mk)[j];
+    F(32)k[j]=((B*)mk)[j];
 
-    for(i=0;;i++) {
+    for(r=i=0;;i++) {
       // perform encryption every 8 rounds
       if(!(i&7)) {
-        for(k=0;k<32;k+=16) {
+        for(t=0;t<32;t+=16) {
           // add key
-          F(16)x[j]^=t[j+k];
+          F(16)x[j]^=k[j+t];
           if(++r==10) return;
           // non-linear layer
           F(16)x[j]=S[x[j]];
@@ -107,10 +107,10 @@ void kuznyechik(void*mk,void*data) {
       // apply linear layer
       kuz_lt(c);
       // mix 128-bits of key and apply non-linear layer
-      F(16)c[j]=S[c[j]^t[j]];
+      F(16)c[j]=S[c[j]^k[j]];
       // apply linear layer
       kuz_lt(c);
       // mix last 128-bits of key and prepare next
-      F(16)k=t[j],t[j]=c[j]^t[j+16],t[j+16]=k;
+      F(16)t=k[j],k[j]=c[j]^k[j+16],k[j+16]=t;
     }
 }
