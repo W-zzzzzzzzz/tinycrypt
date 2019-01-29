@@ -106,7 +106,7 @@ void kuznyechik(void*mk,void*data) {
     // copy master key to local buffer and output
     for(j=0;j<32;j++)t[j]=((uint8_t*)mk)[j];
 
-    for(;;) {
+    for(i=0;;i++) {
       // perform encryption every 8 rounds
       if(!(i&7)) {
         for(k=0;k<32;k+=16) {
@@ -121,7 +121,7 @@ void kuznyechik(void*mk,void*data) {
       }
       // generate round constant
       for(j=0;j<16;j++)c[j]=0;
-      c[15]=++i;
+      c[15]=(i+1);
       // apply linear layer
       kuz_lt(c);
       // mix 128-bits of key
