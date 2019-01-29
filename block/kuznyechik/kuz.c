@@ -27,9 +27,10 @@
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
 
-#include "kuznyechik.h"
+#define F(n)for(j=0;j<n;j++)
+typedef unsigned char B;
 
-uint8_t S[256] = {
+B S[256] = {
   0xFC, 0xEE, 0xDD, 0x11, 0xCF, 0x6E, 0x31, 0x16,
   0xFB, 0xC4, 0xFA, 0xDA, 0x23, 0xC5, 0x04, 0x4D,
   0xE9, 0x77, 0xF0, 0xDB, 0x93, 0x2E, 0x99, 0xBA,
@@ -63,8 +64,8 @@ uint8_t S[256] = {
   0x59, 0xA6, 0x74, 0xD2, 0xE6, 0xF4, 0xB4, 0xC0,
   0xD1, 0x66, 0xAF, 0xC2, 0x39, 0x4B, 0x63, 0xB6 };
 
-uint8_t M(uint8_t x, uint8_t y) {
-    uint8_t z=0;
+B M(B x, B y) {
+    B z=0;
 
     while(y) {
       if(y&1)z^=x;
@@ -74,65 +75,50 @@ uint8_t M(uint8_t x, uint8_t y) {
     return z;
 }
 
-void kuz_lt(uint8_t *p) {
-    int8_t  j;
-    uint8_t i, x;
-
-    uint8_t m[16] = {
+void kuz_lt(B *p) {
+    B i, j, x;
+    B m[16] = {
       0x94, 0x20, 0x85, 0x10, 0xC2, 0xC0, 0x01, 0xFB,
       0x01, 0xC0, 0xC2, 0x10, 0x85, 0x20, 0x94, 0x01 };
 
-    for(i=0;i<16;i++) {
+    F(16) {
       x=p[15];
-      for(j=14;j>=0;j--) {
-        p[j+1]=p[j];
-        x^=M(p[j],m[j]);
+      for(i=14;(char)i>=0;i--) {
+        p[i+1]=p[i];
+        x^=M(p[i],m[i]);
       }
       p[0]=x;
     }
 }
 
-void kuz_subbytes(uint8_t *p) {
-    uint8_t i;
-
-    for(i=0;i<16;i++) {
-      p[i]=S[p[i]];
-    }
-}
-
 void kuznyechik(void*mk,void*data) {
-    uint8_t c[16],t[32],r=0,i=0,j,k,*x=data;
+    B c[16],t[32],r=0,i=0,j,k,*x=data;
 
     // copy master key to local buffer and output
-    for(j=0;j<32;j++)t[j]=((uint8_t*)mk)[j];
+    F(32)t[j]=((B*)mk)[j];
 
     for(i=0;;i++) {
       // perform encryption every 8 rounds
       if(!(i&7)) {
         for(k=0;k<32;k+=16) {
           // add key
-          for(j=0;j<16;j++)x[j]^=t[j+k];
-          if (++r == 10) return;
+          F(16)x[j]^=t[j+k];
+          if(++r==10) return;
           // non-linear layer
-          kuz_subbytes(x);
+          F(16)x[j]=S[x[j]];
           // linear layer
           kuz_lt(x);
         }
       }
       // generate round constant
-      for(j=0;j<16;j++)c[j]=0;
-      c[15]=(i+1);
+      F(16)c[j]=0;c[15]=(i+1);
       // apply linear layer
       kuz_lt(c);
-      // mix 128-bits of key
-      for(j=0;j<16;j++)c[j]^=t[j];
-      // apply non-linear layer
-      kuz_subbytes(c);
+      // mix 128-bits of key and apply non-linear layer
+      F(16)c[j]=S[c[j]^t[j]];
       // apply linear layer
       kuz_lt(c);
-      // mix last 128-bits of key
-      for(j=0;j<16;j++)c[j]^=t[j+16];
-      // shift key
-      for(j=0;j<16;j++)t[16+j]=t[j],t[j]=c[j];
+      // mix last 128-bits of key and prepare next
+      F(16)k=t[j],t[j]=c[j]^t[j+16],t[j+16]=k;
     }
 }
