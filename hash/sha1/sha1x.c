@@ -47,6 +47,10 @@ typedef struct _sha1_ctx {
     Q len;
 }sha1_ctx;
 
+#define FF(x,y,z)((z)^((x)&((y)^(z))))
+#define GG(x,y,z)(((x)& (y))|((z)&((x)|(y))))
+#define HH(x,y,z)((x)^(y)^(z))
+
 void sha1_compress(sha1_ctx*c) {
     W t,i,w[80],x[5];
 
@@ -59,13 +63,13 @@ void sha1_compress(sha1_ctx*c) {
     
     F(80) {
       if(i<20){
-        t=(x[3]^(x[1]&(x[2]^x[3])))+0x5A827999L;
+        t=FF(x[1],x[2],x[3])+0x5A827999L;
       } else if(i<40) {
-        t=(x[1]^x[2]^x[3])+0x6ED9EBA1L;
+        t=HH(x[1],x[2],x[3])+0x6ED9EBA1L;
       } else if(i<60) {
-        t=((x[1]&x[2])|(x[3]&(x[1]|x[2])))+0x8F1BBCDCL;
+        t=GG(x[1],x[2],x[3])+0x8F1BBCDCL;
       } else {
-        t=(x[1]^x[2]^x[3])+0xCA62C1D6L;
+        t=HH(x[1],x[2],x[3])+0xCA62C1D6L;
       }
       t+=R(x[0],5)+x[4]+w[i];
       x[4]=x[3];x[3]=x[2];x[2]=R(x[1],30);x[1]=x[0];x[0]=t;
