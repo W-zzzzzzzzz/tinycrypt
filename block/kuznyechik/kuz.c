@@ -86,7 +86,7 @@ void kuz_lt(B *p) {
 void kuznyechik(void*mk,void*data) {
     B c[16],t[32],r=0,i=0,j,k,*x=data;
 
-    // copy master key to local buffer and output
+    // copy master key to local buffer
     F(32)t[j]=((B*)mk)[j];
 
     for(i=0;;i++) {
