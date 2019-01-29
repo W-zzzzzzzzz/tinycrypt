@@ -119,7 +119,6 @@ void kuznyechik(void*mk,void*data) {
           kuz_lt(x);
         }
       }
-      if(++i==33) break;
       // generate round constant
       for(j=0;j<16;j++)c[j]=0;
       c[15]=i;
