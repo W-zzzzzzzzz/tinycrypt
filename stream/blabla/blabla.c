@@ -79,9 +79,9 @@ void bb20_stream(bb20_ctx*s, uint64_t*x) {
 }
 
 // encrypt or decrypt stream of len-bytes
-void bb20_encrypt (uint64_t len, void *in, bb20_ctx *ctx) {
-    uint64_t i, r, s[16];
-    uint8_t  *p=(uint8_t*)in, *c=(uint8_t*)&s[0];
+void bb20_encrypt (size_t len, void *in, bb20_ctx *ctx) {
+    size_t  i, r, s[16];
+    uint8_t *p=(uint8_t*)in, *c=(uint8_t*)&s[0];
     
     while (len) {      
       bb20_stream(ctx, s);
@@ -95,8 +95,7 @@ void bb20_encrypt (uint64_t len, void *in, bb20_ctx *ctx) {
 }
 
 // generate key stream of len-bytes
-void bb20_keystream(uint64_t len, void *out, bb20_ctx *c) 
-{
+void bb20_keystream(size_t len, void *out, bb20_ctx *c) {
     memset(out, 0, len);       // zero initialize output
     bb20_encrypt(len, out, c); // encrypt it
 }
