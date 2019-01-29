@@ -121,7 +121,7 @@ void kuznyechik(void*mk,void*data) {
       }
       // generate round constant
       for(j=0;j<16;j++)c[j]=0;
-      c[15]=i;
+      c[15]=++i;
       // apply linear layer
       kuz_lt(c);
       // mix 128-bits of key
