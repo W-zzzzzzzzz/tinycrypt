@@ -1,8 +1,7 @@
-msvc:
-    yasm -fwin32 k800x.asm
-    yasm -DBIN -fbin k800x.asm -ok800x.bin
-		cl /nologo /O2 /Ot /DTEST k800.c k800x.obj
-gnu:
-		gcc -DTEST -Wall -O2 k800.c -otest	 
-clang:
-		clang -DTEST -Wall -O2 k800.c -otest	    
+test:
+		yasm -felf32 k200x.asm -ok200x.o
+		yasm -felf32 k800x.asm -ok800x.o
+		gcc -m32 -Os -Wall test.c k200x.o k800x.o -otest		
+
+clean:
+	rm *.o test

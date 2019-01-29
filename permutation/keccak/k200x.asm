@@ -38,13 +38,13 @@
     bits   32
   
     %ifndef BIN
-      global k200_permutex
-      global _k200_permutex
+      global k200
+      global _k200
     %endif
     
-; void k200_permutex(void *state);    
-k200_permutex:
-_k200_permutex:
+; void k200(void*s);    
+k200:
+_k200:
     pushad
     mov    esi, [esp+32+4]      ; esi = st
     pushad                      ; create local space

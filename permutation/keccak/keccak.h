@@ -30,16 +30,16 @@
 #ifndef KECCAK_H
 #define KECCAK_H
 
-#include "macros.h"
+#include "../include/macros.h"
    
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-  void k200_permute(void*);
-  void k400_permute(void*);
-  void k800_permute(void*);
-  void k1600_permute(void*);
+  void k200(void*);
+  void k400(void*);
+  void k800(void*);
+  void k1600(void*);
   
 #ifdef __cplusplus
 }

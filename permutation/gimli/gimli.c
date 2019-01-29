@@ -27,56 +27,24 @@
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
   
-#include "chaskey.h"
+#define R(v,n)(((v)<<(n))|((v)>>(32-(n))))
+#define X(a,b)(t)=(s[a]),(s[a])=(s[b]),(s[b])=(t)
+  
+void gimli(void*p){
+  unsigned int r,j,t,x,y,z,*s=p;
 
-void chas_encrypt(int enc, void *key, void *buf) 
-{
-   int      i;
-   uint32_t *v=(uint32_t*)buf;
-   uint32_t *k=(uint32_t*)key;
-   
-   // pre-whiten
-   for (i=0; i<4; i++) {
-     v[i] ^= k[i];
-   }
-
-   // apply permutation function
-   for (i=0; i<16; i++) {
-     if (enc==CHASKEY_ENCRYPT)
-     {
-       v[0] += v[1]; 
-       v[1]=ROTL32(v[1], 5); 
-       v[1] ^= v[0]; 
-       v[0]=ROTL32(v[0],16);       
-       v[2] += v[3]; 
-       v[3]=ROTL32(v[3], 8); 
-       v[3] ^= v[2];
-       v[0] += v[3]; 
-       v[3]=ROTL32(v[3],13); 
-       v[3] ^= v[0];
-       v[2] += v[1]; 
-       v[1]=ROTL32(v[1], 7); 
-       v[1] ^= v[2]; 
-       v[2]=ROTL32(v[2],16);
-     } else {     
-       v[2]=ROTR32(v[2],16);
-       v[1] ^= v[2];
-       v[1]=ROTR32(v[1], 7);
-       v[2] -= v[1];
-       v[3] ^= v[0];
-       v[3]=ROTR32(v[3],13);
-       v[0] -= v[3];
-       v[3] ^= v[2];
-       v[3]=ROTR32(v[3], 8);
-       v[2] -= v[3];
-       v[0]=ROTR32(v[0],16);
-       v[1] ^= v[0];
-       v[1]=ROTR32(v[1], 5);
-       v[0] -= v[1];
-     }
-   }
-   // post-whiten
-   for (i=0; i<4; i++) {
-     v[i] ^= k[i];
-   }
+  for(r=24;r>0;--r){
+    for(j=0;j<4;j++)
+      x=R(s[j],24),
+      y=R(s[4+j],9),
+      z=s[8+j],   
+      s[8+j]=x^(z+z)^((y&z)*4),
+      s[4+j]=y^x^((x|z)*2),
+      s[j]=z^y^((x&y)*8);
+    t=r&3;    
+    if(!t)
+      X(0,1),X(2,3),
+      *s^=0x9e377900|r;   
+    if(t==2)X(0,2),X(1,3);
+  }
 }

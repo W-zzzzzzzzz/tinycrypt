@@ -27,9 +27,6 @@
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
 
-// Threefish-256 (encryption only)
-// author: odzhan
-
 #define F(a,b)for(a=0;a<b;a++)
 #define R(v,n)(((v)<<(n))|((v)>>(64-(n))))
 typedef unsigned long long W;

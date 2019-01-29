@@ -26,104 +26,26 @@
   STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
-  
-#include "noekeon.h"
 
-void noekeon(void *key, void *data)
-{
-  int      i, j;
-  uint32_t t;
+#define R(v,n)(((v)>>(n))|((v)<<(32-(n))))
 
-  uint32_t *s=(uint32_t*)data;
-  uint32_t *k=(uint32_t*)key;
+void noekeon(void*mk,void*p){
+  unsigned int a,b,c,d,t,*k=mk,*x=p;
+  unsigned char rc=128;
 
-  uint8_t rc_tab[]=   
-    { 0x80,
-      0x1B, 0x36, 0x6C, 0xD8, 
-      0xAB, 0x4D, 0x9A, 0x2F, 
-      0x5E, 0xBC, 0x63, 0xC6, 
-      0x97, 0x35, 0x6A, 0xD4 };
-  
-    for (i=0;;i++) {
-      s[0] ^= rc_tab[i];
-      // Theta
-      t = s[0] ^ s[2]; 
+  a=*x;b=x[1];c=x[2];d=x[3];
 
-      t ^= ROTR32(t, 8) ^ ROTL32(t, 8);
-
-      s[1] ^= t; s[3] ^= t;
-
-      for (j=0; j<4; j++) {
-        s[j] ^= k[j];
-      }
-
-      t = s[1] ^ s[3]; 
-      t ^= ROTR32(t, 8) ^ ROTL32(t, 8);
-
-      s[0] ^= t; s[2] ^= t;
-
-      if (i==Nr) break;
-
-      // Pi1
-      s[1] = ROTL32(s[1], 1);
-      s[2] = ROTL32(s[2], 5);
-      s[3] = ROTL32(s[3], 2);
-
-      // Gamma
-      s[1] ^= ~((s[3]) | (s[2]));
-      s[0] ^=   s[2] & s[1];  
-
-      XCHG(s[0], s[3]);
-
-      s[2] ^= s[0] ^ s[1] ^ s[3];
-
-      s[1] ^= ~((s[3]) | (s[2]));
-      s[0] ^=   s[2] & s[1];  
-
-      // Pi2
-      s[1] = ROTR32(s[1], 1);
-      s[2] = ROTR32(s[2], 5);
-      s[3] = ROTR32(s[3], 2);
-    }
-}
-
-
-#ifdef TEST
-
-void print_bytes(char *s, void *p, int len) {
-  int i;
-  printf("%s : ", s);
-  for (i=0; i<len; i++) {
-    printf ("%02x ", ((uint8_t*)p)[i]);
+  for(;;){
+    a^=rc;t=a^c;t^=R(t,8)^R(t,24);
+    b^=t;d^=t;a^=k[0];b^=k[1];
+    c^=k[2];d^=k[3];t=b^d;
+    t^=R(t,8)^R(t,24);a^=t;c^=t;
+    if(rc==212)break;
+    rc=((rc<<1)^((rc>>7)*27));
+    b=R(b,31);c=R(c,27);d=R(d,30);
+    b^=~((d)|(c));t=d;d=a^c&b;a=t;
+    c^=a^b^d;b^=~((d)|(c));a^=c&b;
+    b=R(b,1);c=R(c,5);d=R(d,2);
   }
-  putchar('\n');
+  *x=a;x[1]=b;x[2]=c;x[3]=d;
 }
-
-int main(void) {
-  
-  uint8_t ct[]=
-  { 0xd0, 0x36, 0x19, 0x4c, 0xc6, 0x70, 0x3b, 0x6e, 
-    0x32, 0xcc, 0x2b, 0x6f, 0xa4, 0xd1, 0x21, 0x40 };
-    
-  uint8_t pt[]=
-  { 0xed, 0x1f, 0x7c, 0x59, 0xec, 0x86, 0xa4, 0x9e, 
-    0x2c, 0x6c, 0x22, 0xae, 0x20, 0xb4, 0xae, 0xde };
-
-  uint8_t key[]=
-  { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 
-    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
-  
-  int equ;
-  
-  noekeon(key, pt);
-  equ = memcmp (ct, pt, 16)==0;
-  
-  printf ("Encryption : %s : ",
-      equ ? "OK" : "FAILED"); 
-      
-  print_bytes("CT", pt, sizeof(pt));
-  
-  return 0;
-}
-
-#endif

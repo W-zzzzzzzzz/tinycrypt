@@ -26,57 +26,23 @@
   STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
-  
-#include "chaskey.h"
 
-void chas_encrypt(int enc, void *key, void *buf) 
-{
-   int      i;
-   uint32_t *v=(uint32_t*)buf;
-   uint32_t *k=(uint32_t*)key;
-   
-   // pre-whiten
-   for (i=0; i<4; i++) {
-     v[i] ^= k[i];
-   }
+#ifndef GIMLI_H
+#define GIMLI_H
 
-   // apply permutation function
-   for (i=0; i<16; i++) {
-     if (enc==CHASKEY_ENCRYPT)
-     {
-       v[0] += v[1]; 
-       v[1]=ROTL32(v[1], 5); 
-       v[1] ^= v[0]; 
-       v[0]=ROTL32(v[0],16);       
-       v[2] += v[3]; 
-       v[3]=ROTL32(v[3], 8); 
-       v[3] ^= v[2];
-       v[0] += v[3]; 
-       v[3]=ROTL32(v[3],13); 
-       v[3] ^= v[0];
-       v[2] += v[1]; 
-       v[1]=ROTL32(v[1], 7); 
-       v[1] ^= v[2]; 
-       v[2]=ROTL32(v[2],16);
-     } else {     
-       v[2]=ROTR32(v[2],16);
-       v[1] ^= v[2];
-       v[1]=ROTR32(v[1], 7);
-       v[2] -= v[1];
-       v[3] ^= v[0];
-       v[3]=ROTR32(v[3],13);
-       v[0] -= v[3];
-       v[3] ^= v[2];
-       v[3]=ROTR32(v[3], 8);
-       v[2] -= v[3];
-       v[0]=ROTR32(v[0],16);
-       v[1] ^= v[0];
-       v[1]=ROTR32(v[1], 5);
-       v[0] -= v[1];
-     }
-   }
-   // post-whiten
-   for (i=0; i<4; i++) {
-     v[i] ^= k[i];
-   }
+#include "../include/macros.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+  void gimli(void *state);
+  void gimlix(void *state);
+
+  void gimli_hash(void*,uint32_t,void*,uint32_t);
+                
+#ifdef __cplusplus
 }
+#endif
+
+#endif

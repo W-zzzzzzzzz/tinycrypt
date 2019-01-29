@@ -26,32 +26,23 @@
   STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
-  
-#include "chaskey.h"
 
-void chaskey(void *key, void *buf) 
-{
-   int      i;
-   uint32_t *v=(uint32_t*)buf;
-   uint32_t *k=(uint32_t*)key;
-   
-   for (i=0; i<4; i++) v[i] ^= k[i];
-   
-   for (i=0; i<16; i++) {
-     v[0] += v[1]; 
-     v[1]=ROTL32(v[1], 5); 
-     v[1] ^= v[0]; 
-     v[0]=ROTL32(v[0],16);       
-     v[2] += v[3]; 
-     v[3]=ROTL32(v[3], 8); 
-     v[3] ^= v[2];
-     v[0] += v[3]; 
-     v[3]=ROTL32(v[3],13); 
-     v[3] ^= v[0];
-     v[2] += v[1]; 
-     v[1]=ROTL32(v[1], 7); 
-     v[1] ^= v[2]; 
-     v[2]=ROTL32(v[2],16);
-   }
-   for (i=0; i<4; i++) v[i] ^= k[i];
+#define R(v,n)(((v)>>(n))|((v)<<(32-(n))))
+#define F(n)for(i=0;i<n;i++)
+  
+void chaskey(void*mk,void*p){
+    unsigned int i,*x=p,*k=mk;
+
+    F(4)x[i]^=k[i];
+    F(16)
+      *x+=x[1],
+      x[1]=R(x[1],27)^*x,
+      x[2]+=x[3],
+      x[3]=R(x[3],24)^x[2],
+      x[2]+=x[1],
+      *x=R(*x,16)+x[3],
+      x[3]=R(x[3],19)^*x,
+      x[1]=R(x[1],25)^x[2],
+      x[2]=R(x[2],16);
+    F(4)x[i]^=k[i];
 }

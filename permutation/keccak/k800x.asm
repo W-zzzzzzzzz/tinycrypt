@@ -28,7 +28,7 @@
 ;  POSSIBILITY OF SUCH DAMAGE.
 ;
 ; -----------------------------------------------
-; Keccak-p[800, 24] in x86 assembly
+; Keccak-p[800, 22] in x86 assembly
 ;
 ; size: 236 bytes
 ;
@@ -50,13 +50,13 @@ struc kws_t
 endstruc
   
     %ifndef BIN
-      global k800_permutex
-      global _k800_permutex
+      global k800
+      global _k800
     %endif
     
-; void k800_permutex(void *state);    
-k800_permutex:
-_k800_permutex:
+; void k800(void*s);    
+k800:
+_k800:
     pushad
     mov    esi, [esp+32+4]      ; esi = st
     call   k800_l0

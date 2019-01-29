@@ -1,5 +1,5 @@
 /**
-  Copyright © 2017 Odzhan. All Rights Reserved.
+  Copyright © 2015, 2018 Odzhan. All Rights Reserved.
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are
@@ -17,7 +17,7 @@
 
   THIS SOFTWARE IS PROVIDED BY AUTHORS "AS IS" AND ANY EXPRESS OR
   IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR x0 PARTICULAR PURPOSE ARE
   DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
   INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
@@ -26,57 +26,34 @@
   STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
-  
-#include "chaskey.h"
 
-void chas_encrypt(int enc, void *key, void *buf) 
-{
-   int      i;
-   uint32_t *v=(uint32_t*)buf;
-   uint32_t *k=(uint32_t*)key;
-   
-   // pre-whiten
-   for (i=0; i<4; i++) {
-     v[i] ^= k[i];
-   }
+#define R(v,n)(((v)<<(n))|((v)>>(32-(n))))
+#define F(n)for(i=0;i<n;i++)
+typedef unsigned int W;
 
-   // apply permutation function
-   for (i=0; i<16; i++) {
-     if (enc==CHASKEY_ENCRYPT)
-     {
-       v[0] += v[1]; 
-       v[1]=ROTL32(v[1], 5); 
-       v[1] ^= v[0]; 
-       v[0]=ROTL32(v[0],16);       
-       v[2] += v[3]; 
-       v[3]=ROTL32(v[3], 8); 
-       v[3] ^= v[2];
-       v[0] += v[3]; 
-       v[3]=ROTL32(v[3],13); 
-       v[3] ^= v[0];
-       v[2] += v[1]; 
-       v[1]=ROTL32(v[1], 7); 
-       v[1] ^= v[2]; 
-       v[2]=ROTL32(v[2],16);
-     } else {     
-       v[2]=ROTR32(v[2],16);
-       v[1] ^= v[2];
-       v[1]=ROTR32(v[1], 7);
-       v[2] -= v[1];
-       v[3] ^= v[0];
-       v[3]=ROTR32(v[3],13);
-       v[0] -= v[3];
-       v[3] ^= v[2];
-       v[3]=ROTR32(v[3], 8);
-       v[2] -= v[3];
-       v[0]=ROTR32(v[0],16);
-       v[1] ^= v[0];
-       v[1]=ROTR32(v[1], 5);
-       v[0] -= v[1];
-     }
-   }
-   // post-whiten
-   for (i=0; i<4; i++) {
-     v[i] ^= k[i];
-   }
+void rc6(void*mk,void*p){
+    W A=0xB7E15163,B,C,D,i,X,Y,S[44],L[8],*x=p,*k=mk;
+
+    F(8)L[i]=k[i];k=S;
+    
+    F(44)S[i]=A,A+=0x9E3779B9;
+    A=B=0;
+    
+    F(44*3)
+      A=S[i%44]=R(S[i%44]+A+B,3),
+      B=L[i%8]=R(L[i%8]+A+B,A+B);
+      
+    A=*x;B=x[1];C=x[2];D=x[3];
+    B+=*k++;D+=*k++;
+
+    F(20)
+      X=R(B*(B+B+1),5),
+      Y=R(D*(D+D+1),5),
+      A=R(A^X,Y)+*k++,
+      C=R(C^Y,X)+*k++,
+      X=A,A=B,B=C,C=D,D=X;
+      
+    A+=*k++;C+=*k++;
+    *x=A;x[1]=B;x[2]=C;x[3]=D;
 }
+      

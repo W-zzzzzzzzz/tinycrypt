@@ -1,5 +1,5 @@
 /**
-  Copyright Â© 2017 Odzhan. All Rights Reserved.
+  Copyright © 2017 Odzhan. All Rights Reserved.
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are
@@ -27,56 +27,26 @@
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
   
-#include "chaskey.h"
+#define R(v,n)(((v)>>(n))|((v)<<(32-(n))))
+typedef unsigned int W;
 
-void chas_encrypt(int enc, void *key, void *buf) 
-{
-   int      i;
-   uint32_t *v=(uint32_t*)buf;
-   uint32_t *k=(uint32_t*)key;
-   
-   // pre-whiten
-   for (i=0; i<4; i++) {
-     v[i] ^= k[i];
-   }
+void lea128(void*mk,void*p) {
+  W r,t,*x=p,*k=mk;
+  W c[4]=
+    {0xc3efe9db,0x88c4d604,
+     0xe789f229,0xc6f98763};
 
-   // apply permutation function
-   for (i=0; i<16; i++) {
-     if (enc==CHASKEY_ENCRYPT)
-     {
-       v[0] += v[1]; 
-       v[1]=ROTL32(v[1], 5); 
-       v[1] ^= v[0]; 
-       v[0]=ROTL32(v[0],16);       
-       v[2] += v[3]; 
-       v[3]=ROTL32(v[3], 8); 
-       v[3] ^= v[2];
-       v[0] += v[3]; 
-       v[3]=ROTL32(v[3],13); 
-       v[3] ^= v[0];
-       v[2] += v[1]; 
-       v[1]=ROTL32(v[1], 7); 
-       v[1] ^= v[2]; 
-       v[2]=ROTL32(v[2],16);
-     } else {     
-       v[2]=ROTR32(v[2],16);
-       v[1] ^= v[2];
-       v[1]=ROTR32(v[1], 7);
-       v[2] -= v[1];
-       v[3] ^= v[0];
-       v[3]=ROTR32(v[3],13);
-       v[0] -= v[3];
-       v[3] ^= v[2];
-       v[3]=ROTR32(v[3], 8);
-       v[2] -= v[3];
-       v[0]=ROTR32(v[0],16);
-       v[1] ^= v[0];
-       v[1]=ROTR32(v[1], 5);
-       v[0] -= v[1];
-     }
-   }
-   // post-whiten
-   for (i=0; i<4; i++) {
-     v[i] ^= k[i];
-   }
+  for(r=0;r<24;r++){
+    t=c[r%4];
+    c[r%4]=R(t,28);
+    *k=R(*k+t,31);
+    k[1]=R(k[1]+R(t,31),29);
+    k[2]=R(k[2]+R(t,30),26);
+    k[3]=R(k[3]+R(t,29),21);      
+    t=*x;
+    *x=R((*x^*k)+(x[1]^k[1]),23);
+    x[1]=R((x[1]^k[2])+(x[2]^k[1]),5);
+    x[2]=R((x[2]^k[3])+(x[3]^k[1]),3);
+    x[3]=t;
+  }
 }
