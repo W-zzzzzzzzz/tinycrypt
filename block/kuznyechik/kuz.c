@@ -30,6 +30,7 @@
 #define F(n)for(j=0;j<n;j++)
 typedef unsigned char B;
 
+#ifdef LUT
 B S[256] = {
     0xFC, 0xEE, 0xDD, 0x11, 0xCF, 0x6E, 0x31, 0x16,
     0xFB, 0xC4, 0xFA, 0xDA, 0x23, 0xC5, 0x04, 0x4D,
@@ -63,6 +64,33 @@ B S[256] = {
     0xCB, 0x9B, 0x25, 0xD0, 0xBE, 0xE5, 0x6C, 0x52,
     0x59, 0xA6, 0x74, 0xD2, 0xE6, 0xF4, 0xB4, 0xC0,
     0xD1, 0x66, 0xAF, 0xC2, 0x39, 0x4B, 0x63, 0xB6 };
+    
+#define SBOX(x) S[x]
+#else
+
+B S(B x) {
+    B y,z;
+    B s[16]=
+      {1,221,146,79,147,153,11,68,214,215,78,220,152,10,69};
+
+    B k[16]=
+      {32,50,6,20,4,22,34,48,16,2,54,36,52,38,18,0};
+
+    if(x) {
+      for(y=z=1;z!=0;z++) {
+        y=(y<<1)^((-(y>>7))&0x1d);
+        if(y==x)break;
+      }
+      x=z;
+    }
+    z=(x/17);
+    x%=17;
+    x = (x) ? k[x-1]^s[z] : k[z-1];
+    
+    return x^252;
+}
+#define SBOX(x) S(x)
+#endif
 
 void kuz_lt(B *p) {
     B i,j,t,x,y,z;
@@ -97,7 +125,7 @@ void kuznyechik(void*mk,void*data) {
           F(16)x[j]^=k[j+t];
           if(++r==10) return;
           // non-linear layer
-          F(16)x[j]=S[x[j]];
+          F(16)x[j]=SBOX(x[j]);
           // linear layer
           kuz_lt(x);
         }
@@ -107,7 +135,7 @@ void kuznyechik(void*mk,void*data) {
       // apply linear layer
       kuz_lt(c);
       // mix 128-bits of key and apply non-linear layer
-      F(16)c[j]=S[c[j]^k[j]];
+      F(16)c[j]=SBOX(c[j]^k[j]);
       // apply linear layer
       kuz_lt(c);
       // mix last 128-bits of key and prepare next
