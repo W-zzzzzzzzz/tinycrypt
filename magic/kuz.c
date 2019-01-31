@@ -1,11 +1,39 @@
 
+/**
+ This is a C translation of a sagemath script on page 28 of the following
+ paper by Leo Perrin: Partitions in the S-Box of Streebog and Kuznyechik
+*/
 
-
-#include <stdio.h>
 #include <stdint.h>
+
+uint8_t s[16]=
+{1,221,146,79,147,153,11,68,214,215,78,220,152,10,69};
+
+uint8_t k[16]=
+{32,50,6,20,4,22,34,48,16,2,54,36,52,38,18,0};
+
+uint8_t KS(uint8_t x) {
+    
+    uint8_t y,z;
+    
+    if(x) {
+      for(y=z=1;z!=0;z++) {
+        y=(y<<1)^((-(y>>7))&0x1d);
+        if(y==x)break;
+      }
+      x=z;
+    }
+    z=(x/17);
+    x%=17;
+    x = (x) ? k[x-1]^s[z] : k[z-1];
+    
+    return x^252;
+}
+
+#ifdef TEST
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
+#include <stdio.h>
 
 uint8_t S[256] = {
     0xFC, 0xEE, 0xDD, 0x11, 0xCF, 0x6E, 0x31, 0x16,
@@ -40,87 +68,23 @@ uint8_t S[256] = {
     0xCB, 0x9B, 0x25, 0xD0, 0xBE, 0xE5, 0x6C, 0x52,
     0x59, 0xA6, 0x74, 0xD2, 0xE6, 0xF4, 0xB4, 0xC0,
     0xD1, 0x66, 0xAF, 0xC2, 0x39, 0x4B, 0x63, 0xB6 };
-    
-// Multiplication
-uint8_t gf_mul(uint8_t x, uint8_t y, uint8_t p)
-{
-    uint8_t z = 0;
 
-    while (y) {
-      if (y & 1) {
-        z ^= x;
-      }
-      x = (x << 1) ^ (x & 0x80 ? p : 0x00);
-      y >>= 1;
+int main(void) {
+    uint8_t pi[256];
+    int     i;
+    
+    for(i=0;i<256;i++) pi[i]=KS(i);
+    
+    i=(memcmp(pi, S, 256)==0);
+    printf("\n Kuznyechik pi generation: %s\n", i ? "OK":"FAILED");
+    
+    for(i=0;i<256;i++) {
+      if (!(i & 15)) putchar('\n');
+      printf(" 0x%02x", pi[i]);
     }
-    return z;
+    putchar('\n');
+    
+    return 0;
 }
 
-// Exponentiation
-uint8_t gf_exp(uint8_t b, uint8_t e, uint8_t p)
-{
-    uint8_t r = 1;
-    uint8_t t = b;
-    
-    while (e > 0) {
-      if (e & 1) {
-        r = gf_mul(r, t, p);
-      }
-      t = gf_mul(t, t, p);
-      e >>= 1;
-    }
-    return r;
-}
-
-uint8_t kappa(uint8_t x) {
-    uint8_t result = 0, cstte=0xFC;
-    uint8_t lambda_vectors[4]={0x12,0x26,0x24,0x30};
-    int     j;
-    
-    for(j=0;j<4;j++) {
-      if (x & 1) {
-        result ^= lambda_vectors[j];
-      }
-      x>>=1;
-    }
-    return result ^ cstte;
-}
-
-#define M(x)(((x)<<1)^((-((x)>>7))&0x1d))
-
-int main(void)
-{
-  uint8_t  pi[256], gf_log[256], l, y;
-  uint32_t i, j, x;
-  uint8_t  s[15]={0,12,9,8,7,4,14,6,5,10,2,11,1,3,13};
-  
-  pi[0] = kappa(0);
-  
-  for (i=0, x=1; i<256; i++) {
-    gf_log[i] = x;
-    x ^= gf_mul(2, x, 0x1d);
-  }
-    
-  for(x=1;x<256;x++) {
-    l = M(x);
-    i = l % 17;
-    j = l / 17;
-    
-    if (i == 0) {
-      y = kappa(16 - j);
-    } else {
-      y=0;
-      //y = gf_exp(2,17,0x1d);
-      //y = gf_exp(2,s[j],0x1d);
-      //y ^= kappa(16-i);
-    }
-    pi[x]=y;
-  }
-  
-  for(x=0;x<256;x++) {
-    if (!(x&15)) putchar('\n');
-    printf(" 0x%02x", pi[x]);
-  }
-  putchar('\n');
-  return 0;
-}
+#endif
