@@ -1,5 +1,5 @@
 /**
-  Copyright © 2015 Odzhan. All Rights Reserved.
+  Copyright © 2018 Odzhan. All Rights Reserved.
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are
@@ -31,7 +31,6 @@
 #define F(n)for(i=0;i<n;i++)
 
 #define rev32(x) __builtin_bswap32(x)
-#define rev64(x) __builtin_bswap64(x)
 
 typedef unsigned long long Q;
 typedef unsigned int W;
@@ -54,9 +53,10 @@ typedef struct _sha256_ctx {
 #define SIG0(x)(R(x,7)^R(x,18)^((x)>>3))
 #define SIG1(x)(R(x,17)^R(x,19)^((x)>>10))
 
-void sha256_compress(sha256_ctx*c) {
-    W t1,t2,i,j,w[64],x[8];
-    W k[64]=
+void shacal2(void*mk,void*data) {
+    W t1,t2,i,j,w[64],s[8],*k=mk,*x=data;
+    
+    W K[64]=
     { 0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 
       0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
       0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 
@@ -74,64 +74,21 @@ void sha256_compress(sha256_ctx*c) {
       0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 
       0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2 }; 
     
-    F(16)w[i]=rev32(c->x.w[i]);
-    
+    // load key
+    F(16)w[i]=rev32(k[i]);
+    // expand key
     for(i=16;i<64;i++)
       w[i]=SIG1(w[i-2])+w[i-7]+SIG0(w[i-15])+w[i-16];
-    
-    F(8)x[i]=c->s[i];
-    
+    // load plaintext
+    F(8)s[i]=rev32(x[i]);
+    // encrypt
     F(64) {
-      t1=x[7]+EP1(x[4])+CH(x[4],x[5],x[6])+w[i]+k[i];
-      t2=EP0(x[0])+MAJ(x[0],x[1],x[2]);x[7]=t1+t2;x[3]+=t1;t1=x[0];
-      for(j=1;j<8;j++)t2=x[j],x[j]=t1,t1=t2;x[0]=t1;
+      t1=s[7]+EP1(s[4])+CH(s[4],s[5],s[6])+w[i]+K[i];
+      t2=EP0(s[0])+MAJ(s[0],s[1],s[2]);s[7]=t1+t2;s[3]+=t1;t1=s[0];
+      for(j=1;j<8;j++)t2=s[j],s[j]=t1,t1=t2;s[0]=t1;
     }
-    F(8)c->s[i]+=x[i];
-}
-
-void sha256_init(sha256_ctx*c) {    
-    c->s[0]=0x6a09e667;
-    c->s[1]=0xbb67ae85;
-    c->s[2]=0x3c6ef372;
-    c->s[3]=0xa54ff53a;
-    c->s[4]=0x510e527f;
-    c->s[5]=0x9b05688c;
-    c->s[6]=0x1f83d9ab;
-    c->s[7]=0x5be0cd19;
-    c->len =0;
-}
-
-void sha256_update(sha256_ctx*c,void*in,W len) {
-    B *p=in;
-    W r,i,idx;
-
-    idx=c->len&63;
-    c->len+=len;
-    
-    while(len) {
-      r=len<(64-idx)?len:(64-idx);
-      F(r)c->x.b[i]=p[i];
-      if((idx+r)<64)break;
-      sha256_compress(c);
-      len-=r;
-      idx=0;
-      p+=r;
-    }
-}
-
-void sha256_final(void*h,sha256_ctx*c) {
-    W i,len,*p=h;
-    
-    len=c->len&63;
-    F(64-len)c->x.b[len+i]=0;
-    c->x.b[len]=0x80;
-    if(len>=56) {
-      sha256_compress(c);
-      F(8)c->x.q[i]=0;
-    }
-    c->x.q[7]=rev64((Q)c->len*8);
-    sha256_compress(c);
-    F(8)p[i]=rev32(c->s[i]);
+    // store ciphertext
+    F(8)x[i]=rev32(s[i]);
 }
 
 #ifdef TEST
@@ -141,24 +98,31 @@ void sha256_final(void*h,sha256_ctx*c) {
 #include <stdint.h>
 #include <ctype.h>
 
-char *tv_str[]=
-{ "",
-  "a",
-  "abc",
-  "message digest",
-  "abcdefghijklmnopqrstuvwxyz",
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-  "12345678901234567890123456789012345678901234567890123456789012345678901234567890"};
+char *tv_key[]=
+{ "80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "40000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "08000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8"
+  };
 
-char *tv_hash[] =
-{ "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
-  "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
-  "f7846f55cf23e14eebeab5b4e1550cad5b509e3348fbc4efa3a1413d393cb650",
-  "71c480df93d6ae2f1efad1447c66c9525e316218cf51fc8d9ed832f2daf18b73",
-  "db4bfcbd4da0cd85a60c3c37d3fbd8805c77f15fc6b1fdfe614ee0a7c8fdb4c0",
-  "f371bc4a311f2b009eef952dd83ca80e2b60026c8e935592d0f9c308453c813e"};
-
+char *tv_pt[]=
+{ "0000000000000000000000000000000000000000000000000000000000000000",
+  "0000000000000000000000000000000000000000000000000000000000000000",
+  "0000000000000000000000000000000000000000000000000000000000000000",
+  "0000000000000000000000000000000000000000000000000000000000000000",
+  "0000000000000000000000000000000000000000000000000000000000000000",
+  "A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8A8"};
+ 
+char *tv_ct[]=
+{ "361AB6322FA9E7A7BB23818D839E01BDDAFDF47305426EDD297AEDB9F6202BAE",
+  "F3BAF53E5301E08813F8BE6F651BB19E9722151FF15063BA42A6FEF7CF3BF3D7",
+  "E485005217441B60EE5B48EE8AF924B268B6B952D7F593E6102AC83D7DA72838",
+  "AE70E355CB7E26FF12421F46CDAD5CB98367FE0E86CC234EDF97481765CD1AD9",
+  "00CECD0B01311F881018E7A20BCE169766C089D91FF161346C4E1BD122EA199F",
+  "1374026DD442B1C1E0BA34570240F6A9E99781C8307A1544A9D3C91857C7E6E1"
+  };
 
 size_t hex2bin (void *bin, char hex[]) {
     size_t  len, i;
@@ -186,23 +150,26 @@ size_t hex2bin (void *bin, char hex[]) {
 
 int main(void) {
   
-    uint8_t    h[32], r[32];
+    // a key is 64-bytes or 512-bits
+    // a block size is 32-bytes or 256-bits
+  
+    uint8_t    pt[32], ct[32], key[64];
     int        i, fail=0;
-    sha256_ctx c;
+    sha256_ctx c1,c2;
     
-    for(i=0;i<sizeof(tv_hash)/sizeof(char*);i++) {
-      hex2bin(h, tv_hash[i]);
+    for(i=0;i<sizeof(tv_key)/sizeof(char*);i++) {
+      hex2bin(key,tv_key[i]);
+      hex2bin(pt, tv_pt[i]);
+      hex2bin(ct, tv_ct[i]);
       
-      sha256_init(&c);
-      sha256_update(&c, tv_str[i], strlen(tv_str[i]));
-      sha256_final(r, &c);
+      shacal2(key,pt);
       
-      if(memcmp(h, r, 32)) {
+      if(memcmp(pt, ct, 32)) {
         printf ("Hash for test vector %i failed\n", i+1);
         fail++;
       }     
     }
-    if(!fail) printf ("All SHA-256 tests passed\n");  
+    if(!fail) printf ("All SHACAL2 tests passed\n");  
     return 0;
 }
 #endif

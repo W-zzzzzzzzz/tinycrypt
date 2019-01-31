@@ -70,8 +70,7 @@ void cube_init(cube_ctx *c)
   transform(c, 10);        // initial 10 rounds
 }
 
-void cube_update(cube_ctx *c, const void *in, uint32_t len)
-{
+void cube_update(cube_ctx *c, const void *in, uint32_t len) {
   uint32_t i;
 
   for (i=0; i<len; i++) {
@@ -80,8 +79,7 @@ void cube_update(cube_ctx *c, const void *in, uint32_t len)
   }
 }
 
-void cube_final(void *out, cube_ctx *c)
-{
+void cube_final(void *out, cube_ctx *c) {
   int      i;
   uint32_t u;
 

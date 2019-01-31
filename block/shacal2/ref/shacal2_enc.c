@@ -35,21 +35,30 @@
 void shacal2_enc(void *buffer, void *key, uint16_t keysize_b){
 	uint8_t i;
 	sha256_ctx_t ctx, t_ctx;
+  
 	memcpy(ctx.h, buffer, SHACAL2_BLOCKSIZE_B);
 	
 	uint8_t keybuffer[SHACAL2_KEYSIZE_B];
 	memset(keybuffer, 0, SHACAL2_KEYSIZE_B);
-	if(keysize_b>SHACAL2_KEYSIZE)
-		keysize_b=SHACAL2_KEYSIZE;
+  
+	if(keysize_b > SHACAL2_KEYSIZE)
+		keysize_b = SHACAL2_KEYSIZE;
+    
+  // copy key to t_ctx
 	memcpy(keybuffer, key, (keysize_b+7)/8);
-	
 	memcpy(t_ctx.h, buffer, SHACAL2_BLOCKSIZE_B);
+  
+  // convert key to big endian 
 	sha256_ctx2hash((sha256_hash_t*)(&(ctx.h[0])), &t_ctx);
+  
+  // backup copy of data
 	memcpy(t_ctx.h, ctx.h, SHACAL2_BLOCKSIZE_B);
 	sha256_nextBlock(&ctx, keybuffer);
-	for(i=0; i<SHACAL2_BLOCKSIZE/32; ++i){
+	
+  for(i=0; i<SHACAL2_BLOCKSIZE/32; ++i){
 		ctx.h[i] -= t_ctx.h[i];
 	}
+  // copy 32 bytes to buffer
 	sha256_ctx2hash(buffer, &ctx);
 }
 

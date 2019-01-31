@@ -1,360 +1,259 @@
-;
-;  Copyright © 2015 Odzhan, Peter Ferrie. All Rights Reserved.
-;
-;  Redistribution and use in source and binary forms, with or without
-;  modification, are permitted provided that the following conditions are
-;  met:
-;
-;  1. Redistributions of source code must retain the above copyright
-;  notice, this list of conditions and the following disclaimer.
-;
-;  2. Redistributions in binary form must reproduce the above copyright
-;  notice, this list of conditions and the following disclaimer in the
-;  documentation and/or other materials provided with the distribution.
-;
-;  3. The name of the author may not be used to endorse or promote products
-;  derived from this software without specific prior written permission.
-;
-;  THIS SOFTWARE IS PROVIDED BY AUTHORS "AS IS" AND ANY EXPRESS OR
-;  IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-;  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-;  DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
-;  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-;  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-;  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-;  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-;  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-;  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-;  POSSIBILITY OF SUCH DAMAGE.
-;
-; -----------------------------------------------
-; AES-256 block cipher in x86 assembly
-;
-; http://csrc.nist.gov/publications/fips/fips197/fips-197.pdf
-;
-; size: 377 bytes (398 bytes side-channel resistant)
-;
-; global calls use cdecl convention
-;
-; -----------------------------------------------
+/**
+  This is free and unencumbered software released into the public domain.
 
-    bits 32
-   
-struc pushad_t
-  _edi resd 1
-  _esi resd 1
-  _ebp resd 1
-  _esp resd 1
-  _ebx resd 1
-  _edx resd 1
-  _ecx resd 1
-  _eax resd 1
-  .size:
-endstruc
+  Anyone is free to copy, modify, publish, use, compile, sell, or
+  distribute this software, either in source code form or as a compiled
+  binary, for any purpose, commercial or non-commercial, and by any
+  means.
 
-%define Nk 8     ; number of words for each sub key
-%define Nr 14    ; number of rounds for 256-bit
-%define Nb 4     ; number of words in each block
+  In jurisdictions that recognize copyright laws, the author or authors
+  of this software dedicate any and all copyright interest in the
+  software to the public domain. We make this dedication for the benefit
+  of the public at large and to the detriment of our heirs and
+  successors. We intend this dedication to be an overt act of
+  relinquishment in perpetuity of all present and future rights to this
+  software under copyright law.
 
-%ifndef BIN
-    global aes_setkeyx
-    global _aes_setkeyx
-    
-    global aes_encryptx
-    global _aes_encryptx
-%endif
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+  OTHER DEALINGS IN THE SOFTWARE.
 
-; *********************************************** 
-; void aes_encrypt (aes_ctx *ctx, void *state, int enc)
-; *********************************************** 
-_aes_encryptx:
-aes_encryptx:
-    pushad
-    lea    esi, [esp+32+ 4]
-    lodsd
-    xchg   edi, eax         ; ctx
-    lodsd
-    xchg   ecx, eax
-    lodsd
-    xchg   ecx, eax         ; enc
-    xchg   esi, eax         ; state
-    call   ld_fn
-; *********************************************** 
-; void AddRoundKey (void *state, uint32_t w[], int rnd);
-; ***********************************************
-AddRoundKey:
-    pushad
-    mov    cl, 4          ; do 4 words
-    shl    ebx, cl        ; multiply rnd by 16
-ar_l1:
-    mov    eax, [edi+ebx] ; w[i+rnd*16]
-    xor    [esi], eax     ; state[i] ^= w[i+rnd*16]
-    cmpsd
-    loop   ar_l1
-    popad
-    ret
-; ***********************************************     
-; void ShiftRows (void *state, int enc)
-; *********************************************** 
-ShiftRows:
-    pushad
-    xor    ebx, ebx          ; i = 0
-    mov    ebp, ecx          ; save enc flag in ebp
-    mov    cl, 4             ; do 4 rows
-sr_l1:
-    pushad
-    mov    edi, esi
-    mov    cl, 4             
-sr_l2:                       ; get row
-    lodsd
-    call   SubByte
-    shrd   edx, eax, 8
-    loop   sr_l2
-    ; ---------------------
-    lea    ecx, [ecx+ebx*8]
-    test   ebp, ebp
-    jz     sr_d
-    ror    edx, cl           ; rotate right for encryption
-    db     83h ;mask rol
-sr_d:
-    rol    edx, cl           ; rotate left for decryption
+  For more information, please refer to <http://unlicense.org/> */
+
+// -----------------------------------------------
+// AES-128 Encryption in x86 assembly
+//
+// size: 205 bytes for ECB, 272 for CTR
+//
+// global calls use cdecl convention
+//
+// -----------------------------------------------
+
+    .intel_syntax noprefix
+    .global _E
+    .global E
+    // *****************************
+    // void E(void *s);
+    // *****************************
+_E:
+E:
+    pusha
+    xor    ecx, ecx           // ecx = 0
+    mul    ecx                // eax = 0, edx = 0
+    inc    eax                // c = 1
     mov    cl, 4
-sr_l4:
-    mov    [edi], dl
-    ror    edx, 8
-    scasd
-    loop   sr_l4
-    popad
-    inc    ebx
-    inc    esi
-    loop   sr_l1
-    popad
-    ret
-
-%define w0 eax
-%define w1 ebx
-%define w2 edx
-%define w3 ebp
-
-%define t eax
-%define w ebp
-
-gf_mul2:
-    push   t
-    mov    t, w
-    and    t, 080808080h
-    xor    w, t
-    add    w, w
-    shr    t, 7
-    imul   t, t, 01bh
-    xor    w, t
-    pop    t
-    ret
-; ***********************************************
-; void MixColumns (void *state, int enc)
-; ***********************************************
-MixColumns:
-    pushad
-    lea    edi, [ebp+(gf_mul2-ShiftRows)]
-    test   ecx, ecx
-    mov    cl, 4
-mc_l1:
-    pushfd
-    lodsd                    ; w0 = state[i];
-    jne    mc_l2
-    mov    w3, w0
-    ror    w3, 16
-    xor    w3, w0
-    call   edi               ; gf_mul2
-    call   edi               ; gf_mul2
-    xor    w0, w3
-mc_l2:
-    mov    w3, w0
-    ror    w3, 8
-    mov    w1, w3
-    xor    w3, w0
-    call   edi
-    xor    w1, w3
-    ror    w0, 16
-    xor    w1, w0
-    ror    w0, 8
-    xor    w1, w0
-    mov    [esi-4], w1
-    popfd
-    loop   mc_l1
-    popad
-    ret
+    pusha                    // alloca(32)
     
-ld_fn:
-    pop    eax
-    lea    ebp, [eax+(ShiftRows -AddRoundKey)]
-    lea    edx, [ebp+(MixColumns-ShiftRows)]
-    
-    ; ************************************
-    push   Nr
-    pop    ebx
-    jecxz  do_ark
-    xor    ebx, ebx
-do_ark:
-    call   eax ; AddRoundKey
-    push   eax
-    jecxz  aes_edm
-    xchg   edx, eax
-    ;;jmp    aes_edm
-    db     03dh ; mask call eax/call edx
-
-aes_ed:
-    call   eax ; MixColumns / AddRoundKey
-    call   edx ; AddRoundKey / MixColumns
-
-aes_edm:
-    call   ebp ; ShiftRows + SubBytes
-    dec    ebx
-    jecxz  aes_edl
-    inc    ebx
-    inc    ebx
-    cmp    ebx, Nr
-aes_edl:
-    jne    aes_ed
-    pop    eax
-    call   eax ; AddRoundKey
-    popad
-    ret
-    
-; *********************************************** 
-; void aes_setkey (aes_ctx *ctx, void *key);
-; *********************************************** 
-_aes_setkeyx:
-aes_setkeyx:
-    pushad
-    
-    mov    edi, [esp+32+4]   ; ctx
-    mov    esi, [esp+32+8]   ; key
-
-    push   Nk
-    pop    ecx
+    // F(8)x[i]=((W*)s)[i]
+    mov    esi, [esp+64+4]    // esi = s
+    mov    edi, esp
+    pusha
+    add    ecx, ecx           // copy state + master key to stack
     rep    movsd
-
-    push   1
-    pop    edx                ; rcon = 1
-sk_l1:
-    mov    eax, [edi-4]       ; x=w[i-1];
-    test   cl, Nk-1           ; (i % Nk)==0
-    jnz    sk_ei
-    
-    ror    eax, 8             ; x = RotWord(x);
-    call   SubWord            ; x = SubWord(x)
-    xor    eax, edx           ; x ^= rcon;
-    add    dl, dl
-%ifdef SCR
-    sbb    bl, bl
-    and    bl, 1bh
-    xor    dl, bl
-%else
-    jnc    sk_sw
-    xor    dl, 1bh
-%endif
-    jmp    sk_sw
-sk_ei:
-    test   cl, 3              ; (i % 4)==0
-    jne    sk_sw
-    call   SubWord
-sk_sw:
-    xor    eax, [edi-4*Nk]
-    stosd
-    inc    ecx
-    cmp    ecx, Nb*Nr
-    jne    sk_l1
-    popad
+    popa
+    // *****************************
+    // Multiplication over GF(2**8)
+    // *****************************
+    call   $+21               // save address      
+    push   ecx                // save ecx
+    mov    cl, 4              // 4 bytes
+    add    al, al             // al <<= 1
+    jnc    $+4                //
+    xor    al, 27             //
+    ror    eax, 8             // rotate for next byte
+    loop   $-9                // 
+    pop    ecx                // restore ecx
     ret
-; ***********************************************
-; uint8_t SubByte (uint8_t x, int enc)
-; *********************************************** 
-SubByte:
-    pushad
-    test   ebp, ebp
-    mov    cl, 4
-    jz     sb_inv
-    call   gf_mulinv
-sb_l1:
-    rol    dl, 1
-    xor    al, dl
-    loop   sb_l1
-sb_inv:
-    xor    al, 63h
-    jecxz  xit_sb
-    rol    al, 1
-    mov    dl, al
-    rol    dl, 2
-    xor    al, dl
-    rol    dl, 3
-    xor    al, dl
-    call   gf_mulinv
-xit_sb:
-    mov    byte[esp+_eax], al
-    popad
-    ret
-; ***********************************************
-; uint32_t SubWord (uint32_t x)
-; *********************************************** 
-SubWord:
-    ; for (i=0; i<4; i++) {
-    ;   r |= SubByte(x & 0xFF, AES_ENCRYPT);
-    ;   r  =_rotr(r, 8);
-    ;   x >>= 8;
-    ; }
-    push   ecx
-    mov    cl, 4
-sbw_l1:
-    call   SubByte
+    pop    ebp
+enc_main:
+    // *****************************
+    // AddRoundKey, AddRoundConstant, ExpandRoundKey
+    // *****************************
+    // w=k[3]; F(4)w=(w&-256)|S(w),w=R(w,8),((W*)s)[i]=x[i]^k[i];
+    // w=R(w,8)^c;F(4)w=k[i]^=w;
+    pusha
+    xchg   eax, edx
+    xchg   esi, edi
+    mov    eax, [esi+16+12]  // w=R(k[3],8)
     ror    eax, 8
-    loop   sbw_l1
-    pop    ecx
+xor_key:
+    mov    ebx, [esi+16]     // t=k[i]
+    xor    [esi], ebx        // x[i]^=t
+    movsd                    // s[i]=x[i]
+    // w=(w&-256)|S(w)
+    call   sub_byte          // al=S(al)
+    ror    eax, 8            // w=R(w,8)
+    loop   xor_key
+    // w=R(w,8)^c
+    xor    eax, edx          // w^=c
+    // F(4)w=k[i]^=w
+    mov    cl, 4
+exp_key:
+    xor    [esi], eax        // k[i]^=w
+    lodsd                    // w=k[i]
+    loop   exp_key
+    popa
+    
+    // ****************************
+    // if(c==108) break;
+    cmp    al, 108
+    jne    upd_con
+    popa
+    popa
     ret
-; ***********************************************    
-; uint8_t gf_mulinv (uint8_t x);
-; *********************************************** 
-gf_mulinv:
-    test   al, al
-    xchg   edx, eax
-    je     ret_y
-    push   1
-    pop    ebx          ; i=0, y=1
-%ifdef SCR
-    xor    esi, esi
-    xor    edi, edi
-%endif
-gf_l1:
-    mov    ebp, ebx     ; 
-    call   gf_mul2
-    xchg   ebp, eax
-    xor    bl, al       ; y ^= gf_mul2 (y);
-    inc    bh           ; i++
-    cmp    dl, bl       ; if (y==x) break;
-%ifdef SCR
-    cmove  esi, ebx     ; assign esi on every match
-    test   edi, edi
-    cmove  edi, esi     ; assign edi on first match
-    test   bh, bh
-    jne    gf_l1
-    mov    bl, 1        ; y=1
-%else
-    jne    gf_l1
-    mov    dl, 1        ; y=1
-%endif
-    je     gf_l3
-gf_l2:    
-    xchg   ebp, eax
-    call   gf_mul2
-    xchg   ebp, eax
-    xor    dl, al       ; y ^= gf_mul2(y);
-gf_l3:    
-%ifdef SCR
-    cmp    ebx, edi
-    cmovbe edx, ebx
-%endif
-    inc    bh           ; i++
-ret_y:
-    mov    al, dl
-    jne    gf_l2
+upd_con:
+    call   ebp
+    // ***************************
+    // ShiftRows and SubBytes
+    // ***************************
+    // F(16)((B*)x)[(i%4)+(((i/4)-(i%4))%4)*4]=S(((B*)s)[i]);
+    pusha
+    mov    cl, 16
+shift_rows:
+    lodsb                    // al = S(s[i])
+    call   sub_byte
+    push   edx
+    mov    ebx, edx          // ebx = i%4
+    and    ebx, 3            //
+    shr    edx, 2            // (i/4 - ebx) % 4
+    sub    edx, ebx          // 
+    and    edx, 3            // 
+    lea    ebx, [ebx+edx*4]  // ebx = (ebx+edx*4)
+    mov    [edi+ebx], al     // x[ebx] = al
+    pop    edx
+    inc    edx
+    loop   shift_rows
+    popa
+    // *****************************
+    // if(c!=108){
+    cmp    al, 108
+    je     enc_main
+    // *****************************
+    // MixColumns
+    // *****************************
+    // F(4)w=x[i],x[i]=R(w,8)^R(w,16)^R(w,24)^M(R(w,8)^w);
+    pusha
+mix_cols:
+    mov    eax, [edi]        // w0 = x[i]
+    mov    ebx, eax          // w1 = w0
+    ror    eax, 8            // w0 = R(w0,8)
+    mov    edx, eax          // w2 = w0
+    xor    eax, ebx          // w0^= w1
+    call   ebp               // w0 = M(w0)
+    xor    eax, edx          // w0^= w2
+    ror    ebx, 16           // w1 = R(w1,16)
+    xor    eax, ebx          // w0^= w1
+    ror    ebx, 8            // w1 = R(w1,8)
+    xor    eax, ebx          // w0^= w1
+    stosd                    // x[i] = w0
+    loop   mix_cols
+    popa
+    jmp    enc_main
+    // *****************************
+    // B SubByte(B x)
+    // *****************************
+sub_byte:  
+    pusha 
+    test   al, al            // if(x){
+    jz     sb_l6
+    xchg   eax, edx
+    mov    cl, -1            // i=255 
+// for(c=i=0,y=1;--i;y=(!c&&y==x)?c=1:y,y^=M(y))
+sb_l0:
+    mov    al, 1             // y=1
+sb_l1:
+    test   ah, ah            // !c
+    jnz    sb_l2    
+    cmp    al, dl            // y!=x
+    setz   ah
+    jz     sb_l0
+sb_l2:
+    mov    dh, al            // y^=M(y)
+    call   ebp               //
+    xor    al, dh
+    loop   sb_l1             // --i
+// F(4)x^=y=(y<<1)|(y>>7)//
+    mov    dl, al            // dl=y
+    mov    cl, 4             // i=4  
+sb_l5:
+    rol    dl, 1             // y=R(y,1)
+    xor    al, dl            // x^=y
+    loop   sb_l5             // i--
+sb_l6:
+    xor    al, 99            // return x^99
+    mov    [esp+28], al
+    popa
     ret
+    
+
+.ifdef CTR
+    .global encrypt
+    .global _encrypt
+      
+    // void encrypt(W len, B *ctr, B *in, B *key)
+_encrypt:
+encrypt:
+    pusha
+    lea    esi,[esp+32+4]
+    lodsd
+    xchg   eax, ecx          // ecx = len
+    lodsd
+    xchg   eax, ebp          // ebp = ctr
+    lodsd
+    xchg   eax, edx          // edx = in
+    lodsd
+    xchg   esi, eax          // esi = key
+    pusha                    // alloca(32)
+    
+    // copy master key to local buffer
+    // F(16)t[i+16]=key[i]
+    lea    edi, [esp+16]     // edi = &t[16]
+    movsd
+    movsd
+    movsd
+    movsd
+aes_l0:
+    xor    eax, eax
+    jecxz  aes_l3            // while(len){
+    
+    // copy counter+nonce to local buffer
+    // F(16)t[i]=ctr[i]
+    mov    edi, esp          // edi = t
+    mov    esi, ebp          // esi = ctr
+    push   edi
+    movsd
+    movsd
+    movsd
+    movsd
+    // encrypt t    
+    call   _E                // E(t)
+    pop    edi
+aes_l1:
+    // xor plaintext with ciphertext
+    // r=len>16?16:len
+    // F(r)in[i]^=t[i]
+    mov    bl, [edi+eax]     // 
+    xor    [edx], bl         // *in++^=t[i]
+    inc    edx               // 
+    inc    eax               // i++
+    cmp    al, 16            //
+    loopne aes_l1            // while(i!=16 && --ecx!=0)
+    
+    // update counter
+    xchg   eax, ecx          // 
+    mov    cl, 16
+aes_l2:
+    inc    byte[ebp+ecx-1]   //
+    loopz  aes_l2            // while(++c[i]==0 && --ecx!=0)
+    xchg   eax, ecx
+    jmp    aes_l0
+aes_l3:
+    popa
+    popa
+    ret
+.endif
+ 

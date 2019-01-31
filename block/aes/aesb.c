@@ -24,15 +24,11 @@
 
   For more information, please refer to <http://unlicense.org/> */
   
-#define R(v,n)(((v)>>(n))|((v)<<(32-(n))))
 #define F(n)for(i=0;i<n;i++)
 typedef unsigned char B;
 typedef unsigned int W;
 // Multiplication over GF(2**8)
-W M(W x) {
-    W t=x&0x80808080;
-    return((x^t)<<1)^((t>>7)*0x1b);
-}
+#define M(x)(((x)<<1)^((-((x)>>7))&0x1b))
 // SubByte
 B S(B x) {
     B i,y,c;
@@ -42,63 +38,44 @@ B S(B x) {
     }
     return x^99;
 }
-#ifndef AES256
 #define K_LEN 16 // 128-bit
 void E(B *s) {
-    W i,w,x[8],c=1,*k=(W*)&x[4];
-
+    B a,b,c,d,i,j,t,x[48],rc=1,*k=&x[16];
+    
     // copy 128-bit plain text + 128-bit master key to x
-    F(8)x[i]=((W*)s)[i];
+    F(32)x[i]=s[i];
 
     for(;;) {
-      // 1st part of ExpandKey
-      w=k[3];F(4)w=(w&-256)|S(w),w=R(w,8);
-      // AddConstant, AddRoundKey, 2nd part of ExpandKey
-      w=R(w,8)^c;F(4)((W*)s)[i]=x[i]^k[i], w=k[i]^=w;
+      // AddRoundKey
+      F(16)s[i]=x[i]^k[i];
       // if round 11, stop
-      if(c==108)break; 
-      // update constant
-      c=M(c);
+      if(rc==108)break;
+      // ExpandKey
+      F(4)k[i]^=S(k[12+((i-3)&3)]); 
+      // AddConstant, update
+      k[0]^=rc;
+      rc=M(rc);
       // SubBytes and ShiftRows
-      F(16)((B*)x)[(i%4)+(((i/4)-(i%4))%4)*4]=S(s[i]);
-      // if not round 11, MixColumns
-      if(c!=108)
-        F(4)w=x[i],x[i]=R(w,8)^R(w,16)^R(w,24)^M(R(w,8)^w);
+      F(16)k[i+4]^=k[i], 
+        x[(i&3)+((((W)(i>>2)-(i&3))&3)<<2)]=S(s[i]);
+      // if not round 11
+      if(rc!=108) {
+        // MixColumns
+        for(i=0;i<16;i+=4) {
+          a=x[i],b=x[i+1],c=x[i+2],d=x[i+3];
+          for(j=0;j<4;j++) {
+            x[i+j]^=a^b^c^d^M(a^b);
+            t=a,a=b,b=c,c=d,d=t;
+          }
+        }
+      }
     }
 }
-#else
-#define K_LEN 32 // 256-bit
-void E(B *s) {
-    W i,r=0,w,x[12],c=1,*k=(W*)&x[4];
-
-    // copy 128-bit plain text + 256-bit master key to x
-    F(12)x[i]=((W*)s)[i];
-
-    for(;;) {
-      // 1st part of ExpandKey
-      w=k[r?3:7];
-      F(4)w=(w&-256)|S(w),w=R(w,8); 
-      // AddConstant, update constant
-      if(!r)w=R(w,8)^c,c=M(c);
-      // AddRoundKey, 2nd part of ExpandKey
-      F(4)((W*)s)[i]=x[i]^k[r*4+i], w=k[r*4+i]^=w;
-      // if round 15, stop
-      if(c==27) break;
-      r=(r+1)&1;
-      // SubBytes and ShiftRows
-      F(16)((B*)x)[(i%4)+(((i/4)-(i%4))%4)*4]=S(s[i]);
-      // if not round 15, MixColumns    
-      if((c!=128) | r)
-        F(4)w=x[i],x[i]=R(w,8)^R(w,16)^R(w,24)^M(R(w,8)^w);
-    }
-}
-#endif
 
 #ifdef CTR
 // encrypt using Counter (CTR) mode
-void encrypt(W l, B*c, B*p, B*k) {
-    W i,r;
-    B t[K_LEN+16];
+void encrypt(B l, B*c, B*p, B*k) {
+    B i,r,t[K_LEN+16];
 
     // copy master key to local buffer
     F(K_LEN)t[i+16]=k[i];

@@ -1,141 +1,130 @@
+/**
+  This is free and unencumbered software released into the public domain.
 
+  Anyone is free to copy, modify, publish, use, compile, sell, or
+  distribute this software, either in source code form or as a compiled
+  binary, for any purpose, commercial or non-commercial, and by any
+  means.
 
-// Test unit for AES-256 ECB mode
+  In jurisdictions that recognize copyright laws, the author or authors
+  of this software dedicate any and all copyright interest in the
+  software to the public domain. We make this dedication for the benefit
+  of the public at large and to the detriment of our heirs and
+  successors. We intend this dedication to be an overt act of
+  relinquishment in perpetuity of all present and future rights to this
+  software under copyright law.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+  IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+  OTHER DEALINGS IN THE SOFTWARE.
+
+  For more information, please refer to <http://unlicense.org/> */
+
+// Test unit for AES-128 ECB and CTR mode
 // Odzhan
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
-#include <sys/stat.h>
-#include <time.h>
+#include <string.h>
+#include <stdint.h>
 
-// ecb tests
-char *ecb_keys[] = 
-{ "603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4",
-  "603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4",
-  "603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4",
-  "603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4" };
+void E(void*);
+void encrypt(int,void*,void*,void*);
 
-char *ecb_tv[] =
-{ "6bc1bee22e409f96e93d7e117393172a",
-  "ae2d8a571e03ac9c9eb76fac45af8e51",
-  "30c81c46a35ce411e5fbc1191a0a52ef",
-  "f69f2445df4f9b17ad2b417be66c3710" };
-            
-char *ecb_ct[] =
-{ "f3eed1bdb5d2a03c064b5a7e3db181f8",
-  "591ccb10d410ed26dc5ba74a31362870",
-  "b6ed21b99ca6f4f9f153e7b1beafed1d",
-  "23304b7a39f9f3ff067d8d8f9e24ecc7" };
+// 4 128-bit keys
+uint8_t ecb_keys[4][16]={
+  {0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c},
+  {0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c},
+  {0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c},
+  {0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c}
+};
 
-#include "aes.h"
+// 4 128-bit plain texts
+uint8_t ecb_plain[4][16]={
+  {0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96, 0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a},
+  {0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c, 0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51},
+  {0x30, 0xc8, 0x1c, 0x46, 0xa3, 0x5c, 0xe4, 0x11, 0xe5, 0xfb, 0xc1, 0x19, 0x1a, 0x0a, 0x52, 0xef},
+  {0xf6, 0x9f, 0x24, 0x45, 0xdf, 0x4f, 0x9b, 0x17, 0xad, 0x2b, 0x41, 0x7b, 0xe6, 0x6c, 0x37, 0x10}
+};
 
-int _isxdigit (int c)
-{
-  return (c >= '0' && c <= '9') || 
-         (c >= 'a' && c <= 'f') ||
-         (c >= 'A' && c <= 'F');
+// 4 128-bit cipher texts
+uint8_t ecb_cipher[4][16]={
+  {0x3a, 0xd7, 0x7b, 0xb4, 0x0d, 0x7a, 0x36, 0x60, 0xa8, 0x9e, 0xca, 0xf3, 0x24, 0x66, 0xef, 0x97},
+  {0xf5, 0xd3, 0xd5, 0x85, 0x03, 0xb9, 0x69, 0x9d, 0xe7, 0x85, 0x89, 0x5a, 0x96, 0xfd, 0xba, 0xaf},
+  {0x43, 0xb1, 0xcd, 0x7f, 0x59, 0x8e, 0xce, 0x23, 0x88, 0x1b, 0x00, 0xe3, 0xed, 0x03, 0x06, 0x88},
+  {0x7b, 0x0c, 0x78, 0x5e, 0x27, 0xe8, 0xad, 0x3f, 0x82, 0x23, 0x20, 0x71, 0x04, 0x72, 0x5d, 0xd4}
+};
+
+uint8_t ctr_key[16]={0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,0xab,0xf7,0x15,0x88,0x09,0xcf,0x4f,0x3c};
+uint8_t ctr_tv[16]={0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,0xf8,0xf9,0xfa,0xfb,0xfc,0xfd,0xfe,0xff};
+
+uint8_t ctr_plain[4][16]={
+  {0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a},
+  {0xae,0x2d,0x8a,0x57,0x1e,0x03,0xac,0x9c,0x9e,0xb7,0x6f,0xac,0x45,0xaf,0x8e,0x51},
+  {0x30,0xc8,0x1c,0x46,0xa3,0x5c,0xe4,0x11,0xe5,0xfb,0xc1,0x19,0x1a,0x0a,0x52,0xef},
+  {0xf6,0x9f,0x24,0x45,0xdf,0x4f,0x9b,0x17,0xad,0x2b,0x41,0x7b,0xe6,0x6c,0x37,0x10}};
+
+uint8_t ctr_cipher[4][16]={
+  {0x87,0x4d,0x61,0x91,0xb6,0x20,0xe3,0x26,0x1b,0xef,0x68,0x64,0x99,0x0d,0xb6,0xce},
+  {0x98,0x06,0xf6,0x6b,0x79,0x70,0xfd,0xff,0x86,0x17,0x18,0x7b,0xb9,0xff,0xfd,0xff},
+  {0x5a,0xe4,0xdf,0x3e,0xdb,0xd5,0xd3,0x5e,0x5b,0x4f,0x09,0x02,0x0d,0xb0,0x3e,0xab},
+  {0x1e,0x03,0x1d,0xda,0x2f,0xbe,0x03,0xd1,0x79,0x21,0x70,0xa0,0xf3,0x00,0x9c,0xee}};
+
+void bin2hex(char *s, void *p, int len) {
+    int i;
+    printf("%-10s : ", s);
+    for (i=0; i<len; i++) {
+      printf ("%02x ", ((uint8_t*)p)[i]);
+    }
+    printf("\n");
 }
 
-int _isprint (int c)
+int main (void)
 {
-  return 1;
-}
-uint32_t hex2bin (void *bin, char hex[]) {
-  uint32_t len, i;
-  uint32_t x;
-  uint8_t *p=(uint8_t*)bin;
+  int     i, equ;
+  struct {
+    uint8_t s[16]; // 128-bit block
+    uint8_t k[16]; // 128-bit key
+  } x;
   
-  len = strlen (hex);
+  puts ("\n**** AES-128 ECB Test ****\n");
   
-  if ((len & 1) != 0) {
-    return 0; 
-  }
-  
-  for (i=0; i<len; i++) {
-    if (_isxdigit((int)hex[i]) == 0) {
-      return 0; 
-    }
-  }
-  
-  for (i=0; i<len / 2; i++) {
-    sscanf (&hex[i * 2], "%2x", &x);
-    p[i] = (uint8_t)x;
-  } 
-  return len / 2;
-} 
-
-void bin2scr (void *bin, uint32_t len) 
-{
-  uint32_t i, ofs;
-  uint8_t c;
-  uint8_t *mem=(uint8_t*)bin;
-  
-  printf ("\n");
-  
-  for (ofs=0; ofs<len; ofs+=16) 
-  {
-    printf ("\n%08X", ofs);
-    for (i=0; i<16 && ofs+i < len; i++) {
-      printf (" %02x", mem[ofs + i]);
-    }
-    while (i++ < 16) {
-      printf ("   ");
-    }
-    printf ("    ");
-
-    for (i=0; i<16 && ofs+i < len; i++) {
-      c=mem[ofs+i];
-      printf ("%c", (c=='\t' || !_isprint (c)) ? '.' : c);
-    }
-  }
-}
-
-int ecb_test (void)
-{
-  int i, plen, clen, fails=0;
-
-  aes_blk ct1, pt1, pt2;
-  uint8_t key[32];           // 256-bit key
-  aes_ctx ctx;
-  
-  for (i=0; i<sizeof(ecb_keys)/sizeof(char*); i++)
-  { 
-    hex2bin (key, ecb_keys[i]);
-    clen=hex2bin (ct1.b, ecb_ct[i]);
-    plen=hex2bin (pt1.b, ecb_tv[i]);
+  // ecb tests
+  for (i=0; i<4; i++) {
+    memcpy(x.s, ecb_plain[i], 16);   // copy plaintext
+    memcpy(x.k, ecb_keys[i], 16);    // copy key
     
-    aes_setkey (&ctx, &key);
-    //aes_encryptx (&ctx, &pt1, AES_ENCRYPT);
-    aes_enc ((void*)&pt1, (void*)&ctx);
-
-    if (memcmp (ct1.b, pt1.b, clen)==0) {
-      printf ("Encryption passed test #%i - %08X %08X\n", 
-        (i+1), pt1.w[0], ct1.w[0]);
-      
-      plen=hex2bin (pt2.b, ecb_tv[i]);
-      
-      //aes_encrypt (&ctx, &pt1, AES_DECRYPT);
-      
-      if (memcmp (pt1.b, pt2.b, plen)==0) {
-        printf ("Decryption OK!\n");
-      } else {
-        printf ("Decryption failed.. %08X %08X\n", pt1.w[0], pt2.w[0]);
-      }
-    } else {
-      fails++;
-      printf ("Failed test #%i : "
-          "Got %08X %08X %08X %08X instead of %08X %08X %08X %08X\n", (i+1), 
-          pt1.w[0], pt1.w[1], pt1.w[2], pt1.w[3],
-          ct1.w[0], ct1.w[1], ct1.w[2], ct1.w[3]);
-    }
+    E(&x);                     // encrypt
+    
+    equ=(memcmp(x.s,ecb_cipher[i],16)==0);
+    
+    bin2hex("key", x.k, 16);
+    bin2hex("cipher", x.s, 16);
+    
+    printf("AES-128 ECB Test #%i : %s\n\n", 
+      (i+1), equ ? "OK" : "FAILED");
   }
-  return fails;
-}
-
-int main (int argc, char *argv[])
-{
-  ecb_test();
+  
+  #ifdef CTR
+  puts ("\n**** AES-128 CTR Test ****\n");
+  // ctr tests
+  bin2hex("key", ctr_key, 16);
+    
+  for(i=0;i<4;i++){
+    bin2hex("ctr", ctr_tv, 16);
+    bin2hex("plain", ctr_plain[i], 16);
+    
+    encrypt(16,ctr_tv,ctr_plain[i],ctr_key);
+    equ=(memcmp(ctr_plain[i],ctr_cipher[i],16)==0);
+    
+    bin2hex("cipher", ctr_plain[i], 16);
+    
+    printf("AES-128 CTR Test #%i : %s\n\n", 
+      (i+1), equ ? "OK" : "FAILED");
+  }
+  #endif
   return 0;
 }

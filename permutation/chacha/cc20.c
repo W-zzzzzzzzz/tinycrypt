@@ -27,94 +27,28 @@
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
   
-#include "cc20.h"
+#define R(v,n)(((v)>>(n))|((v)<<(32-(n))))
+#define F(n)for(i=0;i<n;i++)
+#define X(a,b)(t)=(a),(a)=(b),(b)=(t)
+typedef unsigned int W;
 
-// setup the key
-void cc20_setkey(cc20_ctx *c, void *key, void *nonce)
-{
-    int i;
-    
-    // constants are "expand 32-byte k"
-    c->w[0] = 0x61707865; c->w[1] = 0x3320646E;
-    c->w[2] = 0x79622D32; c->w[3] = 0x6B206574;
-
-    // copy 256-bit key
-    memcpy(&c->b[16], key, 32);
-  
-    // set 32-bit block counter and 96-bit nonce/iv
-    c->w[12] = 1;
-    memcpy(&c->w[13], nonce, 12);
-}
-
-void F(uint32_t s[16])
-{
-    int         i;
-    uint32_t    a, b, c, d, r, t, idx;
-    
-    uint16_t idx16[8]=
-    { 0xC840, 0xD951, 0xEA62, 0xFB73,    // column index
-      0xFA50, 0xCB61, 0xD872, 0xE943 };  // diagonal index
-    
-    for (i=0; i<8; i++) {
-      idx = idx16[i];
-        
-      a = (idx         & 0xF);
-      b = ((idx >>  4) & 0xF);
-      c = ((idx >>  8) & 0xF);
-      d = ((idx >> 12) & 0xF);
-  
-      r = 0x07080C10;
-      
-      // The quarter-round
-      do {
-        s[a]+= s[b]; 
-        s[d] = ROTL32(s[d] ^ s[a], r & 0xFF);
-        XCHG(c, a);
-        XCHG(d, b);
-        r >>= 8;
-      } while (r != 0);
-    }    
-}
-
-// generate stream of bytes
-void cc20_stream (cc20_ctx *c, w512_t *x)
-{
-    int i;
-
-    // copy state to x
-    memcpy(x->b, c->b, 64);
-    // apply 20 rounds
-    for (i=0; i<20; i+=2) {
-      F(x->w);
+void chacha(void*p){
+    W a,b,c,d,i,t,r,*s=p,x[16];
+    W v[8]={0xC840,0xD951,0xEA62,0xFB73,
+            0xFA50,0xCB61,0xD872,0xE943};
+    // load state
+    F(16)x[i]=s[i];
+    // apply 80 rounds
+    F(80) {
+      d=v[i%8];
+      a=(d&15);b=(d>>4&15);
+      c=(d>>8&15);d>>=12;
+      // quarter round
+      for(r=0x19181410;r;r>>=8)
+        x[a]+=x[b],
+        x[d]=R(x[d]^x[a],(r&255)),
+        X(a,c),X(b,d);
     }
-    // add state to x
-    for (i=0; i<16; i++) {
-      x->w[i] += c->w[i];
-    }
-    // update block counter
-    c->w[12]++;
-    // stopping at 2^70 bytes per nonce is user's responsibility
+    // update state
+    F(16)s[i]+=x[i];
 }
-
-// encrypt or decrypt stream of bytes
-void cc20_encrypt (uint32_t len, void *in, cc20_ctx *ctx) 
-{
-    uint32_t i, r;
-    w512_t   s;
-    uint8_t  *p=(uint8_t*)in;
-    
-    while (len) {      
-      cc20_stream(ctx, &s);
-      
-      r=(len>64) ? 64 : len;
-      
-      // xor input with stream
-      for (i=0; i<r; i++) {
-        p[i] ^= s.b[i];
-      }
-    
-      len -= r;
-      p   += r;
-    }
-}
-
