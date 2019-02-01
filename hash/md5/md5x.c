@@ -119,27 +119,25 @@ void md5_init(md5_ctx*c) {
 
 void md5_update(md5_ctx*c,void*in,W len) {
     B *p=in;
-    W r,i,idx;
-
-    idx=c->len&63;
-    c->len+=len;
+    W i, idx;
     
-    while(len) {
-      r=len<(64-idx)?len:(64-idx);
-      F(r)c->x.b[i]=p[i];
-      if((idx+r)<64)break;
-      md5_compress(c);
-      len-=r;
-      idx=0;
-      p+=r;
+    idx = c->len & 63;
+    c->len += len;
+    
+    for (i=0;i<len;i++) {
+      if(idx==64) {
+        md5_compress(c);
+        idx=0;
+      }
+      c->x.b[idx++]=*p++;
     }
 }
 
 void md5_final(void*h,md5_ctx*c) {
     W i,len,*p=h;
     
-    len=c->len&63;
-    F(64-len)c->x.b[len+i]=0;
+    i = len = c->len & 63;
+    while(i<64) c->x.b[i++]=0;
     c->x.b[len]=0x80;
     if(len>=56) {
       md5_compress(c);

@@ -103,31 +103,29 @@ void sha256_init(sha256_ctx*c) {
 
 void sha256_update(sha256_ctx*c,void*in,W len) {
     B *p=in;
-    W r,i,idx;
-
-    idx=c->len&63;
-    c->len+=len;
+    W i, idx;
     
-    while(len) {
-      r=len<(64-idx)?len:(64-idx);
-      F(r)c->x.b[i]=p[i];
-      if((idx+r)<64)break;
-      sha256_compress(c);
-      len-=r;
-      idx=0;
-      p+=r;
+    idx = c->len & 63;
+    c->len += len;
+    
+    for (i=0;i<len;i++) {
+      if(idx==64) {
+        sha256_compress(c);
+        idx=0;
+      }
+      c->x.b[idx++]=*p++;
     }
 }
 
 void sha256_final(void*h,sha256_ctx*c) {
     W i,len,*p=h;
     
-    len=c->len&63;
-    F(64-len)c->x.b[len+i]=0;
+    i = len = c->len & 63;
+    while(i<64) c->x.b[i++]=0;
     c->x.b[len]=0x80;
     if(len>=56) {
       sha256_compress(c);
-      F(8)c->x.q[i]=0;
+      F(16)c->x.w[i]=0;
     }
     c->x.q[7]=rev64((Q)c->len*8);
     sha256_compress(c);
