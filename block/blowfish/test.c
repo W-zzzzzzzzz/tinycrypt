@@ -8,7 +8,12 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+#ifdef OPENSSL
+#include <openssl/blowfish.h>
+#else
+typedef unsigned int BF_LONG;
 #include "blowfish.h"
+#endif
 
 char *test_keys[]={
   "0000000000000000",  
@@ -61,26 +66,36 @@ size_t hex2bin (void *bin, char hex[]) {
   return len / 2;
 }
 
+void bin2hex(char *str, uint8_t *x, int len) {
+    int i;
+    
+    printf("%s : ", str);
+    for (i=0; i<len; i++)
+      printf("%02X", x[i]);
+    printf("\n");
+}
+
 void run_tests(void)
 {
   uint32_t i, clen, klen;
-  uint32_t p1[2], c1[2], c2[2], k[2];
+  uint8_t  pt[8], ct1[8], ct2[8], key[56];
   BF_KEY   bf_key;
   
   for (i=0; i<sizeof (test_keys)/sizeof(char*); i++)
   { 
-    klen=hex2bin (k, test_keys[i]);
-    clen=hex2bin (c1, test_ct[i]);
-    hex2bin (p1, test_pt[i]);
+    klen=hex2bin (key, test_keys[i]);
+    clen=hex2bin (ct1, test_ct[i]);
+    hex2bin (pt, test_pt[i]);
     
-    bf_setkey (&bf_key, k, klen);
-    bf_encrypt (&bf_key, p1, c2);
+    BF_set_key (&bf_key, klen, key);
+    BF_ecb_encrypt (pt, ct2, &bf_key, BF_ENCRYPT);
 
-    if (memcmp (c1, c2, clen)==0) {
-      printf ("Passed test #%i\n", (i+1));
+    if (memcmp (ct1, ct2, clen)==0) {
+      printf ("\nPassed test #%i\n", (i+1));
     } else {
-      printf ("Failed test #%i | Got %08X %08X instead of %08X %08X\n", 
-      (i+1), c2[0], c2[1], c1[0], c1[1]);
+      printf("\nTest %i failed\n", (i+1));
+      bin2hex("ciphertext", ct1, 8);
+      bin2hex("result", ct2, 8); 
     }
   }
 }

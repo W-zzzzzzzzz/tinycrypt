@@ -298,7 +298,7 @@ BF_KEY bf_init = {
 };
 
 // main round used for encryption and decryption
-void bf_round (BF_KEY *key, uint32_t *l, uint32_t *r, uint32_t i) {
+void BF_round (const BF_KEY *key, uint32_t *l, uint32_t *r, uint32_t i) {
     uint32_t tl=*l, tx;
     
     tl ^= key->p[i];
@@ -312,56 +312,49 @@ void bf_round (BF_KEY *key, uint32_t *l, uint32_t *r, uint32_t i) {
 }
 
 // encrypt 8 bytes / 64-bits of plain text
-void bf_encrypt (BF_KEY *key, void* input, void* output) {
-    uint32_t l, r, *in, *out;
+void BF_encrypt (uint32_t *data, const BF_KEY *key) {
+    uint32_t l, r, *x=(uint32_t*)data;
     int      i;
     
-    in  = (uint32_t*)input;
-    out = (uint32_t*)output;
-    
-    l = SWAP32(in[0]); r = SWAP32(in[1]);
+    l = x[0]; r = x[1];
 
     for (i=0; i<BF_ROUNDS; i++) {
-      bf_round (key, &l, &r, i);
+      BF_round (key, &l, &r, i);
     }
     
     l ^= key->p[BF_ROUNDS];
     r ^= key->p[BF_ROUNDS+1];
 
-    out[0] = SWAP32(r); out[1] = SWAP32(l);
+    x[0] = r; x[1] = l;
 }
 
 // decrypt 8 bytes / 64-bits of cipher text
-void bf_decrypt (BF_KEY *key, void* input, void* output) {
-    uint32_t l, r, *in, *out;
+void BF_decrypt(uint32_t *data, const BF_KEY *key) {
+    uint32_t l, r, *x=(uint32_t*)data;
     int      i;
     
-    in  = (uint32_t*)input;
-    out = (uint32_t*)output;
-    
-    l = SWAP32(in[0]); r = SWAP32(in[1]);
+    l = x[0]; r = x[1];
 
     for (i=BF_ROUNDS+1; i>1; i--) {
-      bf_round (key, &l, &r, i);
+      BF_round (key, &l, &r, i);
     }
     
     r ^= key->p[0];  l ^= key->p[1];
 
-    out[0] = SWAP32(r); out[1] = SWAP32(l);
+    x[0] = r; x[1] = l;
 }
 
 // create blowfish key
 // return 1 (TRUE) for okay, else 0 (FALSE
-int bf_setkey (BF_KEY *key, void* input, uint32_t len) {
+int BF_set_key (BF_KEY *key, uint32_t len, uint8_t* data) {
     uint32_t i, j, k_idx, ri, in[2];
     uint32_t *x;
-    uint8_t  *data=(uint8_t*)input;
 
-    // 1. initialize key
+    // 1. keys should be between 4 and 56 bytes
+    if (len < 4 || len > 56) return 0;
+
+    // 2. initialize key
     memcpy (key, &bf_init, sizeof(BF_KEY));
-
-    // 2. keys should be at least 4-bytes
-    if (len < BF_KEY_MIN || len > BF_KEY_MAX) return 0;
     
     // 3. create key dependent sboxes
     for (k_idx=i=0; i<(BF_ROUNDS+2); i++) {
@@ -379,10 +372,27 @@ int bf_setkey (BF_KEY *key, void* input, uint32_t len) {
     
     // 4. encrypt key
     for (i=0; i<(sizeof(BF_KEY)/sizeof(uint32_t)); i+=2) {
-      bf_encrypt(key, in, in);
+      BF_encrypt(in, key);
       
-      x[i] = SWAP32(in[0]); 
-      x[i+1] = SWAP32(in[1]);
+      x[i] = in[0]; x[i+1] = in[1];
     }
     return 1;
+}
+
+
+void BF_ecb_encrypt(const uint8_t *in, uint8_t *out, 
+  BF_KEY *key, int enc)
+{
+    uint32_t x[2];
+    
+    x[0]=SWAP32(((uint32_t*)in)[0]);
+    x[1]=SWAP32(((uint32_t*)in)[1]);
+    
+    if (enc==0) {
+      BF_encrypt(x, key);
+    } else {
+      BF_decrypt(x, key);
+    }
+    ((uint32_t*)out)[0]=SWAP32(x[0]);
+    ((uint32_t*)out)[1]=SWAP32(x[1]);
 }
