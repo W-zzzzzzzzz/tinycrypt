@@ -37,6 +37,7 @@
 #define BF_KEY_MIN  4
 #define BF_KEY_MAX 56
 
+#pragma pack(8)
 typedef struct _BF_KEY {
   uint32_t p[BF_ROUNDS+2];
   uint32_t sbox1[256];
@@ -50,13 +51,8 @@ extern "C" {
 #endif
 
   void bf_encrypt (BF_KEY*, void*, void*);
-  void bf_encryptx (BF_KEY*, void*, void*);
-  
   void bf_decrypt (BF_KEY*, void*, void*);
-  void bf_decryptx (BF_KEY*, void*, void*);
-  
-  int bf_setkey (BF_KEY*, void*, size_t);
-  int bf_setkeyx (BF_KEY*, void*, size_t);
+  int bf_setkey (BF_KEY*, void*, uint32_t);
 
 #ifdef __cplusplus
 };

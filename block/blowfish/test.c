@@ -64,8 +64,8 @@ size_t hex2bin (void *bin, char hex[]) {
 void run_tests(void)
 {
   uint32_t i, clen, klen;
-  uint32_t p1[2], c1[2], c2[2], k[32];
-  BF_KEY bf_key;
+  uint32_t p1[2], c1[2], c2[2], k[2];
+  BF_KEY   bf_key;
   
   for (i=0; i<sizeof (test_keys)/sizeof(char*); i++)
   { 
