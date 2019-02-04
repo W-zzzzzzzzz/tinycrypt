@@ -30,8 +30,7 @@
 #include "speck.h"
 
 #ifndef SINGLE
-void speck64_setkey(const void *in, void *out)
-{
+void speck64_setkey(const void *in, void *out) {
     uint32_t i, t, k0, k1, k2, k3;
     uint32_t *k=(uint32_t*)in;
     uint32_t *ks=(uint32_t*)out;
@@ -41,8 +40,7 @@ void speck64_setkey(const void *in, void *out)
     k2 = k[2]; k3 = k[3];
 
     // expand 128-bit key into round keys
-    for (i=0; i<27; i++)
-    {
+    for (i=0; i<27; i++) {
       ks[i] = k0;
       
       k1 = (ROTR32(k1, 8) + k0) ^ i;
@@ -63,8 +61,7 @@ void speck64_encrypt(const void *keys, int enc, void *data)
     // copy input to local space
     x0=x[0]; x1=x[1];
     
-    for (i=0; i<27; i++)
-    {
+    for (i=0; i<27; i++) {
       if (enc==SPECK_DECRYPT)
       {
         x1 = ROTR32(x1 ^ x0, 3);
@@ -80,8 +77,7 @@ void speck64_encrypt(const void *keys, int enc, void *data)
 
 #endif
 
-void speck64_encryptx(const void *key, void *data)
-{
+void speck64_encryptx(const void *key, void *data) {
     uint32_t i, t, k0, k1, k2, k3, x0, x1;
     uint32_t *k=(uint32_t*)key;
     uint32_t *x=(uint32_t*)data;
@@ -93,8 +89,7 @@ void speck64_encryptx(const void *key, void *data)
     // copy input to local space
     x0=x[0]; x1=x[1];
     
-    for (i=0; i<27; i++)
-    {
+    for (i=0; i<27; i++) {
       // encrypt block
       x0 = (ROTR32(x0, 8) + x1) ^ k0;
       x1 =  ROTL32(x1, 3) ^ x0;
