@@ -33,17 +33,16 @@ typedef unsigned long long W;
 typedef unsigned char B;
 
 void threefish(void*mk, void*data) {
-    W c[8],i,j,r,*x=(W*)data,t,
-      rc[2]=
-      { 0x203a2e190517340eULL,
-        0x20160c2125283910ULL };
-
-    c[4]=0x1BD11BDAA9FC1A22ULL;
+    W c[10],i,j,r,*x=(W*)data,t;
+    
+    t=0x1BD11BDAA9FC1A22ULL;
     
     // initialize key and tweak
-    F(i,4)c[4]^=c[i]=((W*)mk)[i];
-    F(i,2)c[i+5]=((W*)mk)[i+4];
+    F(i,4)t^=c[i]=((W*)mk)[i]; c[4]=t;
+    c[5]=((W*)mk)[4];c[6]=((W*)mk)[5];
     c[7]=c[5]^c[6];
+    c[8]=0x203a2e190517340eULL;
+    c[9]=0x20160c2125283910ULL;
     
     // apply 72 rounds
     for(i=0;;i++) {
@@ -55,7 +54,7 @@ void threefish(void*mk, void*data) {
       if(i==72)break;
       // mixing function
       for(j=0;j<4;j+=2)
-        r=((B*)rc)[(i%8)+(j<<2)],x[j]+=x[j+1],
+        r=((B*)c)[64+((i%8)+(j<<2))],x[j]+=x[j+1],
         x[j+1]=R(x[j+1],r),x[j+1]^=x[j];
       // permute
       t=x[1],x[1]=x[3],x[3]=t;

@@ -29,7 +29,7 @@
 
 #include "xtea.h"
 
-// uses 64 rounds by default
+// uses 32 rounds by default
 void xtea_encrypt(void *key, void *buf) {
     int      i;
     uint32_t v0, v1, t, sum=0;

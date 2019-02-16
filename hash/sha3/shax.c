@@ -74,9 +74,9 @@ void sha3_init(sha3_ctx*c, int len) {
     c->i = 0;
 }
 
-void sha3_update(sha3_ctx*c, void*in, W len) {
+void sha3_update(sha3_ctx*c, const void*in, W len) {
     W i;
-    B *p=in;
+    B *p=(B*)in;
   
     F(i,len) {
       c->s.b[c->i++] ^= *p++;    
@@ -87,8 +87,8 @@ void sha3_update(sha3_ctx*c, void*in, W len) {
     }
 }
 
-void sha3_final(void*h, sha3_ctx*c) {
-    B   *p=h;
+void sha3_final(void*out, sha3_ctx*c) {
+    B   *p=(B*)out;
     int i;
     
     c->s.b[c->i]^=6;
@@ -99,81 +99,93 @@ void sha3_final(void*h, sha3_ctx*c) {
 
 #ifdef TEST
 
+// this test code was originally written by Markku-Juhani O. Saarinen
+// i've adapted to work with this
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <ctype.h>
 
-char *tv_str[] =
-{ "",
-  "a",
-  "abc",
-  "message digest",
-  "abcdefghijklmnopqrstuvwxyz",
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-  "12345678901234567890123456789012345678901234567890123456789012345678901234567890" };
+int sha3(void *out, size_t outlen,
+    const void *in, size_t inlen)
+{
+    sha3_ctx ctx;
 
-char *tv_hash[] =
-{ "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a",
-  "80084bf2fba02475726feb2cab2d8215eab14bc6bdd8bfb2c8151257032ecd8b",
-  "3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532",
-  "edcdb2069366e75243860c18c3a11465eca34bce6143d30c8665cefcfd32bffd",
-  "7cab2dc765e21b241dbc1c255ce620b29f527c6d5e7f5f843e56288f0d707521",
-  "a79d6a9da47f04a3b9a9323ec9991f2105d4c78a7bc7beeb103855a7a11dfb9f",
-  "293e5ce4ce54ee71990ab06e511b7ccd62722b1beb414f5ff65c8274e0f5be1d" };
+    sha3_init(&ctx, outlen);
+    sha3_update(&ctx, in, inlen);
+    sha3_final(out, &ctx);
 
-size_t hex2bin (void *bin, char hex[]) {
-    size_t  len, i;
-    int     x;
-    uint8_t *p=(uint8_t*)bin;
-
-    len = strlen (hex);
-
-    if ((len & 1) != 0) {
-      return 0; 
-    }
-
-    for (i=0; i<len; i++) {
-      if (isxdigit((int)hex[i]) == 0) {
-        return 0; 
-      }
-    }
-
-    for (i=0; i<len / 2; i++) {
-      sscanf (&hex[i * 2], "%2x", &x);
-      p[i] = (uint8_t)x;
-    } 
-    return len / 2;
-} 
-
-void bin2hex(uint8_t *x) {
-    int i;
-    
-    for (i=0; i<32; i++)
-      printf(" %02X", x[i]);
-    printf("\n");
-}
-
-int main(void) {
-  
-    uint8_t  h[32], r[32];
-    int      i, fail=0;
-    sha3_ctx c;
-    
-    for(i=0;i<sizeof(tv_hash)/sizeof(char*);i++) {
-      hex2bin(h, tv_hash[i]);
-      
-      sha3_init(&c, 32);
-      sha3_update(&c, tv_str[i], strlen(tv_str[i]));
-      sha3_final(r, &c);
-      
-      if(memcmp(h, r, 32)) {
-        printf ("Hash for test vector %i failed\n", i+1);
-        fail++;
-      }     
-    }
-    if(!fail) printf ("All SHA3-256 tests passed\n");  
     return 0;
 }
+
+// Deterministic sequences (Fibonacci generator).
+
+static void selftest_seq(uint8_t *out, size_t len, uint32_t seed)
+{
+    size_t i;
+    uint32_t t, a , b;
+
+    a = 0xDEAD4BAD * seed;              // prime
+    b = 1;
+
+    for (i = 0; i < len; i++) {         // fill the buf
+        t = a + b;
+        a = b;
+        b = t;
+        out[i] = (t >> 24) & 0xFF;
+    }
+}
+
+int sha3_selftest()
+{
+    // grand hash of hash results
+    const uint8_t sha3_res[32] = {
+      0xfe, 0xd2, 0x6d, 0x05, 0x27, 0x6a, 0xf6, 0x00,
+      0x6c, 0xaa, 0x39, 0x36, 0xe1, 0x4b, 0xaa, 0x09,
+      0x33, 0x3e, 0xce, 0x1d, 0x12, 0xad, 0x66, 0x6e,
+      0xab, 0x62, 0x2c, 0x9c, 0xda, 0xe7, 0x3f, 0x89 };
+      
+    // parameter sets
+    const size_t md_len[4] = { 20, 32, 48, 64 };
+    const size_t in_len[6] = { 0, 3, 128, 129, 255, 1024 };
+
+    size_t i, j, outlen, inlen;
+    uint8_t in[1024], md[64], key[64];
+    sha3_ctx ctx;
+
+    // 256-bit hash for testing
+    sha3_init(&ctx, 32);
+
+    for (i = 0; i < 4; i++) {
+        outlen = md_len[i];
+        for (j = 0; j < 6; j++) {
+            inlen = in_len[j];
+
+            selftest_seq(in, inlen, inlen);     // unkeyed hash
+            sha3(md, outlen, in, inlen);
+            sha3_update(&ctx, md, outlen);   // hash the hash
+        }
+    }
+
+    // compute and compare the hash of hashes
+    sha3_final(md,&ctx);
+    
+    for (i = 0; i < 32; i++) {
+      if (md[i] != sha3_res[i])
+        return -1;
+    }
+
+    return 0;
+}
+
+int main(int argc, char **argv)
+{
+    printf("sha3_selftest() = %s\n",
+         sha3_selftest() ? "FAIL" : "OK");
+
+    return 0;
+}
+
 #endif

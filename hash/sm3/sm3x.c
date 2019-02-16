@@ -50,44 +50,39 @@ typedef struct _sm3_ctx {
 #define F1(x,y,z)(((x)^(y)^(z)))
 #define FF(x,y,z)(((x)&(y))^((x)&(z))^((y)&(z))) 
 #define GG(x,y,z)(((x)&(y))^(~(x)&(z)))
+
 #define P0(x)x^R(x,9)^R(x,17)
 #define P1(x)x^R(x,15)^R(x,23)
 
 void sm3_compress(sm3_ctx*c) {
     W t1,t2,i,j,t,s1,s2,x[8],w[68];
 
+    // load data
     F(16)w[i]=rev32(c->x.w[i]);
-
+    // expand
     for(i=16;i<68;i++)
       w[i]=P1(w[i-16]^w[i-9]^R(w[i-3],15))^R(w[i-13],7)^w[i- 6];
 
+    // load internal state
     F(8)x[i]=c->s[i];
     
-    #define a x[0]
-    #define b x[1]
-    #define c x[2]
-    #define d x[3]
-    #define e x[4]
-    #define f x[5]
-    #define g x[6]
-    #define h x[7]
-    
+    // compress data
     F(64) {
       t=(i<16)?0x79cc4519:0x7a879d8a;
-      s2=R(a,12);      
-      s1=R(s2+e+R(t,i),7);
+      s2=R(x[0],12);      
+      s1=R(s2+x[4]+R(t,i),7);
       s2^=s1;
       if(i<16) {
-        t1=F1(a,b,c)+d+s2+(w[i]^w[i+4]);
-        t2=F1(e,f,g)+h+s1+w[i];
+        t1=F1(x[0],x[1],x[2])+x[3]+s2+(w[i]^w[i+4]);
+        t2=F1(x[4],x[5],x[6])+x[7]+s1+w[i];
       } else {
-        t1=FF(a,b,c)+d+s2+(w[i]^w[i+4]);
-        t2=GG(e,f,g)+h+s1+w[i];      
+        t1=FF(x[0],x[1],x[2])+x[3]+s2+(w[i]^w[i+4]);
+        t2=GG(x[4],x[5],x[6])+x[7]+s1+w[i];      
       }
-      d=c;c=R(b,9);b=a;a=t1;h=g;g=R(f,19);f=e;e=P0(t2);     
+      x[3]=x[2];x[2]=R(x[1],9);x[1]=x[0];x[0]=t1;
+      x[7]=x[6];x[6]=R(x[5],19);x[5]=x[4];x[4]=P0(t2);     
     }
-    #undef b
-    #undef c
+    // update internal state
     F(8)c->s[i]^=x[i];
 }
 
@@ -103,35 +98,34 @@ void sm3_init(sm3_ctx*c) {
     c->len =0;
 }
 
-void sm3_update(sm3_ctx*c,void*in,W len) {
-    B *p=in;
-    W r,i,idx;
-
-    idx=c->len&63;
-    c->len+=len;
+void sm3_update(sm3_ctx*c,const void*in,W len) {
+    B *p=(B*)in;
+    W i, idx;
     
-    while(len) {
-      r=len<(64-idx)?len:(64-idx);
-      F(r)c->x.b[i]=p[i];
-      if((idx+r)<64)break;
-      sm3_compress(c);
-      len-=r;
-      idx=0;
-      p+=r;
+    idx = c->len & 63;
+    c->len += len;
+    
+    for (i=0;i<len;i++) {
+      c->x.b[idx]=p[i]; idx++;
+      if(idx==64) {
+        sm3_compress(c);
+        idx=0;
+      }
     }
 }
 
 void sm3_final(void*out,sm3_ctx*c) {
-    W i,len,*p=out;
+    W i,len,*p=(W*)out;
     
-    len=c->len&63;
-    F(64-len)c->x.b[len+i]=0;
+    i = len = c->len & 63;
+    while(i < 64) c->x.b[i++]=0;
     c->x.b[len]=0x80;
-    if(len>=56) {
+    
+    if(len >= 56) {
       sm3_compress(c);
-      F(8)c->x.q[i]=0;
+      F(16)c->x.w[i]=0;
     }
-    c->x.q[7]=rev64((Q)c->len*8);
+    c->x.q[7]=rev64(c->len*8);
     sm3_compress(c);
     F(8)p[i]=rev32(c->s[i]);
 }

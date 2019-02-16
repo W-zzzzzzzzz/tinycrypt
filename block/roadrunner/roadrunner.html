@@ -1,0 +1,300 @@
+<h3><strong>Introduction</strong></h3>
+
+<p>RoadRunneR is a compact, fast Bitslice Block cipher designed specifically for Low Cost 8-bit CPUs. Details of the cipher were published <a href="https://eprint.iacr.org/2015/906">here</a> in 2015, and proposed by <a href="https://www.researchgate.net/profile/Adnan_Baysal">Adnan Baysal</a> and <a href="https://www.researchgate.net/profile/Suhap_Sahin">Suhap Sahin</a> at the Lightweight Cryptography for Security and Privacy, (LightSec 2015) held in Germany. RoadRunneR is a Feistel-type block cipher, with 64-bit block size and 80-bit or 128-bit key. The 80-bit variant uses 10 rounds while the 128-bit uses 12. In this post, I'll show x86 assembly and C code for the 128-bit version.</p>
+
+<p>The authors of cipher state in their proposal the main objectives of RoadRunneR:</p>
+
+<ul>
+ 	<li><strong><strong>Implementation efficiency in 8-bit CPUs</strong></strong></li>
+ 	<li><strong><strong>No table and SRAM usage</strong></strong></li>
+ 	<li><strong><strong>Low decryption overhead</strong></strong></li>
+ 	<li><strong><strong>Provable security like in <a href="http://jda.noekeon.org/JDA_VRI_Wide_2001.pdf">wide trail design strategy</a></strong></strong></li>
+</ul>
+
+<strong>RoadRunneR is a perfect choice for devices with very restricted memory resources and for applications requiring reasonable throughput expectations.</strong>
+
+Although the cipher is specifically designed for 8-bit CPUs, the code shown here has a mixture of 8-bit and 32-bit code.
+
+<h3><strong>S Layer</strong></h3>
+
+<p>Using bit-slice techniques for an S-box layer has become popular lately as more research into lightweight cryptography for resource constrained environments progresses. Block ciphers such as NOEKEON, PRIDE, RECTANGLE and Fantomas/Robin all use a bit-sliced S-box layer. Some advantages of using a bit-slice S-box layer in both hardware and software implementations include protection against side-channel analysis, and elimination of S-Box array that would require ROM/RAM. Authors say the S-box for RoadRunneR was found through a brute force search of assembly code combinations. The search space was restricted to 4 input words, a single temporary word, and the following instructions: AND, OR, XOR, NOT, and MOV.</p>
+
+<p><a href="http://skew2011.mat.dtu.dk/proceedings/Finding%20Optimal%20Bitsliced%20Implementations%20of%204%20to%204-bit%20S-boxes.pdf">Finding Optimal Bitsliced Implementations of 4×4-bit S-boxes.</a> describes this process in more detail. The following values for the 4 x 4 S-Layer are used.</p>
+
+<img class="size-full wp-image-2615 aligncenter" src="https://tinycrypt.files.wordpress.com/2018/01/sbox.png" alt="" width="640" height="110" />
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>// S-Layer</span>
+<span style='color:#800000;font-weight:bold;'>void</span> sbox<span style='color:#808030;'>(</span>uint8_t <span style='color:#808030;'>*</span>x<span style='color:#808030;'>)</span>
+<span style='color:#800080;'>{</span>
+    uint8_t t<span style='color:#800080;'>;</span>
+    
+    t <span style='color:#808030;'>=</span> x<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+
+    x<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>&amp;</span><span style='color:#808030;'>=</span> x<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    x<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> x<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    x<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>|</span><span style='color:#808030;'>=</span> x<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    x<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> x<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    x<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>&amp;</span><span style='color:#808030;'>=</span> x<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    x<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span>  t<span style='color:#800080;'>;</span> 
+       t <span style='color:#808030;'>&amp;</span><span style='color:#808030;'>=</span> x<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    x<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span>  t<span style='color:#800080;'>;</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+<a href="https://eprint.iacr.org/2011/218">Cryptographic Analysis of All 4 x 4 - Bit S-Boxes</a>
+
+<h3><strong>L Layer</strong></h3>
+
+A linear function on each byte of the state to provide diffusion. Such a linear function is normally implemented using an XOR of rotated or shifted values. It's commonly seen in many block ciphers and hash algorithms like Serpent, SM3 and SM4.
+
+<h3><strong>K Layer</strong></h3>
+
+This is not referenced in the original paper, but is essentially <a href="https://en.wikipedia.org/wiki/Key_whitening">Key Whitening</a> AKA Key Addition, which was first implemented by <a href="http://people.csail.mit.edu/rivest/">Ron Rivest</a> in DES-X.
+
+The theory is that by XOR'ing bits of the key against plaintext during the encryption process, this helps strengthen the final ciphertext against exhaustive brute force attacks. 
+
+It's a technique used in many SPN block ciphers. For example, it's known as <strong>AddRoundKey</strong> in the <strong>Advanced Encryption Standard</strong> (AES).
+
+<h3><strong>SLK Function</strong></h3>
+
+Combining Layers S, L and K is the following function. 
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>// SLK function </span>
+<span style='color:#800000;font-weight:bold;'>void</span> SLK<span style='color:#808030;'>(</span>w32_t <span style='color:#808030;'>*</span>x<span style='color:#808030;'>,</span> uint8_t <span style='color:#808030;'>*</span>sk<span style='color:#808030;'>)</span>
+<span style='color:#800080;'>{</span>
+    <span style='color:#800000;font-weight:bold;'>int</span>     i<span style='color:#800080;'>;</span>
+    uint8_t t<span style='color:#800080;'>;</span>
+    uint8_t <span style='color:#808030;'>*</span>p<span style='color:#808030;'>=</span>x<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>b<span style='color:#800080;'>;</span>
+    
+    <span style='color:#696969;'>// apply S-Layer</span>
+    sbox<span style='color:#808030;'>(</span>p<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+    
+    <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>i<span style='color:#808030;'>=</span><span style='color:#008c00;'>3</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>&gt;</span><span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>-</span><span style='color:#808030;'>-</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>      
+      <span style='color:#696969;'>// apply L-Layer</span>
+      t   <span style='color:#808030;'>=</span> ROTL8<span style='color:#808030;'>(</span><span style='color:#808030;'>*</span>p<span style='color:#808030;'>,</span> <span style='color:#008c00;'>1</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>^</span> <span style='color:#808030;'>*</span>p<span style='color:#800080;'>;</span>       
+      <span style='color:#808030;'>*</span>p <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> ROTL8<span style='color:#808030;'>(</span>t<span style='color:#808030;'>,</span>  <span style='color:#008c00;'>1</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span> 
+      
+      <span style='color:#696969;'>// apply K-Layer</span>
+      <span style='color:#808030;'>*</span>p<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span> <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> <span style='color:#808030;'>*</span>sk<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#800080;'>;</span>
+    <span style='color:#800080;'>}</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+<h3><strong>The F-Function</strong></h3>
+
+The main function consists of a 4-round <a href="https://en.wikipedia.org/wiki/Substitution%E2%80%93permutation_network">Substitution–permutation network</a> (SPN) structure. The first three rounds have the same function called SLK, which is the application of S, L and K layers already described. The final round only applies the S layer. 
+
+In addition to aforementioned layers is the addition of a round constant after the second call to SLK. This is simply the round number XOR'ed against the least significant byte of the state, which for the 128-bit key variant would be from 12 down to 1. 
+
+It is, as the authors describe, intended to protect against simple <a href="https://link.springer.com/content/pdf/10.1007/3-540-48519-8_18.pdf">Slide Attacks</a>.
+
+<a href="https://wwwfr.uni.lu/recherche/fstc/computer_science_and_communications_research_unit/membres/alex_biryukov">Biryukov</a> and <a href="http://people.eecs.berkeley.edu/~daw/">Wagner</a> state the following in <a href="https://www.iacr.org/archive/eurocrypt2000/1807/18070595-new.pdf">Advanced Slide Attacks</a>.
+
+<strong>The most obvious type of slide attack is usually easy to prevent by destroying self-similarity in iterative ciphers, for example by adding iteration counters or random constants.</strong>
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>// F round</span>
+<span style='color:#800000;font-weight:bold;'>void</span> F<span style='color:#808030;'>(</span>w64_t <span style='color:#808030;'>*</span>blk<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>key<span style='color:#808030;'>,</span> 
+    uint8_t <span style='color:#808030;'>*</span>key_idx<span style='color:#808030;'>,</span> uint8_t ci<span style='color:#808030;'>)</span>
+<span style='color:#800080;'>{</span>
+    <span style='color:#800000;font-weight:bold;'>int</span>      i<span style='color:#800080;'>;</span>
+    uint32_t t<span style='color:#800080;'>;</span>
+    uint8_t  <span style='color:#808030;'>*</span>rk<span style='color:#808030;'>=</span><span style='color:#808030;'>(</span>uint8_t<span style='color:#808030;'>*</span><span style='color:#808030;'>)</span>key<span style='color:#800080;'>;</span>
+    w32_t    <span style='color:#808030;'>*</span>x<span style='color:#808030;'>=</span><span style='color:#808030;'>(</span>w32_t<span style='color:#808030;'>*</span><span style='color:#808030;'>)</span>blk<span style='color:#800080;'>;</span>
+    
+    <span style='color:#696969;'>// save 32-bits</span>
+    t <span style='color:#808030;'>=</span> x<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>w<span style='color:#800080;'>;</span>
+    
+    <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>i<span style='color:#808030;'>=</span><span style='color:#008c00;'>3</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>&gt;</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>-</span><span style='color:#808030;'>-</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+      <span style='color:#696969;'>// add round constant</span>
+      <span style='color:#800000;font-weight:bold;'>if</span> <span style='color:#808030;'>(</span>i<span style='color:#808030;'>=</span><span style='color:#808030;'>=</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>)</span> x<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>b<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> ci<span style='color:#800080;'>;</span>
+      <span style='color:#696969;'>// apply S,L,K layers</span>
+      SLK <span style='color:#808030;'>(</span>x<span style='color:#808030;'>,</span> rk <span style='color:#808030;'>+</span> <span style='color:#808030;'>*</span>key_idx<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>      
+      <span style='color:#696969;'>// advance master key index</span>
+      <span style='color:#808030;'>*</span>key_idx <span style='color:#808030;'>=</span> <span style='color:#808030;'>(</span><span style='color:#808030;'>*</span>key_idx <span style='color:#808030;'>+</span> <span style='color:#008c00;'>4</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>&amp;</span> <span style='color:#008c00;'>15</span><span style='color:#800080;'>;</span>
+    <span style='color:#800080;'>}</span>
+    
+    <span style='color:#696969;'>// apply S-Layer</span>
+    sbox<span style='color:#808030;'>(</span>x<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>b<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+    
+    <span style='color:#696969;'>// add upper 32-bits</span>
+    blk<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>w<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> blk<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>w<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    blk<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>w<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> t<span style='color:#800080;'>;</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+<h3><strong>Encryption</strong></h3>
+
+The variable <strong>key_idx</strong> which acts as a master key index is initialized to 4, skipping the first 4 bytes which are XOR'd against the plaintext as part of K-Layer before 12 rounds of F.
+
+Note how <em><strong>rnd</strong></em> is initialized to 12 and passed to F. This is the round constant used to protect against simple slide attacks.
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>// encrypt 64-bits of data using 128-bit key  </span>
+<span style='color:#800000;font-weight:bold;'>void</span> road64_encrypt<span style='color:#808030;'>(</span><span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>data<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>key<span style='color:#808030;'>)</span>
+<span style='color:#800080;'>{</span>
+    <span style='color:#800000;font-weight:bold;'>int</span>      rnd<span style='color:#800080;'>;</span>
+    uint8_t  key_idx<span style='color:#800080;'>;</span>
+    uint32_t t<span style='color:#800080;'>;</span>
+    w64_t    <span style='color:#808030;'>*</span>x<span style='color:#808030;'>=</span><span style='color:#808030;'>(</span>w64_t<span style='color:#808030;'>*</span><span style='color:#808030;'>)</span>data<span style='color:#800080;'>;</span>
+    uint32_t <span style='color:#808030;'>*</span>rk<span style='color:#808030;'>=</span><span style='color:#808030;'>(</span>uint32_t<span style='color:#808030;'>*</span><span style='color:#808030;'>)</span>key<span style='color:#800080;'>;</span>
+
+    <span style='color:#696969;'>// initialize master key index</span>
+    key_idx <span style='color:#808030;'>=</span> <span style='color:#008c00;'>4</span><span style='color:#800080;'>;</span>
+    
+    <span style='color:#696969;'>// apply K-Layer</span>
+    x<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>w<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> rk<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    
+    <span style='color:#696969;'>// apply rounds</span>
+    <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>rnd<span style='color:#808030;'>=</span>RR_ROUNDS<span style='color:#800080;'>;</span> rnd<span style='color:#808030;'>&gt;</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> rnd<span style='color:#808030;'>-</span><span style='color:#808030;'>-</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+      F<span style='color:#808030;'>(</span>x<span style='color:#808030;'>,</span> rk<span style='color:#808030;'>,</span> <span style='color:#808030;'>&amp;</span>key_idx<span style='color:#808030;'>,</span> rnd<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+    <span style='color:#800080;'>}</span>
+    <span style='color:#696969;'>// P-Layer?</span>
+    XCHG<span style='color:#808030;'>(</span>x<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>w<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> x<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>w<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+    <span style='color:#696969;'>// apply K-Layer</span>
+    x<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>w<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> rk<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+Above you see <strong>P-Layer?</strong> It's not mentioned, but this swap is a permutation, and likely helps strengthen the final ciphertext.
+
+<h3><strong>Assembly code</strong></h3>
+
+Because it's such a compact algorithm with no key scheduling, the encryption can be implemented all in one call.
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#004a43;'>bits</span> <span style='color:#008c00;'>32</span>
+    
+<span style='color:#004a43;'>&#xa0;&#xa0;&#xa0;&#xa0;</span><span style='color:#004a43;'>%ifndef</span><span style='color:#004a43;'> BIN</span>
+      <span style='color:#004a43;'>global</span> road64_encryptx
+      <span style='color:#004a43;'>global</span> _road64_encryptx
+<span style='color:#004a43;'>&#xa0;&#xa0;&#xa0;&#xa0;</span><span style='color:#004a43;'>%endif</span>
+    
+<span style='color:#004a43;'>struc</span> pushad_t
+  _edi <span style='color:#800000;font-weight:bold;'>resd</span> <span style='color:#008c00;'>1</span>
+  _esi <span style='color:#800000;font-weight:bold;'>resd</span> <span style='color:#008c00;'>1</span>
+  _ebp <span style='color:#800000;font-weight:bold;'>resd</span> <span style='color:#008c00;'>1</span>
+  _esp <span style='color:#800000;font-weight:bold;'>resd</span> <span style='color:#008c00;'>1</span>
+  _ebx <span style='color:#800000;font-weight:bold;'>resd</span> <span style='color:#008c00;'>1</span>
+  _edx <span style='color:#800000;font-weight:bold;'>resd</span> <span style='color:#008c00;'>1</span>
+  _ecx <span style='color:#800000;font-weight:bold;'>resd</span> <span style='color:#008c00;'>1</span>
+  _eax <span style='color:#800000;font-weight:bold;'>resd</span> <span style='color:#008c00;'>1</span>
+<span style='color:#e34adc;'>&#xa0;&#xa0;.size:</span>
+<span style='color:#004a43;'>endstruc</span>
+
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> key_idx ebx    </span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> rnd     ecx </span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> t       edx   </span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> x       esi</span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> p       esi</span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> rk      edi</span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> sk      edi</span>
+    
+<span style='color:#e34adc;'>road64_encryptx:</span>
+<span style='color:#e34adc;'>_road64_encryptx:</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    x<span style='color:#808030;'>,</span>  <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+4</span><span style='color:#808030;'>]</span> <span style='color:#696969;'>; esi : x  = data</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    rk<span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+8</span><span style='color:#808030;'>]</span> <span style='color:#696969;'>; edi : rk = key</span>
+    <span style='color:#696969;'>; key_idx = 4;</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#008c00;'>4</span>
+    <span style='color:#800000;font-weight:bold;'>pop</span>    key_idx        
+    <span style='color:#696969;'>; apply K-Layer</span>
+    <span style='color:#696969;'>; ; x-&gt;w[0] ^= rk[0];</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span>rk<span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#808030;'>[</span>x<span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>       
+    <span style='color:#696969;'>; apply rounds</span>
+    <span style='color:#696969;'>; rnd = RR_ROUNDS</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#008c00;'>12</span>             
+    <span style='color:#800000;font-weight:bold;'>pop</span>    rnd
+<span style='color:#e34adc;'>rr_encrypt:</span>    
+    <span style='color:#696969;'>; ------------------------- F round</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#696969;'>; t = x-&gt;w;</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    t<span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span>x<span style='color:#808030;'>]</span>
+    <span style='color:#696969;'>; i = 3;</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>3</span>
+<span style='color:#e34adc;'>f_round:</span>
+    <span style='color:#696969;'>; add round constant</span>
+    <span style='color:#696969;'>; if (i==1)</span>
+    <span style='color:#800000;font-weight:bold;'>cmp</span>    <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>1</span>
+    <span style='color:#800000;font-weight:bold;'>jne</span>    <span style='color:#e34adc;'>SLKX</span>
+    <span style='color:#696969;'>; x-&gt;b[3] ^= ci;</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span>_ecx<span style='color:#808030;'>]</span>  <span style='color:#696969;'>; ecx has round index   </span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#808030;'>[</span>x<span style='color:#808030;'>+</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>al</span>  
+<span style='color:#e34adc;'>SLKX:</span>    
+    <span style='color:#696969;'>; -------------------------------</span>
+    <span style='color:#696969;'>; SLK (x, rk + *key_idx);</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>  
+    <span style='color:#696969;'>; apply S-Layer</span>
+    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>sboxx</span> 
+    <span style='color:#800000;font-weight:bold;'>add</span>    sk<span style='color:#808030;'>,</span> key_idx    
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>4</span>      <span style='color:#696969;'>; 4 rounds of SLK </span>
+    <span style='color:#696969;'>; apply L-Layer</span>
+<span style='color:#e34adc;'>slk_round:</span>
+    <span style='color:#696969;'>; t   = ROTL8(*p, 1) ^ *p; </span>
+    <span style='color:#800000;font-weight:bold;'>movzx</span>  <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>byte</span><span style='color:#808030;'>[</span>p<span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>rol</span>    <span style='color:#000080;'>al</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>1</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>al</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span>p<span style='color:#808030;'>]</span>
+    <span style='color:#696969;'>; *p ^= ROTL8(t,  1);</span>
+    <span style='color:#800000;font-weight:bold;'>rol</span>    <span style='color:#000080;'>al</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>1</span> 
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#808030;'>[</span>p<span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>al</span>
+    <span style='color:#696969;'>; apply K-Layer</span>
+    <span style='color:#696969;'>; *p++ ^= *sk++;</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>al</span><span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>byte</span><span style='color:#808030;'>[</span>sk<span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>inc</span>    sk
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#808030;'>[</span>p<span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>al</span>
+    <span style='color:#800000;font-weight:bold;'>inc</span>    p
+    <span style='color:#800000;font-weight:bold;'>loop</span>   <span style='color:#e34adc;'>slk_round</span> 
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#696969;'>; -------------------------------- </span>
+    <span style='color:#696969;'>; advance master key index</span>
+    <span style='color:#696969;'>; *key_idx = (*key_idx + 4) &amp; 15;</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    key_idx<span style='color:#808030;'>,</span> <span style='color:#008c00;'>4</span>
+    <span style='color:#800000;font-weight:bold;'>and</span>    key_idx<span style='color:#808030;'>,</span> <span style='color:#008c00;'>15</span>
+    <span style='color:#800000;font-weight:bold;'>loop</span>   <span style='color:#e34adc;'>f_round</span>
+    <span style='color:#696969;'>; apply S-Layer</span>
+    <span style='color:#696969;'>; sbox(x);    </span>
+    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>sboxx</span>
+    <span style='color:#696969;'>; add upper 32-bits</span>
+    <span style='color:#696969;'>; blk-&gt;w[0]^= blk-&gt;w[1];</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span>x<span style='color:#808030;'>+</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#808030;'>[</span>x<span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+    <span style='color:#696969;'>; blk-&gt;w[1] = t;</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#808030;'>[</span>x<span style='color:#808030;'>+</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> t   
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span>_ebx<span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> key_idx    
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#696969;'>; -------------------------</span>
+    <span style='color:#800000;font-weight:bold;'>loop</span>   <span style='color:#e34adc;'>rr_encrypt</span> 
+    <span style='color:#696969;'>; XCHG(x-&gt;w[0], x-&gt;w[1]);        </span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span>x<span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span>x<span style='color:#808030;'>+</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span>
+    <span style='color:#696969;'>; x-&gt;w[0] ^= rk[1];    </span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span>rk<span style='color:#808030;'>+</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#808030;'>[</span>x<span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>  
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>ret</span>    
+
+<span style='color:#696969;'>; S-Layer    </span>
+<span style='color:#e34adc;'>sboxx:</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> x        <span style='color:#696969;'>; ebx = esi</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>      <span style='color:#696969;'>; t.w = ROTR32(x-&gt;w, 16); </span>
+    <span style='color:#800000;font-weight:bold;'>ror</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>16</span>
+    <span style='color:#800000;font-weight:bold;'>and</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>dl</span>   <span style='color:#696969;'>; x-&gt;b[3] &amp;=  t.b[0];</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ah</span>   <span style='color:#696969;'>; x-&gt;b[3] ^= x-&gt;b[1];</span>
+    <span style='color:#800000;font-weight:bold;'>or</span>     <span style='color:#808030;'>[</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>dl</span>   <span style='color:#696969;'>; x-&gt;b[1] |=  t.b[0];    </span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>al</span>   <span style='color:#696969;'>; x-&gt;b[1] ^= x-&gt;b[0];</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>dl</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>and</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>dl</span>   <span style='color:#696969;'>; x-&gt;b[0] &amp;= x-&gt;b[3];</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>dh</span>   <span style='color:#696969;'>; x-&gt;b[0] ^=  t.b[1];</span>
+    <span style='color:#800000;font-weight:bold;'>and</span>    <span style='color:#000080;'>dh</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span>   <span style='color:#696969;'>;  t.b[1] &amp;= x-&gt;b[1];</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>dh</span>   <span style='color:#696969;'>; x-&gt;b[2] ^=  t.b[1]; </span>
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>ret</span>
+</pre>
+
+This could definitely be optimized in some parts, but I'll update later. 
+ 
+<h3><strong>Summary</strong></h3>
+
+A really nice and simple cipher with interesting features, which is entirely suitable for resource constrained environments. Assembly output from MSVC is currently 242 bytes. The x86 assembly is 142 bytes.
+
+<a href="https://github.com/odzhan/tinycrypt/tree/master/block/roadrunner">Sources here.</a>

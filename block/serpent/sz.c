@@ -37,14 +37,14 @@ typedef unsigned char B;
 typedef unsigned int W;
 void sbox(W*, W);
 
-void serpent(void*mk,void*in) {
-    W i,j,s,t,rk[4],k[8],*x=in;
+void serpent(void*mk,void*data) {
+    W i,j,s,rk[4],k[8],*x=data;
 
     F(i,8)k[i]=((W*)mk)[i];
       
     for(i=0;;) {
       F(j,4) {
-        rk[j]=R((k[0]^k[3]^k[5]^k[7]^0x9e3779b9UL^i*4+j),21);
+        rk[j]=R((k[0]^k[3]^k[5]^k[7]^0x9e3779b9UL^(i*4+j)),21);
         F(s,7)k[s]=k[s+1];
         k[7]=rk[j];
       }

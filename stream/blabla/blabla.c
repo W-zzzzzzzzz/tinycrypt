@@ -32,17 +32,20 @@
 #define R(v,n)(((v)>>(n))|((v)<<(64-(n))))
 #define F(n)for(i=0;i<n;i++)
 #define X(a,b)(t)=(a),(a)=(b),(b)=(t)
+typedef unsigned char B;
 typedef unsigned long long W;
 
-// setup the key
+// setup the key/internal state
 void bb20_setkey(bb20_ctx *c, void *key, void *nonce) {
+    W i, *k=(W*)key, *n=(W*)nonce;
+    
     c->q[ 0] = 0x6170786593810fab;
     c->q[ 1] = 0x3320646ec7398aee;
     c->q[ 2] = 0x79622d3217318274;
     c->q[ 3] = 0x6b206574babadada;
 
-    // set 256-bit key
-    memcpy (&c->b[32], key, BB20_KEY_LEN);
+    // copy 256-bit key
+    F(4) c->q[i+4] = k[i];
     
     c->q[ 8] = 0x2ae36e593e46ad5f;
     c->q[ 9] = 0xb68f143029225fc9;
@@ -53,12 +56,12 @@ void bb20_setkey(bb20_ctx *c, void *key, void *nonce) {
     // set 64-bit counter
     c->q[13] = 1; 
     
-    // set 128-bit nonce
-    memcpy(&c->q[14], nonce, 16);
+    // copy 128-bit nonce
+    F(2)c->q[i+14]=n[i];
 }
 
 void bb20_stream(bb20_ctx*s, uint64_t*x) {
-    uint64_t a,b,c,d,i,t,r;
+    W a,b,c,d,i,t,r;
     uint16_t v[8]={0xC840,0xD951,0xEA62,0xFB73,
                    0xFA50,0xCB61,0xD872,0xE943};
             
@@ -80,8 +83,8 @@ void bb20_stream(bb20_ctx*s, uint64_t*x) {
 
 // encrypt or decrypt stream of len-bytes
 void bb20_encrypt (size_t len, void *in, bb20_ctx *ctx) {
-    size_t  i, r, s[16];
-    uint8_t *p=(uint8_t*)in, *c=(uint8_t*)&s[0];
+    W i, r, s[16];
+    B *p=(B*)in, *c=(B*)&s[0];
     
     while (len) {      
       bb20_stream(ctx, s);
@@ -96,6 +99,8 @@ void bb20_encrypt (size_t len, void *in, bb20_ctx *ctx) {
 
 // generate key stream of len-bytes
 void bb20_keystream(size_t len, void *out, bb20_ctx *c) {
-    memset(out, 0, len);       // zero initialize output
-    bb20_encrypt(len, out, c); // encrypt it
+    W i;
+    
+    F(len)((B*)out)[i]=0;   // zero initialize output
+    bb20_encrypt(len, out, c);    // encrypt it
 }

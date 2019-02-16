@@ -50,7 +50,3 @@ See bld64.bat for example of how to compile.
   </tr>
 </table> 
 
-## Author ##
-
-[@m0dexp](https://www.twitter.com/m0dexp "Follow me on Twitter")
- 

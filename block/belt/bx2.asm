@@ -65,14 +65,6 @@ endstruc
 
 %define G   ebp
 
-; workspace on stack
-struc work_t
-  i  dd ?
-  k  dd ?
-  j  dd ?
-  x  dd ?
-endstruc
-
 belt:
 _belt:
     pushad

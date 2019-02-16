@@ -28,7 +28,7 @@
 ;  POSSIBILITY OF SUCH DAMAGE.
 ;
 ; -----------------------------------------------
-; Ascon Permutation function in x86-64 assembly
+; Ascon Permutation function in AMD64 assembly
 ;
 ; size: 254 bytes
 ;
@@ -39,7 +39,7 @@
     bits 64
     
     %ifndef BIN
-      global ascon_permutex
+      global ascon
     %endif
     
 %define x0 rbx
@@ -58,7 +58,7 @@
 %define r rdx
 %define i rax
     
-ascon_permutex:
+ascon:
     push   rsi
     push   rbx
     push   rdi

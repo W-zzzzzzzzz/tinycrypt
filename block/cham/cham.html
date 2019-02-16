@@ -1,0 +1,179 @@
+<h3><strong>Introduction</strong></h3>
+
+<p><a href="https://link.springer.com/chapter/10.1007/978-3-319-78556-1_1">CHAM: A Family of Lightweight Block Ciphers for Resource-Constrained Devices</a> was published in December 2017 at the <a href="http://www.icisc.org/icisc/asp/index.html">20th Annual International Conference on Information Security and Cryptology</a> held in South Korea. CHAM consists of three ciphers, CHAM-64/128, CHAM-128/128, and CHAM-128/256 which are based on the <em>Generalized Feistel Network</em> (GFN) structure. This post will focus on CHAM-128/128 which is the 128-bit block cipher with 128-bit key variant operating on 4 branches of 32 bits each. The only operations used are 32-bit modular addition, Rotation and XOR (ARX). The design of CHAM draws inspiration from Speck and Simon block ciphers by the NSA. A cursory glance of the algorithm would suggest CHAM is not ideal for hardware due to its use of <a href="https://keccak.team/2017/not_arx.html">modular addition which is inefficient to implement on hardware.</a></p>
+
+<p>Take this quote from the designers of the permutation function Keccak:</p>
+
+<strong><em>..the designer of an adder must choose between complexity (area, consumption) or gate delay (latency): It is either compact or fast, but not at the same time</em></strong>
+
+<p>Here are parameters for all 3 variants. N is the block length, K is the key length, R is the number of rounds, W is the width of a word and K/W is the number of words per key.</p>
+
+<img src="https://tinycrypt.files.wordpress.com/2018/01/params.png" alt="" width="624" height="217" class="alignleft size-full wp-image-2570" />
+
+<h3>Key schedule</h3>
+
+For the 128-bit version, there are 8 round keys of 32-bits each, or 32-bytes in total.
+
+<img src="https://tinycrypt.files.wordpress.com/2018/01/setkey.png" alt="" width="640" height="104" class="alignleft size-full wp-image-2568" />
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000;font-weight:bold;'>void</span> cham128_setkey<span style='color:#808030;'>(</span><span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>in<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>out<span style='color:#808030;'>)</span>
+<span style='color:#800080;'>{</span>
+    <span style='color:#800000;font-weight:bold;'>int</span> i<span style='color:#800080;'>;</span>
+    uint32_t <span style='color:#808030;'>*</span>k<span style='color:#808030;'>=</span><span style='color:#808030;'>(</span>uint32_t<span style='color:#808030;'>*</span><span style='color:#808030;'>)</span>in<span style='color:#800080;'>;</span>
+    uint32_t <span style='color:#808030;'>*</span>rk<span style='color:#808030;'>=</span><span style='color:#808030;'>(</span>uint32_t<span style='color:#808030;'>*</span><span style='color:#808030;'>)</span>out<span style='color:#800080;'>;</span>
+
+    <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>i<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>&lt;</span>KW<span style='color:#800080;'>;</span> i<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+      rk<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> k<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span> <span style='color:#808030;'>^</span> ROTL32<span style='color:#808030;'>(</span>k<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>1</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>^</span> ROTL32<span style='color:#808030;'>(</span>k<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>8</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+      rk<span style='color:#808030;'>[</span><span style='color:#808030;'>(</span>i <span style='color:#808030;'>+</span> KW<span style='color:#808030;'>)</span> <span style='color:#808030;'>^</span> <span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span>	<span style='color:#808030;'>=</span> k<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span> <span style='color:#808030;'>^</span> ROTL32<span style='color:#808030;'>(</span>k<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>1</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>^</span> ROTL32<span style='color:#808030;'>(</span>k<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>11</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+    <span style='color:#800080;'>}</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+The assembly may not be completely optimized here, but it's best I can do at the moment.
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#004a43;'>%define</span><span style='color:#004a43;'> K 128   </span><span style='color:#696969;'>; key length</span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> N 128   </span><span style='color:#696969;'>; block length</span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> R 80    </span><span style='color:#696969;'>; number of rounds</span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> W 32    </span><span style='color:#696969;'>; word length</span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> KW K/W  </span><span style='color:#696969;'>; number of words per key</span>
+     
+<span style='color:#e34adc;'>cham128_setkeyx:</span>
+<span style='color:#e34adc;'>_cham128_setkeyx:</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+4</span><span style='color:#808030;'>]</span>  <span style='color:#696969;'>; k  = in</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+8</span><span style='color:#808030;'>]</span>  <span style='color:#696969;'>; rk = out    </span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>         <span style='color:#696969;'>; i  = 0</span>
+<span style='color:#e34adc;'>sk_l0:</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>+</span><span style='color:#000080;'>eax</span><span style='color:#808030;'>*</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span> <span style='color:#696969;'>; ebx = k[i]</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ebx</span>         <span style='color:#696969;'>; ecx = k[i]</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ebx</span>         <span style='color:#696969;'>; edx = k[i]    </span>
+    <span style='color:#800000;font-weight:bold;'>rol</span>    <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>1</span>           <span style='color:#696969;'>; ROTL32(k[i], 1)</span>
+    <span style='color:#800000;font-weight:bold;'>rol</span>    <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>8</span>           <span style='color:#696969;'>; ROTL32(k[i], 8)    </span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ebx</span>         <span style='color:#696969;'>; k[i] ^ ROTL32(k[i], 1) </span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ecx</span>    
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>edi</span><span style='color:#808030;'>+</span><span style='color:#000080;'>eax</span><span style='color:#808030;'>*</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edx</span> <span style='color:#696969;'>; rk[i] = edx</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ecx</span>         <span style='color:#696969;'>; reset edx</span>
+    <span style='color:#800000;font-weight:bold;'>rol</span>    <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>3</span>           <span style='color:#696969;'>; k[i] ^ ROTL32(k[i], 11)</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ecx</span>    
+    <span style='color:#800000;font-weight:bold;'>lea</span>    <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>eax</span><span style='color:#808030;'>+</span>KW<span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>1</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>edi</span><span style='color:#808030;'>+</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>*</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edx</span> <span style='color:#696969;'>; rk[(i + KW) ^ 1] = edx</span>
+    <span style='color:#800000;font-weight:bold;'>inc</span>    <span style='color:#000080;'>al</span>
+    <span style='color:#800000;font-weight:bold;'>cmp</span>    <span style='color:#000080;'>al</span><span style='color:#808030;'>,</span> KW
+    <span style='color:#800000;font-weight:bold;'>jnz</span>    <span style='color:#e34adc;'>sk_l0</span>    
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>ret</span>
+</pre>
+
+<h3>Encryption</h3>
+
+There are 80 rounds in total, which is significantly more than the 32 used for Speck.
+
+<img src="https://tinycrypt.files.wordpress.com/2018/01/encrypt.png" alt="" width="640" height="212" class="alignleft size-full wp-image-2569" />
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000;font-weight:bold;'>void</span> cham128_encrypt<span style='color:#808030;'>(</span><span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>keys<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>data<span style='color:#808030;'>)</span>
+<span style='color:#800080;'>{</span>
+    <span style='color:#800000;font-weight:bold;'>int</span> i<span style='color:#800080;'>;</span>
+    uint32_t x0<span style='color:#808030;'>,</span> x1<span style='color:#808030;'>,</span> x2<span style='color:#808030;'>,</span> x3<span style='color:#800080;'>;</span>
+    uint32_t t<span style='color:#800080;'>;</span>
+    uint32_t <span style='color:#808030;'>*</span>rk<span style='color:#808030;'>=</span><span style='color:#808030;'>(</span>uint32_t<span style='color:#808030;'>*</span><span style='color:#808030;'>)</span>keys<span style='color:#800080;'>;</span>
+    uint32_t <span style='color:#808030;'>*</span>x<span style='color:#808030;'>=</span><span style='color:#808030;'>(</span>uint32_t<span style='color:#808030;'>*</span><span style='color:#808030;'>)</span>data<span style='color:#800080;'>;</span>
+    
+    x0 <span style='color:#808030;'>=</span> x<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span> x1 <span style='color:#808030;'>=</span> x<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    x2 <span style='color:#808030;'>=</span> x<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span> x3 <span style='color:#808030;'>=</span> x<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+
+    <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>i<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>&lt;</span>R<span style='color:#800080;'>;</span> i<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#808030;'>)</span>
+    <span style='color:#800080;'>{</span>
+      <span style='color:#800000;font-weight:bold;'>if</span> <span style='color:#808030;'>(</span><span style='color:#808030;'>(</span>i <span style='color:#808030;'>&amp;</span> <span style='color:#008c00;'>1</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>=</span><span style='color:#808030;'>=</span> <span style='color:#008c00;'>0</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+        x0 <span style='color:#808030;'>=</span> ROTL32<span style='color:#808030;'>(</span><span style='color:#808030;'>(</span>x0 <span style='color:#808030;'>^</span> i<span style='color:#808030;'>)</span> <span style='color:#808030;'>+</span> <span style='color:#808030;'>(</span>ROTL32<span style='color:#808030;'>(</span>x1<span style='color:#808030;'>,</span> <span style='color:#008c00;'>1</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>^</span> rk<span style='color:#808030;'>[</span>i <span style='color:#808030;'>&amp;</span> <span style='color:#008c00;'>7</span><span style='color:#808030;'>]</span><span style='color:#808030;'>)</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>8</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+      <span style='color:#800080;'>}</span> <span style='color:#800000;font-weight:bold;'>else</span> <span style='color:#800080;'>{</span>
+        x0 <span style='color:#808030;'>=</span> ROTL32<span style='color:#808030;'>(</span><span style='color:#808030;'>(</span>x0 <span style='color:#808030;'>^</span> i<span style='color:#808030;'>)</span> <span style='color:#808030;'>+</span> <span style='color:#808030;'>(</span>ROTL32<span style='color:#808030;'>(</span>x1<span style='color:#808030;'>,</span> <span style='color:#008c00;'>8</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>^</span> rk<span style='color:#808030;'>[</span>i <span style='color:#808030;'>&amp;</span> <span style='color:#008c00;'>7</span><span style='color:#808030;'>]</span><span style='color:#808030;'>)</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>1</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+      <span style='color:#800080;'>}</span>
+      XCHG<span style='color:#808030;'>(</span>x0<span style='color:#808030;'>,</span> x1<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+      XCHG<span style='color:#808030;'>(</span>x1<span style='color:#808030;'>,</span> x2<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+      XCHG<span style='color:#808030;'>(</span>x2<span style='color:#808030;'>,</span> x3<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+    <span style='color:#800080;'>}</span>
+    x<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> x0<span style='color:#800080;'>;</span> x<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> x1<span style='color:#800080;'>;</span>
+    x<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> x2<span style='color:#800080;'>;</span> x<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> x3<span style='color:#800080;'>;</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+Only the encryption here, since if you were to implement with CTR mode, decryption isn't necessary.
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#004a43;'>%define</span><span style='color:#004a43;'> x0 ebp</span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> x1 ebx</span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> x2 edx</span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> x3 esi</span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> rk edi</span>
+
+<span style='color:#e34adc;'>cham128_encryptx:</span>
+<span style='color:#e34adc;'>_cham128_encryptx:</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+8</span><span style='color:#808030;'>]</span> <span style='color:#696969;'>; x = data</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>esi</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> x0
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> x1
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> x2
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> x3
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span> <span style='color:#696969;'>; i = 0</span>
+    <span style='color:#696969;'>; initialize sub keys</span>
+<span style='color:#e34adc;'>enc_l0:</span> 
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+8</span><span style='color:#808030;'>]</span> <span style='color:#696969;'>; k = keys</span>
+    <span style='color:#800000;font-weight:bold;'>jmp</span>    <span style='color:#e34adc;'>enc_lx</span>    
+<span style='color:#e34adc;'>enc_l1:</span>
+    <span style='color:#800000;font-weight:bold;'>test</span>   <span style='color:#000080;'>al</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>7</span>    <span style='color:#696969;'>; i &amp; 7</span>
+    <span style='color:#800000;font-weight:bold;'>jz</span>     <span style='color:#e34adc;'>enc_l0</span>
+<span style='color:#e34adc;'>enc_lx:</span>    
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>eax</span>      <span style='color:#696969;'>; save i</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>cx</span><span style='color:#808030;'>,</span> <span style='color:#008000;'>0x0108</span>
+    <span style='color:#800000;font-weight:bold;'>test</span>   <span style='color:#000080;'>al</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>1</span>    <span style='color:#696969;'>; if ((i &amp; 1)==0)</span>
+    <span style='color:#800000;font-weight:bold;'>jnz</span>    <span style='color:#e34adc;'>enc_l2</span>
+    
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ch</span>
+<span style='color:#e34adc;'>enc_l2:</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    x0<span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>          <span style='color:#696969;'>; x0 ^= i</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> x1
+    <span style='color:#800000;font-weight:bold;'>rol</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>cl</span>          <span style='color:#696969;'>; </span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>edi</span><span style='color:#808030;'>]</span>       <span style='color:#696969;'>; ROTL32(x1, r0) ^ *rk++</span>
+    <span style='color:#800000;font-weight:bold;'>scasd</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    x0<span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ch</span>
+    <span style='color:#800000;font-weight:bold;'>rol</span>    x0<span style='color:#808030;'>,</span> <span style='color:#000080;'>cl</span>
+    
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   x0<span style='color:#808030;'>,</span> x1          <span style='color:#696969;'>; XCHG(x0, x1);</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   x1<span style='color:#808030;'>,</span> x2          <span style='color:#696969;'>; XCHG(x1, x2);</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   x2<span style='color:#808030;'>,</span> x3          <span style='color:#696969;'>; XCHG(x2, x3);</span>
+    
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>eax</span>      <span style='color:#696969;'>; restore i</span>
+    <span style='color:#800000;font-weight:bold;'>inc</span>    <span style='color:#000080;'>al</span>       <span style='color:#696969;'>; i++</span>
+    <span style='color:#800000;font-weight:bold;'>cmp</span>    <span style='color:#000080;'>al</span><span style='color:#808030;'>,</span> R    <span style='color:#696969;'>; i&lt;R</span>
+    <span style='color:#800000;font-weight:bold;'>jnz</span>    <span style='color:#e34adc;'>enc_l1</span>
+    
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>edi</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> x0
+    <span style='color:#800000;font-weight:bold;'>stosd</span>           <span style='color:#696969;'>; x[0] = x0;</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> x1
+    <span style='color:#800000;font-weight:bold;'>stosd</span>           <span style='color:#696969;'>; x[1] = x1;</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> x2
+    <span style='color:#800000;font-weight:bold;'>stosd</span>           <span style='color:#696969;'>; x[2] = x2;</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> x3
+    <span style='color:#800000;font-weight:bold;'>stosd</span>           <span style='color:#696969;'>; x[3] = x3;</span>
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>ret</span>
+</pre>
+
+The total size of assembly at moment is 128 bytes, although I will try optimize more later.
+
+<h3>Summary</h3>
+
+<p>CHAM is a relatively new block cipher clearly influenced by block ciphers Speck and Simon. Although the strong variants of Speck and Simon remain unbroken, that hasn't prevented some in the cryptographic community being cynical about the intentions of the NSA. <a href="http://www.cs.haifa.ac.il/~orrd/">Orr Dunkelman</a>, a computer science professor at the University of Haifa commented. <em><strong>"I don’t trust the designers"</strong></em> and <em><strong>"There are quite a lot of people in NSA who think their job is to subvert standards. My job is to secure standards."</strong></em> <a href="https://cr.yp.to/djb.html">Daniel Bernstein</a> also commented: <em><strong>NSA says:We need a "generalist" cipher that works well everywhere, so here are 20 incompatible Simon+Speck variants https://eprint.iacr.org/2015/585</strong></em> As most of the attacks appear ad-hominem, is it fair to dismiss Speck and Simon even when the <a href="https://eprint.iacr.org/2017/560">rationale behind the designs have been published</a> When asked if it could beat Simon and Speck encryption, NSA officials are reported to have said: "<em><strong>We firmly believe they are secure.</strong></em>" which neither confirms nor denies NSA can break these type of ciphers. 
+
+Then again, if the NSA are capable of breaking Speck and Simon, they may also know how to break other ARX designs like ChaCha, LEA and CHAM?
+
+A final vote on whether Speck/Simon are accepted as part of an ISO standard takes place in February 2018.
+
+<a href="https://github.com/odzhan/tinycrypt/tree/master/block/cham">Sources here.</a>

@@ -1,5 +1,5 @@
 ;
-;  Copyright © 2015 Odzhan, Peter Ferrie. All Rights Reserved.
+;  Copyright © 2015, 2017 Odzhan, Peter Ferrie. All Rights Reserved.
 ;
 ;  Redistribution and use in source and binary forms, with or without
 ;  modification, are permitted provided that the following conditions are
@@ -30,173 +30,140 @@
 ; -----------------------------------------------
 ; ChaCha20 stream cipher in x86 assembly
 ;
-; size: 221 bytes
+; size: 179 bytes
 ;
 ; global calls use cdecl convention
 ;
 ; -----------------------------------------------
 
     bits 32
-
+ 
     %ifndef BIN
-      global _cc20_setkeyx
-      global _cc20_encryptx
+      global chacha
+      global _chacha
     %endif
-
-; void cc_setkey(chacha_ctx *ctx, void *key, void *iv)
-_cc20_setkeyx:
-cc20_setkeyx:
+    
+    ; ------------------------------------
+chacha:
+_chacha:
     pushad
-    mov    edi, [esp+32+4] ; ctx
+    lea    esi, [esp+32+4]
+    lodsd
+    xchg   ecx, eax          ; ecx = len
+    lodsd
+    xchg   ebx, eax          ; ebx = input or key+nonce
+    lodsd
+    test   ecx, ecx
+    jnz    L0   
+
+    xchg   eax, edi
+    mov    esi, ebx
     ; copy "expand 32-byte k" into state
-    call   load_iv
-    dd     061707865h, 03320646Eh
-    dd     079622D32h, 06B206574h
-load_iv:
-    pop    esi
-    push   4
-    pop    ecx
-    rep    movsd
-    ; copy 256-bit key
-    mov    esi, [esp+32+8] ; key
-    mov    cl, 8
-    rep    movsd
-    ; set 64-bit block counter to zero
-    xchg   ecx, eax
+    mov    eax, 0x61707865
     stosd
+    mov    eax, 0x3320646E
     stosd
-    ; store 64-bit nonce
-    mov    esi, [esp+32+12] ; iv
-    movsd
-    movsd
+    mov    eax, 0x79622D32
+    stosd
+    mov    eax, 0x6B206574
+    stosd
+    ; copy 256-bit key, counter and nonce
+    mov    cl, 32+4+12
+    rep    movsb
     popad
-    ret
-
-%define a eax
-%define b ebx
-%define c edx
-%define d edi
-
-%define x edi
-%define t ebp
-%define r ecx
-
-; void chacha_permute(chacha_blk *blk, uint16_t index)
-chacha_permute:
+    ret 
+L0:    
+    xchg   esi, eax          ; esi = state
+    ; perform encryption/decryption
     pushad
-
+    pushad
+    mov    edi, esp          ; edi = c
+L1:
+    xor    eax, eax
+    jecxz  L7                ; exit if len==0
+    ; permute
+    ; esi = state
+    ; edi = out
+    pushad
+    pushad
+    ; memcpy(x, s, 64)
+    push   64
+    pop    ecx
+    rep    movsb
+    pop    edi
+    push   edi
+    ; i = 0
+    xor    eax, eax
+L2:
+    push   eax
+    call   L3
+    dw     040c8H, 051d9H, 062eaH, 073fbH
+    dw     050faH, 061cbH, 072d8H, 043e9H
+L3:
+    pop    esi
+    and    al, 7 
+    lea    esi, [esi+eax*2]
+    
     lodsb
     aam    16
-    movzx  c, al    
+    movzx  edx, al    
     movzx  ebp, ah   
     
     lodsb
     aam    16
-    movzx  b, ah
-    movzx  a, al
-
-    lea    a, [x+a*4]
-    lea    b, [x+b*4]
-    lea    c, [x+c*4]
-    lea    d, [x+ebp*4]
-    ; load ecx with rotate values
-    ; 16, 12, 8, 7
-    mov    ecx, 07080C10h
-    ;mov    ecx, 100C0807h ; 07080C10h
-    mov    t, [b]
-q_l1:
-    ; x[a] = PLUS(x[a],x[b]);
-    add    t, [a]
-    mov    [a], t
-    ; x[d] = ROTATE(XOR(x[d],x[a]),cl);
-    ; also x[b] = ROTATE(XOR(x[b],x[c]),cl);
-    xor    t, [d]
-    rol    t, cl
-    mov    [d], t
-    xchg   c, a
-    xchg   d, b
-    ; --------------------------------------------
-    shr    ecx, 8
-    jnz    q_l1
-
+    movzx  ebx, ah
+    movzx  eax, al
+    
+    ; for (r=0x7080C10;r;r>>=8)
+    mov    ecx, 0x7080C10 ; load rotation values
+L4:
+    ; x[a] += x[b]
+    mov    esi, [edi+ebx*4]
+    add    [edi+eax*4], esi
+    
+    ; x[d] = R(x[d] ^ x[a], (r & 255))
+    mov    esi, [edi+ebp*4]    
+    xor    esi, [edi+eax*4]
+    rol    esi, cl
+    mov    [edi+ebp*4], esi
+    
+    ; X(a, c); X(b, d);
+    xchg   eax, edx
+    xchg   ebx, ebp 
+    
+    ; r >>= 8
+    shr    ecx, 8       ; shift until done 
+    jnz    L4
+    
+    pop    eax
+    inc    eax
+    cmp    al, 80
+    jnz    L2
+    
     popad
-    ret
-
-; void cc20_streamx (chacha_ctx *ctx, void *in, uint32_t len)
-; do not call directly
-; expects state in ebx, length in eax, input in edx
-_cc20_streamx:
-cc20_streamx:
-    pushad
-
-    ; copy state to edi
-    push   64
-    pop    ecx
-    mov    ebx, esi
-    rep    movsb
-
-    pop    edi
-    push   edi
-    mov    cl, 20/2
-e_l1:
-    ; load indexes
-    call   load_idx
-    dw     040c8H, 051d9H, 062eaH, 073fbH
-    dw     050faH, 061cbH, 072d8H, 043e9H
-load_idx:
-    pop    esi  ; pointer to indexes
-    push   ecx
-    mov    cl, 8
-e_l2:
-    call   chacha_permute
-    add    esi, 2
-    loop   e_l2
-    pop    ecx
-    loop   e_l1
-
-    ; add state to x
+    
+    ; F(16) x[i] += s[i];
     mov    cl, 16
-add_state:
-    mov    eax, [ebx+ecx*4-4]
-    add    [edi+ecx*4-4], eax
-    loop   add_state
+L5:
+    lodsd
+    add    [edi], eax
+    scasd
+    loop   L5
 
-    ; update block counter
-    stc
-    adc    dword[ebx+12*4], ecx
-    adc    dword[ebx+13*4], ecx
-
-    ; restore registers
+    ; s[12]++;
+    inc    dword[esi-4*4]
+    popad
+L6:
+    mov    dl, [edi+eax]
+    xor    [ebx], dl
+    inc    ebx
+    inc    eax
+    cmp    al, 64
+    loopne L6
+    jmp    L1
+L7:
+    popad
+    popad   
     popad
     ret
-
-_cc20_encryptx:
-cc20_encryptx:
-    pushad
-    lea     esi, [esp+32+4]
-    lodsd
-    xchg    ecx, eax          ; ecx = length
-    lodsd
-    xchg    ebx, eax          ; ebx = buf
-    lodsd
-    xchg    esi, eax          ; esi = ctx
-    pushad
-    pushad
-    mov     edi, esp          ; edi = stream[64]
-cc_l0:
-    xor     eax, eax
-    jecxz   cc_l2             ; exit if len==0
-    call    cc20_streamx
-cc_l1:
-    mov     dl, byte[edi+eax]
-    xor     byte[ebx], dl
-    inc     ebx
-    inc     eax
-    cmp     al, 64
-    loopnz  cc_l1
-    jmp     cc_l0
-cc_l2:
-    popad
-    popad
-    popad
-    ret
+    

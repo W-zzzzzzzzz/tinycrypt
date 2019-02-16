@@ -42,24 +42,31 @@ B S(B x) {
 #define rev __builtin_bswap64
 
 void present(void*mk,void*data) {
-    W i,j,r,p,t,t2,k0,k1,*k=(W*)mk,*x=(W*)data;
+    W i=0,j,r,p,t,t2,k0,k1,*k=(W*)mk,*x=(W*)data;
     
+    // load 64-bit plaintext, 128-bit master key
     k0=rev(k[0]); k1=rev(k[1]);t=rev(x[0]);
   
     F(i,32-1) {
+      // mix key
       p=t^k0;
+      // apply nonlinear layer
       F(j,8)((B*)&p)[j]=S(((B*)&p)[j]);
+      // apply linear layer
       t=0;r=0x0030002000100000;
       F(j,64)
         t|=((p>>j)&1)<<(r&255),
         r=R(r+1,16);
+      // create subkey
       p =(k0<<61)|(k1>>3);
       k1=(k1<<61)|(k0>>3);
       p=R(p,56);
+      // apply nonlinear layer
       ((B*)&p)[0]=S(((B*)&p)[0]);
       k0=R(p,8)^((i+1)>>2);
       k1^=(((i+1)& 3)<<62);
     }
+    // mix key
     x[0] = rev(t^k0);
 }
 

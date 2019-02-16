@@ -74,12 +74,12 @@ void shacal2(void*mk,void*data) {
       0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 
       0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2 }; 
     
-    // load key
+    // load 512-bit key
     F(16)w[i]=rev32(k[i]);
     // expand key
     for(i=16;i<64;i++)
       w[i]=SIG1(w[i-2])+w[i-7]+SIG0(w[i-15])+w[i-16];
-    // load plaintext
+    // load 256-bit plaintext
     F(8)s[i]=rev32(x[i]);
     // encrypt
     F(64) {
@@ -87,7 +87,7 @@ void shacal2(void*mk,void*data) {
       t2=EP0(s[0])+MAJ(s[0],s[1],s[2]);s[7]=t1+t2;s[3]+=t1;t1=s[0];
       for(j=1;j<8;j++)t2=s[j],s[j]=t1,t1=t2;s[0]=t1;
     }
-    // store ciphertext
+    // store 256-bit ciphertext
     F(8)x[i]=rev32(s[i]);
 }
 

@@ -28,7 +28,7 @@
 ;  POSSIBILITY OF SUCH DAMAGE.
 ;
 ; -----------------------------------------------
-; Keccak-p[800, 22] in x86 assembly
+; Keccak-f[800, 22] in x86 assembly
 ;
 ; size: 236 bytes
 ;

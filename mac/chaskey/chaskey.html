@@ -1,0 +1,335 @@
+<strong>Introduction</strong>
+
+<a href="http://mouha.be/chaskey/">Chaskey</a> is a lightweight MAC algorithm optimised for 32-bit micro-controllers designed by Nicky Mouha, Bart Mennink, Anthony Van Herrewege, Dai Watanabe, Bart Preneel and Ingrid Verbauwhede. 
+
+It is based on a 128-bit block cipher, the Chaskey cipher, which uses ARX operations and an Even-Mansour structure. 
+
+What follows is an implementation in C and x86 assembly optimized for size.
+
+<strong>State structure</strong>
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000;font-weight:bold;'>typedef</span> <span style='color:#800000;font-weight:bold;'>union</span> state_t <span style='color:#800080;'>{</span>
+  uint8_t  b<span style='color:#808030;'>[</span><span style='color:#008c00;'>16</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+  uint32_t w<span style='color:#808030;'>[</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+<span style='color:#800080;'>}</span> state<span style='color:#800080;'>;</span>
+</pre>
+
+<strong>Key scheduling</strong>
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000;font-weight:bold;'>void</span> chas_setkey<span style='color:#808030;'>(</span><span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>out<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>in<span style='color:#808030;'>)</span> 
+<span style='color:#800080;'>{</span>
+  <span style='color:#800000;font-weight:bold;'>int</span>      i<span style='color:#800080;'>;</span>
+  uint32_t <span style='color:#808030;'>*</span>k<span style='color:#808030;'>=</span><span style='color:#808030;'>(</span>uint32_t<span style='color:#808030;'>*</span><span style='color:#808030;'>)</span>out<span style='color:#800080;'>;</span>
+  
+  <span style='color:#603000;'>memcpy</span> <span style='color:#808030;'>(</span>out<span style='color:#808030;'>,</span> in<span style='color:#808030;'>,</span> <span style='color:#008c00;'>16</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+  
+  <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>i<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>&lt;</span><span style='color:#008c00;'>2</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#808030;'>)</span>
+  <span style='color:#800080;'>{</span>
+    k<span style='color:#808030;'>[</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> <span style='color:#808030;'>(</span>k<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>&lt;</span><span style='color:#808030;'>&lt;</span> <span style='color:#008c00;'>1</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>     
+    k<span style='color:#808030;'>[</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> <span style='color:#008000;'>0x87</span> <span style='color:#808030;'>*</span> <span style='color:#808030;'>(</span>k<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>&gt;</span><span style='color:#808030;'>&gt;</span> <span style='color:#008c00;'>31</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>    
+    k<span style='color:#808030;'>[</span><span style='color:#008c00;'>5</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> <span style='color:#808030;'>(</span>k<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>&lt;</span><span style='color:#808030;'>&lt;</span> <span style='color:#008c00;'>1</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>|</span> <span style='color:#808030;'>(</span>k<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>&gt;</span><span style='color:#808030;'>&gt;</span> <span style='color:#008c00;'>31</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span> 
+    k<span style='color:#808030;'>[</span><span style='color:#008c00;'>6</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> <span style='color:#808030;'>(</span>k<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>&lt;</span><span style='color:#808030;'>&lt;</span> <span style='color:#008c00;'>1</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>|</span> <span style='color:#808030;'>(</span>k<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>&gt;</span><span style='color:#808030;'>&gt;</span> <span style='color:#008c00;'>31</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span> 
+    k<span style='color:#808030;'>[</span><span style='color:#008c00;'>7</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> <span style='color:#808030;'>(</span>k<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>&lt;</span><span style='color:#808030;'>&lt;</span> <span style='color:#008c00;'>1</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>|</span> <span style='color:#808030;'>(</span>k<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>&gt;</span><span style='color:#808030;'>&gt;</span> <span style='color:#008c00;'>31</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+    
+    k <span style='color:#808030;'>+</span><span style='color:#808030;'>=</span> <span style='color:#008c00;'>4</span><span style='color:#800080;'>;</span>    
+  <span style='color:#800080;'>}</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+Assembly could possibly do with better optimization.
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#004a43;'>%define</span><span style='color:#004a43;'> k0 ebp</span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> k1 ebx</span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> k2 ecx</span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> k3 edx</span>
+    
+<span style='color:#e34adc;'>chas_setkeyx:</span>
+<span style='color:#e34adc;'>_chas_setkeyx:</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+4</span><span style='color:#808030;'>]</span>   <span style='color:#696969;'>; edi = out</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+8</span><span style='color:#808030;'>]</span>   <span style='color:#696969;'>; esi = in</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>edi</span>
+    <span style='color:#800000;font-weight:bold;'>movsd</span>
+    <span style='color:#800000;font-weight:bold;'>movsd</span>
+    <span style='color:#800000;font-weight:bold;'>movsd</span>
+    <span style='color:#800000;font-weight:bold;'>movsd</span>
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>esi</span>
+    <span style='color:#800000;font-weight:bold;'>clc</span>
+<span style='color:#e34adc;'>sk_l0:</span>
+    <span style='color:#800000;font-weight:bold;'>pushfd</span>
+
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> k0
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> k1
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> k2
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> k3
+ 
+    <span style='color:#800000;font-weight:bold;'>push</span>   k3
+    <span style='color:#800000;font-weight:bold;'>lea</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span>k0<span style='color:#808030;'>+</span>k0<span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    k3<span style='color:#808030;'>,</span> k3
+    <span style='color:#800000;font-weight:bold;'>sbb</span>    <span style='color:#000080;'>dl</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>dl</span>
+    <span style='color:#800000;font-weight:bold;'>and</span>    <span style='color:#000080;'>dl</span><span style='color:#808030;'>,</span> <span style='color:#008000;'>0x87</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>al</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>dl</span>   
+    <span style='color:#800000;font-weight:bold;'>pop</span>    k3
+    <span style='color:#800000;font-weight:bold;'>stosd</span>
+    
+    <span style='color:#800000;font-weight:bold;'>lea</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span>k1<span style='color:#808030;'>+</span>k1<span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>shr</span>    k0<span style='color:#808030;'>,</span> <span style='color:#008c00;'>31</span>
+    <span style='color:#800000;font-weight:bold;'>or</span>     <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> k0
+    <span style='color:#800000;font-weight:bold;'>stosd</span>
+    
+    <span style='color:#800000;font-weight:bold;'>lea</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span>k2<span style='color:#808030;'>+</span>k2<span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>shr</span>    k1<span style='color:#808030;'>,</span> <span style='color:#008c00;'>31</span>
+    <span style='color:#800000;font-weight:bold;'>or</span>     <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> k1
+    <span style='color:#800000;font-weight:bold;'>stosd</span>
+    
+    <span style='color:#800000;font-weight:bold;'>lea</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span>k3<span style='color:#808030;'>+</span>k3<span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>shr</span>    k2<span style='color:#808030;'>,</span> <span style='color:#008c00;'>31</span>
+    <span style='color:#800000;font-weight:bold;'>or</span>     <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> k2
+    <span style='color:#800000;font-weight:bold;'>stosd</span>
+
+    <span style='color:#800000;font-weight:bold;'>popfd</span>
+    <span style='color:#800000;font-weight:bold;'>cmc</span>
+    <span style='color:#800000;font-weight:bold;'>jc</span>     <span style='color:#e34adc;'>sk_l0</span>
+    
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>ret</span>
+</pre>
+
+<strong>Key whitening</strong>
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000;font-weight:bold;'>void</span> chas_xor<span style='color:#808030;'>(</span>state <span style='color:#808030;'>*</span>out<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>const</span> <span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>in<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>int</span> len<span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+  <span style='color:#800000;font-weight:bold;'>int</span> i<span style='color:#800080;'>;</span>
+
+  <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>i<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>&lt;</span>len<span style='color:#800080;'>;</span> i<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+    out<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>b<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span> <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> <span style='color:#808030;'>(</span><span style='color:#808030;'>(</span>uint8_t<span style='color:#808030;'>*</span><span style='color:#808030;'>)</span>in<span style='color:#808030;'>)</span><span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+  <span style='color:#800080;'>}</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>; ecx = length</span>
+<span style='color:#696969;'>; esi = input</span>
+<span style='color:#696969;'>; edi = v   </span>
+<span style='color:#e34adc;'>chas_xor:</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#800000;font-weight:bold;'>jecxz</span>  <span style='color:#e34adc;'>cx_l1</span>
+<span style='color:#e34adc;'>cx_l0:</span>    
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>al</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>edi</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>al</span>
+    <span style='color:#800000;font-weight:bold;'>cmpsb</span>
+    <span style='color:#800000;font-weight:bold;'>loop</span>   <span style='color:#e34adc;'>cx_l0</span>
+<span style='color:#e34adc;'>cx_l1:</span>    
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>ret</span>
+</pre>
+
+<strong>Permutation function</strong>
+
+This is derived from SipHash permutation function which is derived from chacha and salsa stream ciphers.
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000;font-weight:bold;'>void</span> chas_permute<span style='color:#808030;'>(</span>uint32_t v<span style='color:#808030;'>[</span><span style='color:#808030;'>]</span><span style='color:#808030;'>)</span>
+<span style='color:#800080;'>{</span>
+  <span style='color:#800000;font-weight:bold;'>int</span> i<span style='color:#808030;'>=</span><span style='color:#008c00;'>12</span><span style='color:#800080;'>;</span>
+  
+  <span style='color:#800000;font-weight:bold;'>do</span>
+  <span style='color:#800080;'>{</span>
+    v<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>+</span><span style='color:#808030;'>=</span> v<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span> 
+    v<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#808030;'>=</span>ROTL32<span style='color:#808030;'>(</span>v<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>5</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span> 
+    v<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> v<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span> 
+    v<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#808030;'>=</span>ROTL32<span style='color:#808030;'>(</span>v<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span><span style='color:#008c00;'>16</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span> 
+    v<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>+</span><span style='color:#808030;'>=</span> v<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span> 
+    v<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span><span style='color:#808030;'>=</span>ROTL32<span style='color:#808030;'>(</span>v<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>8</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span> 
+    v<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> v<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span> 
+    v<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>+</span><span style='color:#808030;'>=</span> v<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span> 
+    v<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span><span style='color:#808030;'>=</span>ROTL32<span style='color:#808030;'>(</span>v<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span><span style='color:#008c00;'>13</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span> 
+    v<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> v<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span> 
+    v<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>+</span><span style='color:#808030;'>=</span> v<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span> 
+    v<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#808030;'>=</span>ROTL32<span style='color:#808030;'>(</span>v<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>7</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span> 
+    v<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> v<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span> 
+    v<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span><span style='color:#808030;'>=</span>ROTL32<span style='color:#808030;'>(</span>v<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span><span style='color:#008c00;'>16</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span> 
+  <span style='color:#800080;'>}</span> <span style='color:#800000;font-weight:bold;'>while</span> <span style='color:#808030;'>(</span><span style='color:#808030;'>-</span><span style='color:#808030;'>-</span>i<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+Assembly code is straight forward but perhaps there's room to optimize further.
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#004a43;'>%define</span><span style='color:#004a43;'> v0 eax    </span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> v1 edx    </span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> v2 ebp    </span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> v3 ebx</span>
+    
+<span style='color:#696969;'>; ecx = 16    </span>
+<span style='color:#696969;'>; edi = v</span>
+<span style='color:#e34adc;'>chas_permute:</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>12</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edi</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> v3
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> v1
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> v2
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> v3
+<span style='color:#e34adc;'>cp_l0:</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    v0<span style='color:#808030;'>,</span> v1            <span style='color:#696969;'>; v[0] += v[1];</span>
+    <span style='color:#800000;font-weight:bold;'>rol</span>    v1<span style='color:#808030;'>,</span> <span style='color:#008c00;'>5</span>             <span style='color:#696969;'>; v[1] = ROTL(v[1], 5);</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    v1<span style='color:#808030;'>,</span> v0            <span style='color:#696969;'>; v[1] ^= v[0];</span>
+    <span style='color:#800000;font-weight:bold;'>rol</span>    v0<span style='color:#808030;'>,</span> <span style='color:#008c00;'>16</span>            <span style='color:#696969;'>; v[0] = ROTL(v[0], 16);</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    v2<span style='color:#808030;'>,</span> v3            <span style='color:#696969;'>; v[2] += v[3]; </span>
+    <span style='color:#800000;font-weight:bold;'>rol</span>    v3<span style='color:#808030;'>,</span> <span style='color:#008c00;'>8</span>             <span style='color:#696969;'>; v[3] = ROTL(v[3], 8); </span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    v3<span style='color:#808030;'>,</span> v2            <span style='color:#696969;'>; v[3] ^= v[2]; </span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    v0<span style='color:#808030;'>,</span> v3            <span style='color:#696969;'>; v[0] += v[3];</span>
+    <span style='color:#800000;font-weight:bold;'>rol</span>    v3<span style='color:#808030;'>,</span> <span style='color:#008c00;'>13</span>            <span style='color:#696969;'>; v[3] = ROTL(v[3], 13);</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    v3<span style='color:#808030;'>,</span> v0            <span style='color:#696969;'>; v[3] ^= v[0];</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    v2<span style='color:#808030;'>,</span> v1            <span style='color:#696969;'>; v[2] += v[1];</span>
+    <span style='color:#800000;font-weight:bold;'>rol</span>    v1<span style='color:#808030;'>,</span> <span style='color:#008c00;'>7</span>             <span style='color:#696969;'>; v[1] = ROTL(v[1],  7);</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    v1<span style='color:#808030;'>,</span> v2            <span style='color:#696969;'>; v[1] ^= v[2];</span>
+    <span style='color:#800000;font-weight:bold;'>rol</span>    v2<span style='color:#808030;'>,</span> <span style='color:#008c00;'>16</span>            <span style='color:#696969;'>; v[2] = ROTL(v[2], 16);</span>
+    <span style='color:#800000;font-weight:bold;'>loop</span>   <span style='color:#e34adc;'>cp_l0</span>
+    <span style='color:#800000;font-weight:bold;'>stosd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> v1
+    <span style='color:#800000;font-weight:bold;'>stosd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> v2
+    <span style='color:#800000;font-weight:bold;'>stosd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> v3
+    <span style='color:#800000;font-weight:bold;'>stosd</span>
+    <span style='color:#800000;font-weight:bold;'>popad</span>   
+    <span style='color:#800000;font-weight:bold;'>ret</span>
+</pre>
+
+<strong>MAC generation</strong>
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000;font-weight:bold;'>void</span> chas_mac <span style='color:#808030;'>(</span>uint8_t <span style='color:#808030;'>*</span>tag<span style='color:#808030;'>,</span> 
+    uint8_t <span style='color:#808030;'>*</span>msg<span style='color:#808030;'>,</span> uint32_t msglen<span style='color:#808030;'>,</span> uint8_t <span style='color:#808030;'>*</span>key<span style='color:#808030;'>)</span> 
+<span style='color:#800080;'>{</span>
+  state v<span style='color:#800080;'>;</span>
+  <span style='color:#800000;font-weight:bold;'>int</span>   len<span style='color:#800080;'>;</span>
+  
+  <span style='color:#696969;'>// copy 16 bytes of key</span>
+  <span style='color:#603000;'>memcpy</span><span style='color:#808030;'>(</span>v<span style='color:#808030;'>.</span>b<span style='color:#808030;'>,</span> key<span style='color:#808030;'>,</span> <span style='color:#008c00;'>16</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+
+  <span style='color:#696969;'>// absorb message </span>
+  <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span><span style='color:#800080;'>;</span><span style='color:#800080;'>;</span><span style='color:#808030;'>)</span>
+  <span style='color:#800080;'>{</span>
+    len <span style='color:#808030;'>=</span> <span style='color:#808030;'>(</span>msglen <span style='color:#808030;'>&lt;</span> <span style='color:#008c00;'>16</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>?</span> msglen <span style='color:#800080;'>:</span> <span style='color:#008c00;'>16</span><span style='color:#800080;'>;</span>
+    
+    <span style='color:#696969;'>// xor state with msg data</span>
+    chas_xor<span style='color:#808030;'>(</span><span style='color:#808030;'>&amp;</span>v<span style='color:#808030;'>,</span> msg<span style='color:#808030;'>,</span> len<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+
+    <span style='color:#696969;'>// final?</span>
+    <span style='color:#800000;font-weight:bold;'>if</span> <span style='color:#808030;'>(</span>msglen <span style='color:#808030;'>&lt;</span><span style='color:#808030;'>=</span> <span style='color:#008c00;'>16</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+      <span style='color:#800000;font-weight:bold;'>if</span> <span style='color:#808030;'>(</span>msglen <span style='color:#808030;'>&lt;</span> <span style='color:#008c00;'>16</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+        <span style='color:#696969;'>// final? add padding bit</span>
+        v<span style='color:#808030;'>.</span>b<span style='color:#808030;'>[</span>msglen<span style='color:#808030;'>]</span> <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> <span style='color:#008000;'>0x01</span><span style='color:#800080;'>;</span>
+      <span style='color:#800080;'>}</span>
+      key <span style='color:#808030;'>+</span><span style='color:#808030;'>=</span> <span style='color:#808030;'>(</span>msglen <span style='color:#808030;'>=</span><span style='color:#808030;'>=</span> <span style='color:#008c00;'>16</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>?</span> <span style='color:#008c00;'>16</span> <span style='color:#800080;'>:</span> <span style='color:#008c00;'>32</span><span style='color:#800080;'>;</span>
+      <span style='color:#800000;font-weight:bold;'>break</span><span style='color:#800080;'>;</span>
+    <span style='color:#800080;'>}</span>    
+    
+    <span style='color:#696969;'>// apply permutation function</span>
+    chas_permute<span style='color:#808030;'>(</span>v<span style='color:#808030;'>.</span>w<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+    
+    <span style='color:#696969;'>// update position and length</span>
+    msg <span style='color:#808030;'>+</span><span style='color:#808030;'>=</span> <span style='color:#008c00;'>16</span><span style='color:#800080;'>;</span>
+    msglen <span style='color:#808030;'>-</span><span style='color:#808030;'>=</span> <span style='color:#008c00;'>16</span><span style='color:#800080;'>;</span>
+  <span style='color:#800080;'>}</span>
+
+  <span style='color:#696969;'>// pre-whiten</span>
+  chas_xor<span style='color:#808030;'>(</span><span style='color:#808030;'>&amp;</span>v<span style='color:#808030;'>,</span> key<span style='color:#808030;'>,</span> <span style='color:#008c00;'>16</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+  <span style='color:#696969;'>// permute</span>
+  chas_permute<span style='color:#808030;'>(</span>v<span style='color:#808030;'>.</span>w<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+  <span style='color:#696969;'>// post-whiten</span>
+  chas_xor<span style='color:#808030;'>(</span><span style='color:#808030;'>&amp;</span>v<span style='color:#808030;'>,</span> key<span style='color:#808030;'>,</span> <span style='color:#008c00;'>16</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+  <span style='color:#696969;'>// return tag</span>
+  <span style='color:#603000;'>memcpy</span><span style='color:#808030;'>(</span>tag<span style='color:#808030;'>,</span> v<span style='color:#808030;'>.</span>b<span style='color:#808030;'>,</span> <span style='color:#008c00;'>16</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+Assembly code
+
+
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>; chaskey    </span>
+<span style='color:#e34adc;'>chas_macx:</span>
+<span style='color:#e34adc;'>_chas_macx:</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#800000;font-weight:bold;'>lea</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+4</span><span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>                   <span style='color:#696969;'>; allocate 32 bytes</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>esp</span>          <span style='color:#696969;'>; edi = v</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ebp</span>          <span style='color:#696969;'>; ebp = tag ptr</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ebx</span>          <span style='color:#696969;'>; ebx = msg ptr</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>          <span style='color:#696969;'>; edx = msglen</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>esi</span>          <span style='color:#696969;'>; esi = key</span>
+
+    <span style='color:#696969;'>; memcpy(v, &amp;key[0], 16);</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#008c00;'>16</span>
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>edi</span>               <span style='color:#696969;'>; save v</span>
+    <span style='color:#800000;font-weight:bold;'>rep</span>    <span style='color:#800000;font-weight:bold;'>movsb</span>
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>edi</span>               <span style='color:#696969;'>; restore v</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>esi</span>               <span style='color:#696969;'>; save &amp;key[16]</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ebx</span>          <span style='color:#696969;'>; esi = msg    </span>
+    <span style='color:#696969;'>; absorb message</span>
+<span style='color:#e34adc;'>cm_l0:</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>16</span>
+    <span style='color:#696969;'>; len = (msglen &lt; 16) ? msglen : 16;</span>
+    <span style='color:#800000;font-weight:bold;'>cmp</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>cmovb</span>  <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edx</span>
+    
+    <span style='color:#696969;'>; chas_xor(&amp;v, msg, len);</span>
+    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>chas_xor</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>16</span>
+    
+    <span style='color:#696969;'>; if (msglen &lt;= 16)</span>
+    <span style='color:#800000;font-weight:bold;'>cmp</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>jbe</span>    <span style='color:#e34adc;'>cm_l2</span>
+    
+    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>chas_permute</span>
+
+    <span style='color:#696969;'>; msglen -= 16</span>
+    <span style='color:#800000;font-weight:bold;'>sub</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ecx</span>
+    <span style='color:#696969;'>; msg += 16</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ecx</span>
+    
+    <span style='color:#800000;font-weight:bold;'>jmp</span>    <span style='color:#e34adc;'>cm_l0</span>
+<span style='color:#e34adc;'>cm_l2:</span>    
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>esi</span>
+    <span style='color:#696969;'>; if (msglen &lt; 16)</span>
+    <span style='color:#800000;font-weight:bold;'>je</span>     <span style='color:#e34adc;'>cm_l4</span>    
+    <span style='color:#696969;'>; v.b[msglen] ^= 0x01;</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#800000;font-weight:bold;'>byte</span><span style='color:#808030;'>[</span><span style='color:#000080;'>edi</span><span style='color:#808030;'>+</span><span style='color:#000080;'>edx</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#008000;'>0x01</span>
+    <span style='color:#696969;'>; load key + 32</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ecx</span>
+<span style='color:#e34adc;'>cm_l4:</span>
+    <span style='color:#696969;'>; chas_xor(v, key, 16);</span>
+    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>chas_xor</span>
+    <span style='color:#696969;'>; chas_permute(v);</span>
+    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>chas_permute</span>
+    <span style='color:#696969;'>; chas_xor(v, key, 16);</span>
+    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>chas_xor</span>
+    
+    <span style='color:#696969;'>; memcpy(tag, v, 16);</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edi</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ebp</span>
+    <span style='color:#800000;font-weight:bold;'>rep</span>    <span style='color:#800000;font-weight:bold;'>movsb</span>
+        
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>ret</span>
+</pre>
+<strong>Summary</strong>
+
+The MSVC generated code resulted in 346 bytes using /Os /O2 flags and the x86 assembly is currently 234 bytes. The underlying block cipher doesn't require key scheduling and this code could be reduced much further if you only needed that functionality. See sources <a href="https://github.com/odzhan/tinycrypt/tree/master/mac/chaskey">here</a> for future updates.
+
+
+

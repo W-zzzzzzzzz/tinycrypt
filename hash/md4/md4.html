@@ -1,0 +1,451 @@
+<strong>Introduction</strong>
+
+<a href="https://tools.ietf.org/rfc/rfc1320.txt">The MD4 Message-Digest Algorithm RFC 1320</a> has been considered broken by the security community for well over a decade. <a href="https://tools.ietf.org/rfc/rfc6150.txt">RFC 6150 published in 2011</a> outlines the various reasons why it should cease being used so there's no need to discuss problems with it here.
+
+It's still used in many operating systems today for password security and protocols. Moreoever, the design of many other hashing algorithms such as MD5, SHA-1 and RIPEMD were derived from MD4 which leads one to reasonable conclusion such algorithms will be part of our computing world indefinitely.
+
+Microsoft Windows uses NTLM algorithm which is essentially an MD4 hash of UTF-16 password.
+Early implementations of Kerberos for Windows, MS-CHAPv1 and MS-CHAPv2 just to name a few all require MD4 to function so even though we know it's unsuitable for security today, it will be around for many years to come, mostly for legacy purposes.
+
+What I've done is optimize an implementation for size to determine the suitability of its overall design for applications that require small footprint.
+
+<strong>Initialization</strong>
+
+First thing we do is initialize our state structure using known constants.
+The value of these constants are not derived on anything specific.
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#004a43;'>#</span><span style='color:#004a43;'>define</span><span style='color:#004a43;'> MD4_CBLOCK        64</span>
+<span style='color:#004a43;'>#</span><span style='color:#004a43;'>define</span><span style='color:#004a43;'> MD4_DIGEST_LENGTH 16</span>
+<span style='color:#004a43;'>#</span><span style='color:#004a43;'>define</span><span style='color:#004a43;'> MD4_LBLOCK        MD4_DIGEST_LENGTH</span><span style='color:#808030;'>/</span><span style='color:#004a43;'>4</span>
+
+<span style='color:#004a43;'>#</span><span style='color:#004a43;'>define</span><span style='color:#004a43;'> MIN</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>X</span><span style='color:#808030;'>,</span><span style='color:#004a43;'> Y</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>X</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>&lt;</span><span style='color:#004a43;'> </span><span style='color:#808030;'>(</span><span style='color:#004a43;'>Y</span><span style='color:#808030;'>)</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>?</span><span style='color:#004a43;'> </span><span style='color:#808030;'>(</span><span style='color:#004a43;'>X</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>:</span><span style='color:#004a43;'> </span><span style='color:#808030;'>(</span><span style='color:#004a43;'>Y</span><span style='color:#808030;'>)</span><span style='color:#808030;'>)</span>
+
+<span style='color:#004a43;'>#</span><span style='color:#004a43;font-weight:bold;'>pragma</span><span style='color:#bb7977;font-weight:bold;'> pack(push, 1)</span>
+<span style='color:#800000;font-weight:bold;'>typedef</span> <span style='color:#800000;font-weight:bold;'>struct</span> _MD4_CTX <span style='color:#800080;'>{</span>
+  <span style='color:#800000;font-weight:bold;'>union</span> <span style='color:#800080;'>{</span>
+    uint8_t   v8<span style='color:#808030;'>[</span>MD4_DIGEST_LENGTH<span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    uint32_t v32<span style='color:#808030;'>[</span>MD4_DIGEST_LENGTH<span style='color:#808030;'>/</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+  <span style='color:#800080;'>}</span> state<span style='color:#800080;'>;</span>
+  <span style='color:#800000;font-weight:bold;'>union</span> <span style='color:#800080;'>{</span>
+    uint8_t   v8<span style='color:#808030;'>[</span>MD4_CBLOCK<span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    uint32_t v32<span style='color:#808030;'>[</span>MD4_CBLOCK<span style='color:#808030;'>/</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    uint64_t v64<span style='color:#808030;'>[</span>MD4_CBLOCK<span style='color:#808030;'>/</span><span style='color:#008c00;'>8</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+  <span style='color:#800080;'>}</span> buffer<span style='color:#800080;'>;</span>
+  uint64_t len<span style='color:#800080;'>;</span>
+<span style='color:#800080;'>}</span> MD4_CTX<span style='color:#800080;'>;</span>
+<span style='color:#004a43;'>#</span><span style='color:#004a43;font-weight:bold;'>pragma</span><span style='color:#bb7977;font-weight:bold;'> pack(pop)</span>
+</pre>
+
+In assembly, the structure and definitions.
+
+<pre style='color:#000000;background:#ffffff;'>MD4_CBLOCK        EQU <span style='color:#008c00;'>64</span>
+MD4_DIGEST_LENGTH EQU <span style='color:#008c00;'>16</span>
+MD4_LBLOCK        EQU MD4_DIGEST_LENGTH <span style='color:#808030;'>/</span> <span style='color:#008c00;'>4</span>
+
+MD4_CTX <span style='color:#800000;font-weight:bold;'>struct</span> 
+  <span style='color:#800000;font-weight:bold;'>union</span> state
+    v8  byte  MD4_DIGEST_LENGTH dup <span style='color:#808030;'>(</span><span style='color:#800080;'>?</span><span style='color:#808030;'>)</span>
+    v32 dword MD4_LBLOCK dup <span style='color:#808030;'>(</span><span style='color:#800080;'>?</span><span style='color:#808030;'>)</span>
+  ends
+  buffer byte MD4_CBLOCK dup <span style='color:#808030;'>(</span><span style='color:#800080;'>?</span><span style='color:#808030;'>)</span>
+  len    dword <span style='color:#008c00;'>2</span> dup <span style='color:#808030;'>(</span><span style='color:#800080;'>?</span><span style='color:#808030;'>)</span>
+MD4_CTX ends
+</pre>
+
+I have not defined structure for assembler version like C because assembly code doesn't require casting when accessing data of different types.
+The pragma directive ensures the structure is exactly the same size in assembler version.
+
+<strong>Initialization</strong>
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000;font-weight:bold;'>void</span> MD4_Init <span style='color:#808030;'>(</span>MD4_CTX <span style='color:#808030;'>*</span>c<span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+  c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>len  <span style='color:#808030;'>=</span> <span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span>
+  c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>s<span style='color:#808030;'>.</span>w<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> <span style='color:#008000;'>0x67452301</span><span style='color:#800080;'>;</span>
+  c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>s<span style='color:#808030;'>.</span>w<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> <span style='color:#008000;'>0xefcdab89</span><span style='color:#800080;'>;</span>
+  c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>s<span style='color:#808030;'>.</span>w<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> <span style='color:#008000;'>0x98badcfe</span><span style='color:#800080;'>;</span>
+  c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>s<span style='color:#808030;'>.</span>w<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> <span style='color:#008000;'>0x10325476</span><span style='color:#800080;'>;</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+In x86 assembly..
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#004a43;'>public</span> MD4_Init
+MD4_Init <span style='color:#004a43;'>proc</span> <span style='color:#004a43;'>C</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+4</span><span style='color:#808030;'>]</span>       <span style='color:#696969;'>; context</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>edi</span><span style='color:#808030;'>]</span><span style='color:#808030;'>[</span>MD4_CTX.len<span style='color:#808030;'>+</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>edi</span><span style='color:#808030;'>]</span><span style='color:#808030;'>[</span>MD4_CTX.len<span style='color:#808030;'>+</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+    <span style='color:#696969;'>; ctx-&gt;state.v32[0] = 0x67452301</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#008000;'>067452301h</span>
+    <span style='color:#800000;font-weight:bold;'>stosd</span>
+    <span style='color:#696969;'>; ctx-&gt;state.v32[1] = 0xefcdab89</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#008000;'>0efcdab89h</span>
+    <span style='color:#800000;font-weight:bold;'>stosd</span>
+    <span style='color:#696969;'>; ctx-&gt;state.v32[2] = 0x98badcfe</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#008000;'>098badcfeh</span>
+    <span style='color:#800000;font-weight:bold;'>stosd</span>
+    <span style='color:#696969;'>; ctx-&gt;state.v32[3] = 0x10325476</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#008000;'>010325476h</span>
+    <span style='color:#800000;font-weight:bold;'>stosd</span>
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>ret</span>
+MD4_Init <span style='color:#004a43;'>endp</span>
+</pre>
+
+Now we have our state initialized, we add data to the state buffer and once it reaches our block length, will update the 4 variables initialized. First, in C.
+
+<strong>Updating state</strong>
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000;font-weight:bold;'>void</span> MD4_Update <span style='color:#808030;'>(</span>MD4_CTX <span style='color:#808030;'>*</span>c<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>in<span style='color:#808030;'>,</span> uint32_t len<span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+  uint8_t <span style='color:#808030;'>*</span>p <span style='color:#808030;'>=</span> <span style='color:#808030;'>(</span>uint8_t<span style='color:#808030;'>*</span><span style='color:#808030;'>)</span>in<span style='color:#800080;'>;</span>
+  uint32_t r<span style='color:#808030;'>,</span> idx<span style='color:#800080;'>;</span>
+  
+  <span style='color:#800000;font-weight:bold;'>if</span> <span style='color:#808030;'>(</span>len<span style='color:#808030;'>=</span><span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>)</span> <span style='color:#800000;font-weight:bold;'>return</span><span style='color:#800080;'>;</span>
+  
+  <span style='color:#696969;'>// get buffer index</span>
+  idx <span style='color:#808030;'>=</span> c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>len <span style='color:#808030;'>&amp;</span> MD4_CBLOCK <span style='color:#808030;'>-</span> <span style='color:#008c00;'>1</span><span style='color:#800080;'>;</span>
+  
+  <span style='color:#696969;'>// update length</span>
+  c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>len <span style='color:#808030;'>+</span><span style='color:#808030;'>=</span> len<span style='color:#800080;'>;</span>
+  
+  <span style='color:#800000;font-weight:bold;'>while</span> <span style='color:#808030;'>(</span>len <span style='color:#808030;'>&gt;</span> <span style='color:#008c00;'>0</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+    r <span style='color:#808030;'>=</span> MIN <span style='color:#808030;'>(</span>len<span style='color:#808030;'>,</span> MD4_CBLOCK <span style='color:#808030;'>-</span> idx<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+    <span style='color:#603000;'>memcpy</span> <span style='color:#808030;'>(</span><span style='color:#808030;'>(</span><span style='color:#800000;font-weight:bold;'>void</span><span style='color:#808030;'>*</span><span style='color:#808030;'>)</span><span style='color:#808030;'>&amp;</span>c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>buf<span style='color:#808030;'>.</span>b<span style='color:#808030;'>[</span>idx<span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> p<span style='color:#808030;'>,</span> r<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+    <span style='color:#800000;font-weight:bold;'>if</span> <span style='color:#808030;'>(</span><span style='color:#808030;'>(</span>idx <span style='color:#808030;'>+</span> r<span style='color:#808030;'>)</span> <span style='color:#808030;'>&lt;</span> MD4_CBLOCK<span style='color:#808030;'>)</span> <span style='color:#800000;font-weight:bold;'>break</span><span style='color:#800080;'>;</span>
+    
+    MD4_Transform <span style='color:#808030;'>(</span>c<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+    len <span style='color:#808030;'>-</span><span style='color:#808030;'>=</span> r<span style='color:#800080;'>;</span>
+    idx <span style='color:#808030;'>=</span> <span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span>
+    p <span style='color:#808030;'>+</span><span style='color:#808030;'>=</span> r<span style='color:#800080;'>;</span>
+  <span style='color:#800080;'>}</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+I had used size_t in initial version but this varies in size depending on architecture.
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#004a43;'>public</span> MD4_Update
+MD4_Update <span style='color:#004a43;'>proc</span> <span style='color:#004a43;'>C</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+12</span><span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>jecxz</span>  <span style='color:#e34adc;'>exit_update</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ecx</span>
+    
+    <span style='color:#696969;'>; get buffer index</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+4</span><span style='color:#808030;'>]</span>    <span style='color:#696969;'>; context</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+8</span><span style='color:#808030;'>]</span>    <span style='color:#696969;'>; input</span>
+
+    <span style='color:#696969;'>; idx = ctx-&gt;len &amp; MD4_CBLOCK - 1;</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>]</span><span style='color:#808030;'>[</span>MD4_CTX.len<span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>and</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> MD4_CBLOCK <span style='color:#808030;'>-</span> <span style='color:#008c00;'>1</span>
+    
+    <span style='color:#696969;'>; limit of (2^32)-1 bytes each update</span>
+    <span style='color:#696969;'>; ctx-&gt;len += len;</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>]</span><span style='color:#808030;'>[</span>MD4_CTX.len<span style='color:#808030;'>+</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+    <span style='color:#800000;font-weight:bold;'>adc</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>]</span><span style='color:#808030;'>[</span>MD4_CTX.len<span style='color:#808030;'>+</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>0</span>
+    
+    <span style='color:#004a43;'>.while</span> <span style='color:#008c00;'>1</span>
+      <span style='color:#696969;'>; r = MIN(len, MD4_CBLOCK - idx);</span>
+      <span style='color:#800000;font-weight:bold;'>push</span>   MD4_CBLOCK
+      <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>ecx</span>
+      <span style='color:#800000;font-weight:bold;'>sub</span>    <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edx</span>
+      <span style='color:#800000;font-weight:bold;'>cmp</span>    <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+      <span style='color:#800000;font-weight:bold;'>cmovae</span> <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+      <span style='color:#696969;'>; memcpy ((void*)&amp;ctx-&gt;buffer[idx], p, r);</span>
+      <span style='color:#800000;font-weight:bold;'>lea</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>]</span><span style='color:#808030;'>[</span>MD4_CTX.buffer<span style='color:#808030;'>]</span><span style='color:#808030;'>[</span><span style='color:#000080;'>edx</span><span style='color:#808030;'>]</span>
+      <span style='color:#696969;'>; idx += r</span>
+      <span style='color:#800000;font-weight:bold;'>add</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ecx</span>
+      <span style='color:#696969;'>; len -= r</span>
+      <span style='color:#800000;font-weight:bold;'>sub</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ecx</span>
+      <span style='color:#800000;font-weight:bold;'>rep</span>    <span style='color:#800000;font-weight:bold;'>movsb</span>
+      <span style='color:#696969;'>; if ((idx + r) &lt; MD4_CBLOCK) break;</span>
+      <span style='color:#004a43;'>.break</span> <span style='color:#004a43;'>.if</span> <span style='color:#000080;'>edx</span> <span style='color:#808030;'>&lt;</span> MD4_CBLOCK
+      <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>ebx</span>
+      <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>MD4_Transform</span>
+      <span style='color:#800000;font-weight:bold;'>cdq</span>
+    <span style='color:#004a43;'>.endw</span>
+<span style='color:#e34adc;'>exit_update:</span>
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>ret</span>
+MD4_Update <span style='color:#004a43;'>endp</span>
+</pre>
+
+<strong>Finalization</strong>
+
+Our final result is based on calculating the length in bits of data and appending byte to end.
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000;font-weight:bold;'>void</span> MD4_Final <span style='color:#808030;'>(</span><span style='color:#800000;font-weight:bold;'>void</span><span style='color:#808030;'>*</span> dgst<span style='color:#808030;'>,</span> MD4_CTX <span style='color:#808030;'>*</span>c<span style='color:#808030;'>)</span>
+<span style='color:#800080;'>{</span>
+  <span style='color:#696969;'>// see what length we have ere..</span>
+  uint32_t len<span style='color:#808030;'>=</span>c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>len <span style='color:#808030;'>&amp;</span> MD4_CBLOCK <span style='color:#808030;'>-</span> <span style='color:#008c00;'>1</span><span style='color:#800080;'>;</span>
+  <span style='color:#696969;'>// fill with zeros</span>
+  <span style='color:#603000;'>memset</span> <span style='color:#808030;'>(</span><span style='color:#808030;'>&amp;</span>c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>buf<span style='color:#808030;'>.</span>b<span style='color:#808030;'>[</span>len<span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>0</span><span style='color:#808030;'>,</span> MD4_CBLOCK <span style='color:#808030;'>-</span> len<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+  <span style='color:#696969;'>// add the end bit</span>
+  c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>buf<span style='color:#808030;'>.</span>b<span style='color:#808030;'>[</span>len<span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> <span style='color:#008000;'>0x80</span><span style='color:#800080;'>;</span>
+  <span style='color:#696969;'>// if exceeding 56 bytes, transform it</span>
+  <span style='color:#800000;font-weight:bold;'>if</span> <span style='color:#808030;'>(</span>len <span style='color:#808030;'>&gt;</span><span style='color:#808030;'>=</span> <span style='color:#008c00;'>56</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+    MD4_Transform <span style='color:#808030;'>(</span>c<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+    <span style='color:#696969;'>// clear</span>
+    <span style='color:#603000;'>memset</span> <span style='color:#808030;'>(</span>c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>buf<span style='color:#808030;'>.</span>b<span style='color:#808030;'>,</span> <span style='color:#008c00;'>0</span><span style='color:#808030;'>,</span> MD4_CBLOCK<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+  <span style='color:#800080;'>}</span>
+  <span style='color:#696969;'>// add total bits</span>
+  c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>buf<span style='color:#808030;'>.</span>q<span style='color:#808030;'>[</span><span style='color:#008c00;'>7</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>len <span style='color:#808030;'>*</span> <span style='color:#008c00;'>8</span><span style='color:#800080;'>;</span>
+  <span style='color:#696969;'>// compress</span>
+  MD4_Transform<span style='color:#808030;'>(</span>c<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+  <span style='color:#696969;'>// copy digest to buffer</span>
+  <span style='color:#603000;'>memcpy</span> <span style='color:#808030;'>(</span>dgst<span style='color:#808030;'>,</span> c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>s<span style='color:#808030;'>.</span>b<span style='color:#808030;'>,</span> MD4_DIGEST_LENGTH<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#004a43;'>public</span> MD4_Final
+MD4_Final <span style='color:#004a43;'>proc</span> <span style='color:#004a43;'>C</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+8</span><span style='color:#808030;'>]</span>   <span style='color:#696969;'>; context</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+4</span><span style='color:#808030;'>]</span>   <span style='color:#696969;'>; dgst</span>
+    
+    <span style='color:#696969;'>; uint64_t len=ctx-&gt;len &amp; MD4_CBLOCK - 1;</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>]</span><span style='color:#808030;'>[</span>MD4_CTX.len<span style='color:#808030;'>+</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>and</span>    <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> MD4_CBLOCK <span style='color:#808030;'>-</span> <span style='color:#008c00;'>1</span>
+    
+    <span style='color:#696969;'>; fill with zeros</span>
+    <span style='color:#696969;'>; memset (&amp;ctx-&gt;buffer.v8[len], 0, MD4_CBLOCK - len);</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#800000;font-weight:bold;'>lea</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>]</span><span style='color:#808030;'>[</span>MD4_CTX.buffer<span style='color:#808030;'>]</span><span style='color:#808030;'>[</span><span style='color:#000080;'>ecx</span><span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>neg</span>    <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> MD4_CBLOCK
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+    <span style='color:#800000;font-weight:bold;'>rep</span>    <span style='color:#800000;font-weight:bold;'>stosb</span>
+    <span style='color:#800000;font-weight:bold;'>popad</span> 
+    
+    <span style='color:#696969;'>; ctx-&gt;buffer.v8[len] = 0x80;</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#800000;font-weight:bold;'>byte</span> <span style='color:#800000;font-weight:bold;'>ptr</span><span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>]</span><span style='color:#808030;'>[</span>MD4_CTX.buffer<span style='color:#808030;'>]</span><span style='color:#808030;'>[</span><span style='color:#000080;'>ecx</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#008000;'>80h</span>
+    
+    <span style='color:#696969;'>; if (len &gt;= 56)</span>
+    <span style='color:#800000;font-weight:bold;'>cmp</span>    <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>56</span>
+    <span style='color:#004a43;'>.if</span> <span style='color:#808030;'>!</span><span style='color:#004a43;'>carry?</span>
+      <span style='color:#800000;font-weight:bold;'>push</span> <span style='color:#000080;'>esi</span>
+      <span style='color:#800000;font-weight:bold;'>call</span> <span style='color:#e34adc;'>MD4_Transform</span>
+      
+      <span style='color:#696969;'>; memset (ctx-&gt;buffer.v8, 0, MD4_CBLOCK);</span>
+      <span style='color:#800000;font-weight:bold;'>push</span> <span style='color:#000080;'>edi</span>
+      <span style='color:#800000;font-weight:bold;'>lea</span>  <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>]</span><span style='color:#808030;'>[</span>MD4_CTX.buffer<span style='color:#808030;'>]</span>
+      <span style='color:#800000;font-weight:bold;'>push</span> MD4_CBLOCK<span style='color:#808030;'>/</span><span style='color:#008c00;'>4</span>
+      <span style='color:#800000;font-weight:bold;'>pop</span>  <span style='color:#000080;'>ecx</span>
+      <span style='color:#800000;font-weight:bold;'>xor</span>  <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+      <span style='color:#800000;font-weight:bold;'>rep</span>  <span style='color:#800000;font-weight:bold;'>stosd</span>
+      <span style='color:#800000;font-weight:bold;'>pop</span>  <span style='color:#000080;'>edi</span>
+    <span style='color:#004a43;'>.endif</span>
+    
+    <span style='color:#696969;'>; add total bits</span>
+    <span style='color:#696969;'>; ctx-&gt;buffer.v64[7] = ctx-&gt;len * 8;</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>]</span><span style='color:#808030;'>[</span>MD4_CTX.len<span style='color:#808030;'>+</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>]</span><span style='color:#808030;'>[</span>MD4_CTX.len<span style='color:#808030;'>+</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>shld</span>   <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>3</span>
+    <span style='color:#800000;font-weight:bold;'>shl</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>3</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#800000;font-weight:bold;'>dword</span> <span style='color:#800000;font-weight:bold;'>ptr</span><span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>]</span><span style='color:#808030;'>[</span>MD4_CTX.buffer<span style='color:#808030;'>+</span><span style='color:#008c00;'>56</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#800000;font-weight:bold;'>dword</span> <span style='color:#800000;font-weight:bold;'>ptr</span><span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>]</span><span style='color:#808030;'>[</span>MD4_CTX.buffer<span style='color:#808030;'>+</span><span style='color:#008c00;'>60</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edx</span>  
+    
+    <span style='color:#696969;'>; compress</span>
+    <span style='color:#696969;'>; MD4_Transform(ctx);</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>esi</span>    
+    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>MD4_Transform</span>
+    
+    <span style='color:#696969;'>; copy digest to buffer</span>
+    <span style='color:#696969;'>; memcpy (dgst, ctx-&gt;state.v8, MD4_DIGEST_LENGTH);</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   MD4_LBLOCK
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>rep</span>    <span style='color:#800000;font-weight:bold;'>movsd</span>
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>ret</span>    
+MD4_Final <span style='color:#004a43;'>endp</span>
+</pre>
+
+The bulk of computation occurs in the transform/compression function which is optimized for size, not speed.
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#004a43;'>#</span><span style='color:#004a43;'>define</span><span style='color:#004a43;'> F</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>x</span><span style='color:#808030;'>,</span><span style='color:#004a43;'> y</span><span style='color:#808030;'>,</span><span style='color:#004a43;'> z</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>z</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>^</span><span style='color:#004a43;'> </span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>x</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>&amp;</span><span style='color:#004a43;'> </span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>y</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>^</span><span style='color:#004a43;'> </span><span style='color:#808030;'>(</span><span style='color:#004a43;'>z</span><span style='color:#808030;'>)</span><span style='color:#808030;'>)</span><span style='color:#808030;'>)</span><span style='color:#808030;'>)</span>
+<span style='color:#004a43;'>#</span><span style='color:#004a43;'>define</span><span style='color:#004a43;'> G</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>x</span><span style='color:#808030;'>,</span><span style='color:#004a43;'> y</span><span style='color:#808030;'>,</span><span style='color:#004a43;'> z</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>x</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>&amp;</span><span style='color:#004a43;'> </span><span style='color:#808030;'>(</span><span style='color:#004a43;'>y</span><span style='color:#808030;'>)</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>|</span><span style='color:#004a43;'> </span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>z</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>&amp;</span><span style='color:#004a43;'> </span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>x</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>|</span><span style='color:#004a43;'> </span><span style='color:#808030;'>(</span><span style='color:#004a43;'>y</span><span style='color:#808030;'>)</span><span style='color:#808030;'>)</span><span style='color:#808030;'>)</span><span style='color:#808030;'>)</span>
+<span style='color:#004a43;'>#</span><span style='color:#004a43;'>define</span><span style='color:#004a43;'> H</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>x</span><span style='color:#808030;'>,</span><span style='color:#004a43;'> y</span><span style='color:#808030;'>,</span><span style='color:#004a43;'> z</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>x</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>^</span><span style='color:#004a43;'> </span><span style='color:#808030;'>(</span><span style='color:#004a43;'>y</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>^</span><span style='color:#004a43;'> </span><span style='color:#808030;'>(</span><span style='color:#004a43;'>z</span><span style='color:#808030;'>)</span><span style='color:#808030;'>)</span>
+
+<span style='color:#3f5fbf;'>/************************************************</span>
+<span style='color:#3f5fbf;'>&#xa0;*</span>
+<span style='color:#3f5fbf;'>&#xa0;* Transform block of data.</span>
+<span style='color:#3f5fbf;'>&#xa0;*</span>
+<span style='color:#3f5fbf;'>&#xa0;************************************************/</span>
+<span style='color:#800000;font-weight:bold;'>void</span> MD4_Transform <span style='color:#808030;'>(</span>MD4_CTX <span style='color:#808030;'>*</span>c<span style='color:#808030;'>)</span> 
+<span style='color:#800080;'>{</span>
+  uint32_t i<span style='color:#808030;'>,</span> t<span style='color:#800080;'>;</span>
+  uint32_t s<span style='color:#808030;'>[</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+  
+  <span style='color:#696969;'>// increment by 4</span>
+  uint8_t rotf<span style='color:#808030;'>[</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> <span style='color:#800080;'>{</span> <span style='color:#008c00;'>3</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>7</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>11</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>19</span> <span style='color:#800080;'>}</span><span style='color:#800080;'>;</span>
+  uint8_t rotg<span style='color:#808030;'>[</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> <span style='color:#800080;'>{</span> <span style='color:#008c00;'>3</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>5</span><span style='color:#808030;'>,</span>  <span style='color:#008c00;'>9</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>13</span> <span style='color:#800080;'>}</span><span style='color:#800080;'>;</span>
+  uint8_t roth<span style='color:#808030;'>[</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> <span style='color:#800080;'>{</span> <span style='color:#008c00;'>3</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>9</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>11</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>15</span> <span style='color:#800080;'>}</span><span style='color:#800080;'>;</span>
+
+  <span style='color:#696969;'>// increment by 4 mod 15</span>
+  uint8_t idxg<span style='color:#808030;'>[</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> 
+  <span style='color:#800080;'>{</span> <span style='color:#008c00;'>0</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>4</span><span style='color:#808030;'>,</span>  <span style='color:#008c00;'>8</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>12</span><span style='color:#808030;'>,</span> 
+    <span style='color:#008c00;'>1</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>5</span><span style='color:#808030;'>,</span>  <span style='color:#008c00;'>9</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>13</span><span style='color:#808030;'>,</span> 
+    <span style='color:#008c00;'>2</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>6</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>10</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>14</span><span style='color:#808030;'>,</span>  
+    <span style='color:#008c00;'>3</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>7</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>11</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>15</span> <span style='color:#800080;'>}</span><span style='color:#800080;'>;</span>
+    
+  <span style='color:#696969;'>// increment by 8 mod 12, 18, 12, 21</span>
+  uint8_t idxh<span style='color:#808030;'>[</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> 
+  <span style='color:#800080;'>{</span> <span style='color:#008c00;'>0</span><span style='color:#808030;'>,</span>  <span style='color:#008c00;'>8</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>4</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>12</span><span style='color:#808030;'>,</span> 
+    <span style='color:#008c00;'>2</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>10</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>6</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>14</span><span style='color:#808030;'>,</span> 
+    <span style='color:#008c00;'>1</span><span style='color:#808030;'>,</span>  <span style='color:#008c00;'>9</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>5</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>13</span><span style='color:#808030;'>,</span>  
+    <span style='color:#008c00;'>3</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>11</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>7</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>15</span> <span style='color:#800080;'>}</span><span style='color:#800080;'>;</span>
+
+  <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>i<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>&lt;</span><span style='color:#008c00;'>4</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+    s<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span><span style='color:#808030;'>=</span>c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>s<span style='color:#808030;'>.</span>w<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+  <span style='color:#800080;'>}</span>
+  
+  <span style='color:#696969;'>// for 48 rounds</span>
+  <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>i<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>&lt;</span><span style='color:#008c00;'>48</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+    <span style='color:#800000;font-weight:bold;'>if</span> <span style='color:#808030;'>(</span>i <span style='color:#808030;'>&lt;</span> <span style='color:#008c00;'>16</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+      s<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>+</span><span style='color:#808030;'>=</span> F<span style='color:#808030;'>(</span>s<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> s<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> s<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>+</span> 
+        c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>buf<span style='color:#808030;'>.</span>w<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+      t <span style='color:#808030;'>=</span> rotf<span style='color:#808030;'>[</span>i<span style='color:#808030;'>%</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    <span style='color:#800080;'>}</span> <span style='color:#800000;font-weight:bold;'>else</span> <span style='color:#800000;font-weight:bold;'>if</span> <span style='color:#808030;'>(</span>i <span style='color:#808030;'>&lt;</span> <span style='color:#008c00;'>32</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+      s<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>+</span><span style='color:#808030;'>=</span> G<span style='color:#808030;'>(</span>s<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> s<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> s<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>+</span> 
+        c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>buf<span style='color:#808030;'>.</span>w<span style='color:#808030;'>[</span>idxg<span style='color:#808030;'>[</span>i<span style='color:#808030;'>%</span><span style='color:#008c00;'>16</span><span style='color:#808030;'>]</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>+</span> <span style='color:#008000;'>0x5a827999</span><span style='color:#006600;'>L</span><span style='color:#800080;'>;</span>
+      t <span style='color:#808030;'>=</span> rotg<span style='color:#808030;'>[</span>i<span style='color:#808030;'>%</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    <span style='color:#800080;'>}</span> <span style='color:#800000;font-weight:bold;'>else</span> <span style='color:#800080;'>{</span>
+      s<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>+</span><span style='color:#808030;'>=</span> H<span style='color:#808030;'>(</span>s<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> s<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> s<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>+</span> 
+        c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>buf<span style='color:#808030;'>.</span>w<span style='color:#808030;'>[</span>idxh<span style='color:#808030;'>[</span>i<span style='color:#808030;'>%</span><span style='color:#008c00;'>16</span><span style='color:#808030;'>]</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>+</span> <span style='color:#008000;'>0x6ed9eba1</span><span style='color:#006600;'>L</span><span style='color:#800080;'>;</span>
+      t <span style='color:#808030;'>=</span> roth<span style='color:#808030;'>[</span>i<span style='color:#808030;'>%</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    <span style='color:#800080;'>}</span>
+    t<span style='color:#808030;'>=</span>ROTL32<span style='color:#808030;'>(</span>s<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> t<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+    s<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#808030;'>=</span>s<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    s<span style='color:#808030;'>[</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span><span style='color:#808030;'>=</span>s<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    s<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span><span style='color:#808030;'>=</span>s<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    s<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#808030;'>=</span>t<span style='color:#800080;'>;</span>
+  <span style='color:#800080;'>}</span>
+
+  <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>i<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>&lt;</span><span style='color:#008c00;'>4</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+    c<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>s<span style='color:#808030;'>.</span>w<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span> <span style='color:#808030;'>+</span><span style='color:#808030;'>=</span> s<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+  <span style='color:#800080;'>}</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+<pre style='color:#000000;background:#ffffff;'>_a <span style='color:#004a43;'>equ</span> <span style='color:#808030;'>&lt;</span><span style='color:#000080;'>eax</span><span style='color:#808030;'>&gt;</span>  <span style='color:#696969;'>; don't change</span>
+_b <span style='color:#004a43;'>equ</span> <span style='color:#808030;'>&lt;</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>&gt;</span>
+_c <span style='color:#004a43;'>equ</span> <span style='color:#808030;'>&lt;</span><span style='color:#000080;'>ebp</span><span style='color:#808030;'>&gt;</span>
+_d <span style='color:#004a43;'>equ</span> <span style='color:#808030;'>&lt;</span><span style='color:#000080;'>edx</span><span style='color:#808030;'>&gt;</span>
+
+_i <span style='color:#004a43;'>equ</span> <span style='color:#808030;'>&lt;</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>&gt;</span>
+t1 <span style='color:#004a43;'>equ</span> <span style='color:#808030;'>&lt;</span><span style='color:#000080;'>edi</span><span style='color:#808030;'>&gt;</span>
+t2 <span style='color:#004a43;'>equ</span> <span style='color:#808030;'>&lt;</span><span style='color:#000080;'>ecx</span><span style='color:#808030;'>&gt;</span>
+
+<span style='color:#696969;'>; update context with input</span>
+MD4_Transform <span style='color:#004a43;'>proc</span> <span style='color:#004a43;'>stdcall</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    
+    <span style='color:#696969;'>; load context</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+4</span><span style='color:#808030;'>]</span>  <span style='color:#696969;'>; ctx</span>
+    
+    <span style='color:#696969;'>; load context</span>
+    <span style='color:#696969;'>; a = ctx-&gt;state.v32[0]</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   _d<span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+    <span style='color:#696969;'>; b = ctx-&gt;state.v32[1]</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   _b<span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+    <span style='color:#696969;'>; c = ctx-&gt;state.v32[2]</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   _c<span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+    <span style='color:#696969;'>; d = ctx-&gt;state.v32[3]</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   _d<span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+    
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>esi</span>
+    
+    <span style='color:#800000;font-weight:bold;'>xor</span>    _i<span style='color:#808030;'>,</span> _i
+    
+    <span style='color:#004a43;'>.repeat</span>
+      <span style='color:#800000;font-weight:bold;'>mov</span>    t1<span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>]</span>   
+      <span style='color:#800000;font-weight:bold;'>movzx</span>  t2<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>byte</span> <span style='color:#800000;font-weight:bold;'>ptr</span> idx<span style='color:#808030;'>[</span>_i<span style='color:#808030;'>]</span>     <span style='color:#696969;'>; idx[i]</span>
+      <span style='color:#800000;font-weight:bold;'>add</span>    _a<span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span>t1<span style='color:#008c00;'>+4</span><span style='color:#808030;'>*</span>t2<span style='color:#808030;'>]</span>            <span style='color:#696969;'>; a += x[i]</span>
+      <span style='color:#800000;font-weight:bold;'>mov</span>    t2<span style='color:#808030;'>,</span> _i
+      <span style='color:#800000;font-weight:bold;'>and</span>    t2<span style='color:#808030;'>,</span> <span style='color:#008c00;'>3</span>                    <span style='color:#696969;'>; i %= 4</span>
+      <span style='color:#800000;font-weight:bold;'>mov</span>    t1<span style='color:#808030;'>,</span> _c
+      <span style='color:#004a43;'>.if</span>     _i <span style='color:#808030;'>&lt;</span> <span style='color:#008c00;'>16</span>
+        <span style='color:#800000;font-weight:bold;'>mov</span>   <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>byte</span> <span style='color:#800000;font-weight:bold;'>ptr</span> rotf<span style='color:#808030;'>[</span>t2<span style='color:#808030;'>]</span>    <span style='color:#696969;'>; rotf[i%4]</span>
+        <span style='color:#800000;font-weight:bold;'>xor</span>   t1<span style='color:#808030;'>,</span> _d
+        <span style='color:#800000;font-weight:bold;'>and</span>   t1<span style='color:#808030;'>,</span> _b
+        <span style='color:#800000;font-weight:bold;'>xor</span>   t1<span style='color:#808030;'>,</span> _d
+      <span style='color:#004a43;'>.elseif</span> _i <span style='color:#808030;'>&lt;</span> <span style='color:#008c00;'>32</span>
+        <span style='color:#800000;font-weight:bold;'>mov</span>   <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>byte</span> <span style='color:#800000;font-weight:bold;'>ptr</span> rotg<span style='color:#808030;'>[</span>t2<span style='color:#808030;'>]</span>    <span style='color:#696969;'>; rotg[i%4]</span>
+        <span style='color:#800000;font-weight:bold;'>push</span>  <span style='color:#000080;'>ecx</span>
+        <span style='color:#800000;font-weight:bold;'>mov</span>   t2<span style='color:#808030;'>,</span> _c
+        <span style='color:#800000;font-weight:bold;'>or</span>    t1<span style='color:#808030;'>,</span> _d
+        <span style='color:#800000;font-weight:bold;'>and</span>   t1<span style='color:#808030;'>,</span> _b
+        <span style='color:#800000;font-weight:bold;'>and</span>   t2<span style='color:#808030;'>,</span> _d
+        <span style='color:#800000;font-weight:bold;'>or</span>    t1<span style='color:#808030;'>,</span> t2
+        <span style='color:#800000;font-weight:bold;'>pop</span>   <span style='color:#000080;'>ecx</span>
+        <span style='color:#800000;font-weight:bold;'>add</span>   t1<span style='color:#808030;'>,</span> <span style='color:#008000;'>05a827999h</span>
+      <span style='color:#004a43;'>.else</span>
+        <span style='color:#800000;font-weight:bold;'>mov</span>   <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>byte</span> <span style='color:#800000;font-weight:bold;'>ptr</span> roth<span style='color:#808030;'>[</span>t2<span style='color:#808030;'>]</span>    <span style='color:#696969;'>; roth[i%4]</span>
+        <span style='color:#800000;font-weight:bold;'>xor</span>   t1<span style='color:#808030;'>,</span> _b
+        <span style='color:#800000;font-weight:bold;'>xor</span>   t1<span style='color:#808030;'>,</span> _d
+        <span style='color:#800000;font-weight:bold;'>add</span>   t1<span style='color:#808030;'>,</span> <span style='color:#008000;'>06ed9eba1h</span>
+      <span style='color:#004a43;'>.endif</span>
+      
+      <span style='color:#800000;font-weight:bold;'>add</span>    _a<span style='color:#808030;'>,</span> t1
+      <span style='color:#800000;font-weight:bold;'>rol</span>    _a<span style='color:#808030;'>,</span> <span style='color:#000080;'>cl</span>
+      
+      <span style='color:#800000;font-weight:bold;'>mov</span>    t1<span style='color:#808030;'>,</span> _a
+      <span style='color:#800000;font-weight:bold;'>mov</span>    _a<span style='color:#808030;'>,</span> _d
+      <span style='color:#800000;font-weight:bold;'>mov</span>    _d<span style='color:#808030;'>,</span> _c
+      <span style='color:#800000;font-weight:bold;'>mov</span>    _c<span style='color:#808030;'>,</span> _b
+      <span style='color:#800000;font-weight:bold;'>mov</span>    _b<span style='color:#808030;'>,</span> t1
+      
+      <span style='color:#800000;font-weight:bold;'>inc</span>    _i
+    <span style='color:#004a43;'>.until</span> _i <span style='color:#808030;'>=</span><span style='color:#808030;'>=</span> <span style='color:#008c00;'>48</span>
+    
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>esi</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+4</span><span style='color:#808030;'>]</span>
+    
+    <span style='color:#696969;'>; save context</span>
+    <span style='color:#696969;'>; ctx-&gt;state.v32[0] += a;</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>edi</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> _a
+    <span style='color:#800000;font-weight:bold;'>scasd</span>
+    <span style='color:#696969;'>; ctx-&gt;state.v32[1] += b;</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>edi</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> _b
+    <span style='color:#800000;font-weight:bold;'>scasd</span>
+    <span style='color:#696969;'>; ctx-&gt;state.v32[2] += c;</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>edi</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> _c
+    <span style='color:#800000;font-weight:bold;'>scasd</span>
+    <span style='color:#696969;'>; ctx-&gt;state.v32[3] += d;</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>edi</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> _d
+    <span style='color:#696969;'>; restore registers</span>
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>retn</span>   <span style='color:#008c00;'>4</span>
+MD4_Transform <span style='color:#004a43;'>endp</span>
+</pre>
+
+<strong>Initial Results</strong>
+
+cl /Fa /O2 /Os /GS- /c md4.c
+jwasm -bin md4.asm
+
+Not terribly impressive if size is a constraint.
+<table>
+<tbody>
+<tr>
+<th>architecture</th>
+<th>size</th>
+</tr>
+<tr>
+<td>x86</td>
+<td>393</td>
+</tr>
+<tr>
+<td>x64</td>
+<td>481</td>
+</tr>
+</tbody>
+</table>
+<strong>Conclusion</strong>
+
+For its day, MD4 was a reasonably good hash algorithm but for systems with limited resources, it's too bulky. There are many better algorithms that have surfaced since which we'll look at later.
+
+<a href="https://github.com/odzhan/tinycrypt/tree/master/hash/md4">Source here</a>

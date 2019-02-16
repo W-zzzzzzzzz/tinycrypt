@@ -40,7 +40,7 @@ B S(B x) {
 }
 #define K_LEN 16 // 128-bit
 void E(B *s) {
-    B a,b,c,d,i,j,t,x[48],rc=1,*k=&x[16];
+    B a,b,c,d,i,j,t,x[32],rc=1,*k=&x[16];
     
     // copy 128-bit plain text + 128-bit master key to x
     F(32)x[i]=s[i];
@@ -50,14 +50,13 @@ void E(B *s) {
       F(16)s[i]=x[i]^k[i];
       // if round 11, stop
       if(rc==108)break;
+      // AddConstant
+      k[0]^=rc; rc=M(rc);
       // ExpandKey
-      F(4)k[i]^=S(k[12+((i-3)&3)]); 
-      // AddConstant, update
-      k[0]^=rc;
-      rc=M(rc);
+      F(4)k[i]^=S(k[12+((i-3)&3)]);
+      F(12)k[i+4]^=k[i];
       // SubBytes and ShiftRows
-      F(16)k[i+4]^=k[i], 
-        x[(i&3)+((((W)(i>>2)-(i&3))&3)<<2)]=S(s[i]);
+      F(16)x[(i&3)+((((W)(i>>2)-(i&3))&3)<<2)]=S(s[i]);
       // if not round 11
       if(rc!=108) {
         // MixColumns

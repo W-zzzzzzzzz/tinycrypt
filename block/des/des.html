@@ -1,0 +1,485 @@
+<h3><strong>Introduction</strong></h3>
+
+<p><a href="http://csrc.nist.gov/publications/fips/fips46-3/fips46-3.pdf">DES</a> was originally designed and written by a team of computer scientists working at IBM along with the NSA and published by NIST in January 1977. Although obsolete due to <a href="https://tinycrypt.wordpress.com/2015/12/02/asmcodes-aes/">AES</a>, DES continues to be used for various reasons and will not disappear anytime soon. From encryption protocols to password algorithms, DES is still part of everyday life. I want to be clear, I'm not encouraging the use of this algorithm for protection of data, merely implementing it in assembly which is optimized for size. The cipher itself isn't considered secure anymore but triple DES or 3DES is still used for TLS/SSL despite the availability of AES for 15 years. I searched for small versions of DES and found 1 by <a href="https://www.linkedin.com/in/chrishertel">Christopher Hertel</a> and another by Daniel Otte, the <a href="https://github.com/cantora/avr-crypto-lib/blob/master/des/des.c">latter of which was modified</a> for the C/assembly version presented here. The assembly code is currently 1,045 bytes and was joint effort between <a href="http://pferrie.host22.com/">Peter Ferrie</a> and myself.</p>
+
+<h3><strong>Permutation Function</strong></h3>
+
+The bulk of DES ROM is taken up by permutation tables which are used a lot in both encryption and key scheduling.
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000;font-weight:bold;'>void</span> permute <span style='color:#808030;'>(</span>uint8_t ptbl<span style='color:#808030;'>[</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>input<span style='color:#808030;'>,</span> des_blk <span style='color:#808030;'>*</span>out<span style='color:#808030;'>)</span> 
+<span style='color:#800080;'>{</span>
+  uint8_t i<span style='color:#808030;'>,</span> j<span style='color:#808030;'>,</span> x<span style='color:#808030;'>,</span> t<span style='color:#808030;'>,</span> ob<span style='color:#800080;'>;</span>
+  des_blk <span style='color:#808030;'>*</span>in<span style='color:#808030;'>=</span><span style='color:#808030;'>(</span>des_blk<span style='color:#808030;'>*</span><span style='color:#808030;'>)</span>input<span style='color:#800080;'>;</span>
+  uint8_t <span style='color:#808030;'>*</span>p<span style='color:#808030;'>=</span><span style='color:#808030;'>(</span>uint8_t<span style='color:#808030;'>*</span><span style='color:#808030;'>)</span>ptbl<span style='color:#800080;'>;</span>
+  
+  <span style='color:#696969;'>// we always expect out to absorb 8 bytes</span>
+  <span style='color:#603000;'>memset</span> <span style='color:#808030;'>(</span>out<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>v8<span style='color:#808030;'>,</span> <span style='color:#008c00;'>0</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>8</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+  
+  <span style='color:#696969;'>// load destination buffer in bytes</span>
+  ob <span style='color:#808030;'>=</span> <span style='color:#808030;'>*</span>p<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#800080;'>;</span>
+  
+  <span style='color:#696969;'>// for i=0 to output bytes</span>
+  <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>i<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>&lt;</span>ob<span style='color:#800080;'>;</span> i<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#808030;'>)</span> 
+  <span style='color:#800080;'>{</span>
+    t<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> 
+    <span style='color:#696969;'>// permutate 8-bits</span>
+    <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>j<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> j<span style='color:#808030;'>&lt;</span><span style='color:#008c00;'>8</span><span style='color:#800080;'>;</span> j<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#808030;'>)</span> 
+    <span style='color:#800080;'>{</span>
+      x <span style='color:#808030;'>=</span> <span style='color:#808030;'>*</span>p<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#800080;'>;</span>
+      t <span style='color:#808030;'>&lt;</span><span style='color:#808030;'>&lt;</span><span style='color:#808030;'>=</span> <span style='color:#008c00;'>1</span><span style='color:#800080;'>;</span>
+      <span style='color:#800000;font-weight:bold;'>if</span> <span style='color:#808030;'>(</span><span style='color:#808030;'>(</span>in<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>v8<span style='color:#808030;'>[</span>x <span style='color:#808030;'>/</span> <span style='color:#008c00;'>8</span><span style='color:#808030;'>]</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>&amp;</span> <span style='color:#808030;'>(</span><span style='color:#008000;'>0x80</span> <span style='color:#808030;'>&gt;</span><span style='color:#808030;'>&gt;</span> <span style='color:#808030;'>(</span>x <span style='color:#808030;'>&amp;</span> <span style='color:#008c00;'>7</span><span style='color:#808030;'>)</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>)</span><span style='color:#800080;'>{</span>
+        t <span style='color:#808030;'>|</span><span style='color:#808030;'>=</span> <span style='color:#008000;'>0x01</span><span style='color:#800080;'>;</span>
+      <span style='color:#800080;'>}</span>
+    <span style='color:#800080;'>}</span>
+    out<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>v8<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span><span style='color:#808030;'>=</span>t<span style='color:#800080;'>;</span>
+  <span style='color:#800080;'>}</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>; esi = permutation table</span>
+<span style='color:#696969;'>; ebx = input</span>
+<span style='color:#696969;'>; edi = output</span>
+<span style='color:#e34adc;'>_permutex:</span>
+<span style='color:#e34adc;'>permutex:</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>edi</span>
+    <span style='color:#800000;font-weight:bold;'>stosd</span>
+    <span style='color:#800000;font-weight:bold;'>stosd</span>
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>edi</span>
+    
+    <span style='color:#696969;'>; ob=*p++;</span>
+    <span style='color:#800000;font-weight:bold;'>lodsb</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+<span style='color:#e34adc;'>p_l1:</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>8</span>
+<span style='color:#e34adc;'>p_l2:</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>ecx</span>
+    <span style='color:#696969;'>; x = *p++;</span>
+    <span style='color:#800000;font-weight:bold;'>lodsb</span>
+    <span style='color:#696969;'>; replace (0x80 &gt;&gt; (x % 8)))</span>
+    <span style='color:#696969;'>; with 1 &lt;&lt; (7 - (x % 8))</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>7</span>
+    <span style='color:#800000;font-weight:bold;'>sub</span>    <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>al</span>
+    <span style='color:#800000;font-weight:bold;'>and</span>    <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>7</span>
+    <span style='color:#696969;'>; in[x/8];</span>
+    <span style='color:#800000;font-weight:bold;'>shr</span>    <span style='color:#000080;'>al</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>3</span>
+    <span style='color:#800000;font-weight:bold;'>xlatb</span>
+    <span style='color:#696969;'>; if (in[x/8] &amp; (0x80 &gt;&gt; (x % 8)))</span>
+    <span style='color:#800000;font-weight:bold;'>bt</span>     <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ecx</span>
+    <span style='color:#696969;'>; t &lt;&lt;= 1;</span>
+    <span style='color:#800000;font-weight:bold;'>adc</span>    <span style='color:#000080;'>dl</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>dl</span>
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>loop</span>   <span style='color:#e34adc;'>p_l2</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edx</span>
+    <span style='color:#696969;'>; out-&gt;v8[i]=t;</span>
+    <span style='color:#800000;font-weight:bold;'>stosb</span>
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>loop</span>   <span style='color:#e34adc;'>p_l1</span>
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>ret</span>
+</pre>
+
+<h3><strong>Key Expansion</strong></h3>
+
+This function creates 16 sub keys which are the same for encryption/decryption. Hertel and Otte expand the key during encryption/decryption which is fine but there's a separate function created here to ease load on registers and processing.
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>// create 16 subkeys for encryption/decryption</span>
+<span style='color:#800000;font-weight:bold;'>void</span> des_setkey <span style='color:#808030;'>(</span>des_ctx <span style='color:#808030;'>*</span>ctx<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>input<span style='color:#808030;'>)</span>
+<span style='color:#800080;'>{</span>
+  uint32_t rnd<span style='color:#800080;'>;</span>
+  des_blk <span style='color:#808030;'>*</span>k<span style='color:#808030;'>,</span> <span style='color:#808030;'>*</span>ks<span style='color:#800080;'>;</span>
+  des_blk k1<span style='color:#808030;'>,</span> k2<span style='color:#800080;'>;</span>
+  
+  ks<span style='color:#808030;'>=</span><span style='color:#808030;'>&amp;</span>ctx<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>keys<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+  
+  permute <span style='color:#808030;'>(</span>pc1_permtab<span style='color:#808030;'>,</span> input<span style='color:#808030;'>,</span> <span style='color:#808030;'>&amp;</span>k1<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+  
+  <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>rnd<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> rnd<span style='color:#808030;'>&lt;</span><span style='color:#008c00;'>16</span><span style='color:#800080;'>;</span> rnd<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#808030;'>)</span>
+  <span style='color:#800080;'>{</span>
+    permute <span style='color:#808030;'>(</span>shiftkey_permtab<span style='color:#808030;'>,</span> <span style='color:#808030;'>&amp;</span>k1<span style='color:#808030;'>,</span> <span style='color:#808030;'>&amp;</span>k2<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+    k<span style='color:#808030;'>=</span><span style='color:#808030;'>&amp;</span>k2<span style='color:#800080;'>;</span>
+    <span style='color:#800000;font-weight:bold;'>if</span> <span style='color:#808030;'>(</span>ROTTABLE <span style='color:#808030;'>&amp;</span> <span style='color:#808030;'>(</span><span style='color:#008c00;'>1</span> <span style='color:#808030;'>&lt;</span><span style='color:#808030;'>&lt;</span> rnd<span style='color:#808030;'>)</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+      permute <span style='color:#808030;'>(</span>shiftkey_permtab<span style='color:#808030;'>,</span> <span style='color:#808030;'>&amp;</span>k2<span style='color:#808030;'>,</span> <span style='color:#808030;'>&amp;</span>k1<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+      k<span style='color:#808030;'>=</span><span style='color:#808030;'>&amp;</span>k1<span style='color:#800080;'>;</span>
+    <span style='color:#800080;'>}</span>
+    permute <span style='color:#808030;'>(</span>pc2_permtab<span style='color:#808030;'>,</span> k<span style='color:#808030;'>,</span> ks<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+    <span style='color:#603000;'>memcpy</span> <span style='color:#808030;'>(</span>k1<span style='color:#808030;'>.</span>v8<span style='color:#808030;'>,</span> k<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>v8<span style='color:#808030;'>,</span> DES_BLK_LEN<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+  <span style='color:#800080;'>}</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#e34adc;'>_des_setkeyx:</span>
+<span style='color:#e34adc;'>des_setkey:</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+8</span><span style='color:#808030;'>]</span>  <span style='color:#696969;'>; input</span>
+    
+    <span style='color:#696969;'>; alloc space for k1, k2</span>
+    <span style='color:#800000;font-weight:bold;'>sub</span>    <span style='color:#000080;'>esp</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>16</span>
+    
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> permutex
+    
+    <span style='color:#696969;'>; permute (pc1_permtab, input, &amp;k1);</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> pc1_permtab
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>esp</span>
+    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>edx</span>               <span style='color:#696969;'>; permutex</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+16</span><span style='color:#008c00;'>+4</span><span style='color:#808030;'>]</span>  <span style='color:#696969;'>; ctx</span>
+<span style='color:#e34adc;'>sk_l1:</span>
+    <span style='color:#696969;'>; permute (shiftkey_permtab, &amp;k1, &amp;k2);</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>esp</span>          <span style='color:#696969;'>; ebx=k1</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>edi</span>
+    <span style='color:#800000;font-weight:bold;'>lea</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>8</span><span style='color:#808030;'>]</span>      <span style='color:#696969;'>; edi=k2</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>(</span>shiftkey_permtab <span style='color:#808030;'>-</span> pc1_permtab<span style='color:#808030;'>)</span>
+    <span style='color:#696969;'>;mov    esi, shiftkey_permtab</span>
+    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>edx</span>               <span style='color:#696969;'>; permutex</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#008c00;'>1</span>
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>eax</span>
+    <span style='color:#800000;font-weight:bold;'>shl</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>cl</span>
+    <span style='color:#800000;font-weight:bold;'>test</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#008000;'>07EFCh</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edi</span>          <span style='color:#696969;'>; ebx=k2, edi=k1</span>
+    <span style='color:#800000;font-weight:bold;'>jz</span>     <span style='color:#e34adc;'>sk_l2</span>
+    <span style='color:#696969;'>; permute (shiftkey_permtab, &amp;k2, &amp;k1);</span>
+    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>edx</span>               <span style='color:#696969;'>; permutex</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edi</span>          <span style='color:#696969;'>; ebx=k1</span>
+<span style='color:#e34adc;'>sk_l2:</span>
+    <span style='color:#696969;'>; permute (pc2_permtab, k, &amp;ctx-&gt;keys[rnd]);</span>
+    <span style='color:#696969;'>;mov    esi, pc2_permtab</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>(</span>pc2_permtab <span style='color:#808030;'>-</span> shiftkey_permtab<span style='color:#808030;'>)</span>
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>edi</span>
+    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>edx</span>               <span style='color:#696969;'>; permutex</span>
+    <span style='color:#696969;'>; memcpy (k1.v8, k-&gt;v8, DES_BLK_LEN);</span>
+    <span style='color:#800000;font-weight:bold;'>fild</span>   <span style='color:#800000;font-weight:bold;'>qword</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>fistp</span>  <span style='color:#800000;font-weight:bold;'>qword</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>scasd</span>
+    <span style='color:#800000;font-weight:bold;'>scasd</span>
+    <span style='color:#800000;font-weight:bold;'>sub</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>(</span>shiftkey_permtab <span style='color:#808030;'>-</span> pc1_permtab<span style='color:#808030;'>)</span> <span style='color:#808030;'>+</span> 
+                <span style='color:#808030;'>(</span>pc2_permtab <span style='color:#808030;'>-</span> shiftkey_permtab<span style='color:#808030;'>)</span>
+    <span style='color:#696969;'>; rnd++</span>
+    <span style='color:#800000;font-weight:bold;'>inc</span>    <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>cmp</span>    <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>16</span>
+    <span style='color:#800000;font-weight:bold;'>jnz</span>    <span style='color:#e34adc;'>sk_l1</span>
+    <span style='color:#696969;'>; free stack</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    <span style='color:#000080;'>esp</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>ret</span>
+</pre>
+
+<h3><strong>The F round Function</strong></h3>
+
+This is the main function which provides diffusion by mixing input with key and subsituting bytes with sbox tables.
+<pre style='color:#000000;background:#ffffff;'>uint32_t des_f <span style='color:#808030;'>(</span>uint32_t <span style='color:#808030;'>*</span>x<span style='color:#808030;'>,</span> des_blk <span style='color:#808030;'>*</span>key<span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+  uint8_t  i<span style='color:#808030;'>,</span> x0<span style='color:#808030;'>,</span> x1<span style='color:#800080;'>;</span>
+  uint32_t t<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span>
+  uint8_t  <span style='color:#808030;'>*</span>sbp<span style='color:#800080;'>;</span>
+  des_blk  t0<span style='color:#808030;'>,</span> t1<span style='color:#800080;'>;</span>
+  
+  <span style='color:#696969;'>// permute 1 half of data</span>
+  permute <span style='color:#808030;'>(</span>e_permtab<span style='color:#808030;'>,</span> x<span style='color:#808030;'>,</span> <span style='color:#808030;'>&amp;</span>t0<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+  
+  <span style='color:#696969;'>// mix key with data</span>
+  <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>i<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>&lt;</span><span style='color:#008c00;'>7</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+    t0<span style='color:#808030;'>.</span>v8<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span> <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> key<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>v8<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+  <span style='color:#800080;'>}</span>
+
+  permute <span style='color:#808030;'>(</span>splitin6bitword_permtab<span style='color:#808030;'>,</span> <span style='color:#808030;'>&amp;</span>t0<span style='color:#808030;'>,</span> <span style='color:#808030;'>&amp;</span>t1<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+  sbp<span style='color:#808030;'>=</span>sbox<span style='color:#800080;'>;</span>
+  
+  <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>i<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>&lt;</span><span style='color:#008c00;'>8</span><span style='color:#800080;'>;</span> <span style='color:#808030;'>+</span><span style='color:#808030;'>+</span>i<span style='color:#808030;'>)</span> 
+  <span style='color:#800080;'>{</span>
+    x0<span style='color:#808030;'>=</span>t1<span style='color:#808030;'>.</span>v8<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    x1 <span style='color:#808030;'>=</span> sbp<span style='color:#808030;'>[</span>x0 <span style='color:#808030;'>&gt;</span><span style='color:#808030;'>&gt;</span> <span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    x1 <span style='color:#808030;'>=</span> <span style='color:#808030;'>(</span>x0 <span style='color:#808030;'>&amp;</span> <span style='color:#008c00;'>1</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>?</span> x1 <span style='color:#808030;'>&amp;</span> <span style='color:#008000;'>0x0F</span> <span style='color:#800080;'>:</span> x1 <span style='color:#808030;'>&gt;</span><span style='color:#808030;'>&gt;</span> <span style='color:#008c00;'>4</span><span style='color:#800080;'>;</span>
+    t <span style='color:#808030;'>&lt;</span><span style='color:#808030;'>&lt;</span><span style='color:#808030;'>=</span> <span style='color:#008c00;'>4</span><span style='color:#800080;'>;</span>
+    t <span style='color:#808030;'>|</span><span style='color:#808030;'>=</span> x1<span style='color:#800080;'>;</span>
+    sbp <span style='color:#808030;'>+</span><span style='color:#808030;'>=</span> <span style='color:#008c00;'>32</span><span style='color:#800080;'>;</span>
+  <span style='color:#800080;'>}</span>
+  t<span style='color:#808030;'>=</span>SWAP32<span style='color:#808030;'>(</span>t<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+
+  permute <span style='color:#808030;'>(</span>p_permtab<span style='color:#808030;'>,</span> <span style='color:#808030;'>&amp;</span>t<span style='color:#808030;'>,</span> <span style='color:#808030;'>&amp;</span>t0<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+  <span style='color:#800000;font-weight:bold;'>return</span> t0<span style='color:#808030;'>.</span>v32<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>; eax = input</span>
+<span style='color:#696969;'>; esi = key</span>
+<span style='color:#696969;'>; return result in eax</span>
+<span style='color:#e34adc;'>_des_fx:</span>
+<span style='color:#e34adc;'>des_fx:</span>
+    <span style='color:#800000;font-weight:bold;'>pushfd</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#800000;font-weight:bold;'>cld</span>
+
+    <span style='color:#696969;'>; put x in ebx</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+    <span style='color:#696969;'>; put key in eax</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>esi</span>
+    
+    <span style='color:#696969;'>; allocate 16 bytes</span>
+    <span style='color:#800000;font-weight:bold;'>sub</span>    <span style='color:#000080;'>esp</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>16</span>
+
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ebp</span><span style='color:#808030;'>,</span> permutex
+    
+    <span style='color:#696969;'>; permute (e_permtab, x, &amp;t0);</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>esp</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> e_permtab
+    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>ebp</span>
+    
+    <span style='color:#696969;'>; put key in esi</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>esi</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>edi</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>edi</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+
+    <span style='color:#696969;'>; permute (splitin6bitword_permtab, &amp;t0, &amp;t1);</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> splitin6bitword_permtab
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>esp</span>
+    <span style='color:#800000;font-weight:bold;'>scasd</span>
+    <span style='color:#800000;font-weight:bold;'>scasd</span>
+    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>ebp</span>
+    
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edi</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> sbox
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#008c00;'>8</span>
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>ecx</span>
+<span style='color:#e34adc;'>df_l2:</span>
+    <span style='color:#800000;font-weight:bold;'>lodsb</span>
+    <span style='color:#800000;font-weight:bold;'>shr</span>    <span style='color:#000080;'>al</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>1</span>
+    <span style='color:#800000;font-weight:bold;'>pushfd</span>
+    <span style='color:#800000;font-weight:bold;'>xlatb</span>
+    <span style='color:#800000;font-weight:bold;'>aam</span>    <span style='color:#008c00;'>16</span>
+    <span style='color:#800000;font-weight:bold;'>popfd</span>
+    <span style='color:#800000;font-weight:bold;'>jb</span>     <span style='color:#e34adc;'>df_l3</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>al</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ah</span>
+<span style='color:#e34adc;'>df_l3:</span>
+    <span style='color:#800000;font-weight:bold;'>shl</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>4</span>
+    <span style='color:#800000;font-weight:bold;'>or</span>     <span style='color:#000080;'>dl</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>al</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>32</span>
+    <span style='color:#800000;font-weight:bold;'>loop</span>   <span style='color:#e34adc;'>df_l2</span>
+    
+    <span style='color:#800000;font-weight:bold;'>bswap</span>  <span style='color:#000080;'>edx</span>
+    
+    <span style='color:#696969;'>; permute (p_permtab, &amp;t, &amp;t0);</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edi</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> p_permtab
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>esp</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edx</span>
+    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>ebp</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>edi</span><span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    <span style='color:#000080;'>esp</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>4</span><span style='color:#808030;'>*</span><span style='color:#008c00;'>4</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span>_eax<span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>popfd</span>
+    <span style='color:#800000;font-weight:bold;'>ret</span>
+</pre>
+
+This function performs encryption and decryption depending on enc variable.
+
+If we're performing decryption, the key is advanced by 15 and ofs (offset) is set to -1 which will decrease key by 1 instead of advancing by 1 during encryption.
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>// encrypt/decrypt 64-bits of input</span>
+<span style='color:#800000;font-weight:bold;'>void</span> des_enc <span style='color:#808030;'>(</span>des_ctx <span style='color:#808030;'>*</span>ctx<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>in<span style='color:#808030;'>,</span> 
+  <span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>out<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>int</span> enc<span style='color:#808030;'>)</span>
+<span style='color:#800080;'>{</span>
+  <span style='color:#800000;font-weight:bold;'>int</span>      rnd<span style='color:#808030;'>,</span> ofs<span style='color:#808030;'>=</span><span style='color:#008c00;'>1</span><span style='color:#800080;'>;</span>
+  des_blk  t0<span style='color:#800080;'>;</span>
+  uint32_t L<span style='color:#808030;'>,</span> R<span style='color:#808030;'>,</span> T<span style='color:#800080;'>;</span>
+  
+  des_blk <span style='color:#808030;'>*</span>key<span style='color:#808030;'>=</span><span style='color:#808030;'>&amp;</span>ctx<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>keys<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+  
+  <span style='color:#800000;font-weight:bold;'>if</span> <span style='color:#808030;'>(</span>enc<span style='color:#808030;'>=</span><span style='color:#808030;'>=</span>DES_DECRYPT<span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+    ofs <span style='color:#808030;'>=</span> <span style='color:#808030;'>-</span><span style='color:#008c00;'>1</span><span style='color:#800080;'>;</span>
+    key <span style='color:#808030;'>+</span><span style='color:#808030;'>=</span> <span style='color:#008c00;'>15</span><span style='color:#800080;'>;</span>
+  <span style='color:#800080;'>}</span>
+  <span style='color:#696969;'>// apply initial permutation to input</span>
+  permute <span style='color:#808030;'>(</span>ip_permtab<span style='color:#808030;'>,</span> in<span style='color:#808030;'>,</span> <span style='color:#808030;'>&amp;</span>t0<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+  
+  L<span style='color:#808030;'>=</span>t0<span style='color:#808030;'>.</span>v32<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+  R<span style='color:#808030;'>=</span>t0<span style='color:#808030;'>.</span>v32<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+  
+  <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>rnd<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> rnd<span style='color:#808030;'>&lt;</span>DES_ROUNDS<span style='color:#800080;'>;</span> rnd<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#808030;'>)</span>
+  <span style='color:#800080;'>{</span>
+    L <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> des_f <span style='color:#808030;'>(</span><span style='color:#808030;'>&amp;</span>R<span style='color:#808030;'>,</span> key<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+    <span style='color:#696969;'>// swap</span>
+    T<span style='color:#808030;'>=</span>L<span style='color:#800080;'>;</span> 
+    L<span style='color:#808030;'>=</span>R<span style='color:#800080;'>;</span> 
+    R<span style='color:#808030;'>=</span>T<span style='color:#800080;'>;</span>
+    key<span style='color:#808030;'>+</span><span style='color:#808030;'>=</span>ofs<span style='color:#800080;'>;</span>
+  <span style='color:#800080;'>}</span>
+  t0<span style='color:#808030;'>.</span>v32<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#808030;'>=</span>R<span style='color:#800080;'>;</span>
+  t0<span style='color:#808030;'>.</span>v32<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#808030;'>=</span>L<span style='color:#800080;'>;</span>
+  
+  <span style='color:#696969;'>// apply inverse permutation</span>
+  permute <span style='color:#808030;'>(</span>inv_ip_permtab<span style='color:#808030;'>,</span> <span style='color:#808030;'>&amp;</span>t0<span style='color:#808030;'>,</span> out<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#004a43;'>%define</span><span style='color:#004a43;'> L ebp</span>
+<span style='color:#004a43;'>%define</span><span style='color:#004a43;'> R edx</span>
+  
+<span style='color:#e34adc;'>_des_encx:</span>
+<span style='color:#e34adc;'>des_encx:</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ebp</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>esp</span>
+    
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>ebp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#808030;'>+</span> <span style='color:#008c00;'>8</span><span style='color:#808030;'>]</span> <span style='color:#696969;'>; in</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>ebp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+16</span><span style='color:#808030;'>]</span> <span style='color:#696969;'>; enc</span>
+    
+    <span style='color:#696969;'>; permute (ip_permtab, in, &amp;t0);</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>esp</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> ip_permtab
+    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>permutex</span>
+    
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>ebp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#808030;'>+</span> <span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span> <span style='color:#696969;'>; esi=ctx</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>esp</span>
+    
+    <span style='color:#800000;font-weight:bold;'>mov</span>    L<span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>edi</span><span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    R<span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>edi</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span>
+    
+    <span style='color:#800000;font-weight:bold;'>jecxz</span>  <span style='color:#e34adc;'>de_l1</span>
+    <span style='color:#696969;'>; if decrypt, advance key and set direction</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>15</span><span style='color:#808030;'>*</span><span style='color:#008c00;'>8</span>
+    <span style='color:#800000;font-weight:bold;'>std</span>
+<span style='color:#e34adc;'>de_l1:</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>16</span>
+
+<span style='color:#e34adc;'>de_l2:</span>
+    <span style='color:#696969;'>; L ^= des_f (&amp;R, key);</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   R
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>esp</span>
+    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>des_fx</span>
+    
+    <span style='color:#800000;font-weight:bold;'>xor</span>    L<span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>eax</span>
+    <span style='color:#696969;'>; swap</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   L<span style='color:#808030;'>,</span> R
+    <span style='color:#696969;'>; key += ofs;</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>loop</span>   <span style='color:#e34adc;'>de_l2</span>
+    <span style='color:#800000;font-weight:bold;'>cld</span>
+    
+    <span style='color:#696969;'>; permute (inv_ip_permtab, &amp;t0, out);</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#800000;font-weight:bold;'>dword</span><span style='color:#808030;'>[</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> R
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#800000;font-weight:bold;'>dword</span><span style='color:#808030;'>[</span><span style='color:#000080;'>ebx</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> L
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+12</span><span style='color:#008c00;'>+8</span><span style='color:#808030;'>]</span> <span style='color:#696969;'>; edi=out</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> inv_ip_permtab
+    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>permutex</span>
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>eax</span>
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>eax</span>
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>ret</span>
+</pre>
+
+Although not entirely necessary, the following function can be used for creating password algorithms like MS lanman hashes/MS-CHAPv1/MS-CHAPv2 or MS kerberos authentications.
+
+It was originally written by <a href="http://www.partitionsupport.com/utilities.htm">Svend Olaf Mikkelsen</a>, the author of much code used for <a href="http://www.distributed.net/Main_Page">cracking DES in 1998</a>
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000;font-weight:bold;'>void</span> des_str2key <span style='color:#808030;'>(</span><span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>str<span style='color:#808030;'>,</span> des_blk<span style='color:#808030;'>*</span> key<span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+  uint32_t x1<span style='color:#808030;'>,</span> r1<span style='color:#808030;'>,</span> <span style='color:#808030;'>*</span>p1<span style='color:#800080;'>;</span>
+  des_blk  <span style='color:#808030;'>*</span>s<span style='color:#808030;'>=</span><span style='color:#808030;'>(</span>des_blk<span style='color:#808030;'>*</span><span style='color:#808030;'>)</span>str<span style='color:#800080;'>;</span>
+  <span style='color:#800000;font-weight:bold;'>int</span>      i<span style='color:#808030;'>,</span> j<span style='color:#800080;'>;</span>
+
+  <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>i<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>&lt;</span><span style='color:#008c00;'>2</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+    p1<span style='color:#808030;'>=</span><span style='color:#808030;'>(</span>uint32_t<span style='color:#808030;'>*</span><span style='color:#808030;'>)</span><span style='color:#808030;'>&amp;</span>s<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>v8<span style='color:#808030;'>[</span>i<span style='color:#808030;'>*</span><span style='color:#008c00;'>3</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    x1<span style='color:#808030;'>=</span>SWAP32<span style='color:#808030;'>(</span><span style='color:#808030;'>*</span>p1<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+    <span style='color:#800000;font-weight:bold;'>if</span> <span style='color:#808030;'>(</span>i<span style='color:#808030;'>=</span><span style='color:#808030;'>=</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+      x1<span style='color:#808030;'>=</span>ROTL32 <span style='color:#808030;'>(</span>x1<span style='color:#808030;'>,</span> <span style='color:#008c00;'>4</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+    <span style='color:#800080;'>}</span>
+    r1<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span>
+    <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>j<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> j<span style='color:#808030;'>&lt;</span><span style='color:#008c00;'>4</span><span style='color:#800080;'>;</span> j<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+      r1 <span style='color:#808030;'>=</span> ROTL32<span style='color:#808030;'>(</span><span style='color:#808030;'>(</span>r1 <span style='color:#808030;'>|</span> <span style='color:#808030;'>(</span>x1 <span style='color:#808030;'>&amp;</span> <span style='color:#008000;'>0xFE000000</span><span style='color:#808030;'>)</span><span style='color:#808030;'>)</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>8</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+      x1 <span style='color:#808030;'>&lt;</span><span style='color:#808030;'>&lt;</span><span style='color:#808030;'>=</span> <span style='color:#008c00;'>7</span><span style='color:#800080;'>;</span>
+    <span style='color:#800080;'>}</span>
+    key<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>v32<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> SWAP32<span style='color:#808030;'>(</span>r1<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+  <span style='color:#800080;'>}</span>
+<span style='color:#800080;'>}</span>
+</pre>
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#e34adc;'>_des_str2keyx:</span>
+<span style='color:#e34adc;'>des_str2keyx:</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+4</span><span style='color:#808030;'>]</span> <span style='color:#696969;'>; str</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+8</span><span style='color:#808030;'>]</span> <span style='color:#696969;'>; key</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#008c00;'>2</span>
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>ecx</span>
+<span style='color:#e34adc;'>s2k_l1:</span>
+    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>dec</span>    <span style='color:#000080;'>esi</span>
+    <span style='color:#800000;font-weight:bold;'>bswap</span>  <span style='color:#000080;'>eax</span>
+    <span style='color:#800000;font-weight:bold;'>dec</span>    <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>4</span>    
+    <span style='color:#800000;font-weight:bold;'>jnz</span>    <span style='color:#e34adc;'>s2k_l3</span>
+    <span style='color:#800000;font-weight:bold;'>rol</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>cl</span>
+<span style='color:#e34adc;'>s2k_l3:</span>
+    <span style='color:#800000;font-weight:bold;'>shld</span>   <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>7</span>
+    <span style='color:#800000;font-weight:bold;'>add</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edx</span>
+    <span style='color:#800000;font-weight:bold;'>shl</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>7</span>
+    <span style='color:#800000;font-weight:bold;'>loop</span>   <span style='color:#e34adc;'>s2k_l3</span>
+    
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edx</span>
+    <span style='color:#800000;font-weight:bold;'>bswap</span>  <span style='color:#000080;'>eax</span>
+    <span style='color:#800000;font-weight:bold;'>stosd</span>
+    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>loop</span>   <span style='color:#e34adc;'>s2k_l1</span>
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>ret</span>
+</pre>
+
+The following is simple demonstration of generating MS Lanman hash using above code.
+
+[code language="cpp"]
+// generate Lanman hash
+void lanman (uint8_t *lmhash, uint8_t *pwd)
+{
+  uint8_t lmpwd[32];
+  uint8_t i;
+  des_blk key1, key2;
+  size_t  len=strlen(pwd);
+  des_ctx ctx;
+  
+  memset (lmhash, 0, 16);
+  
+  // MS Lanman passwords don't exceed 14 characters
+  len=(len>14) ? 14 : len;
+  
+  for (i=0; i<14; i++) {
+    lmpwd[i]=(i<len) ? toupper (pwd[i]) : 0;
+  }
+
+  des_str2key (&lmpwd[0], &key1);
+  des_str2key (&lmpwd[7], &key2);
+
+  des_setkey (&ctx, &key1);
+  des_enc (&ctx, "KGS!@#$%", (des_blk*)&lmhash[0], DES_ENCRYPT);
+  
+  des_setkey (&ctx, &key2);
+  des_enc (&ctx, "KGS!@#$%", (des_blk*)&lmhash[8], DES_ENCRYPT);
+}
+[/code]
+
+<h3><strong>Summary</strong></h3>
+<table>
+<tbody>
+<tr>
+<th>architecture</th>
+<th>size in bytes</th>
+</tr>
+<tr>
+<td>x86</td>
+<td>1,045</td>
+</tr>
+<tr>
+<td>x64</td>
+<td>n/a</td>
+</tr>
+</tbody>
+</table>
+
+Full source <a href="https://github.com/odzhan/tinycrypt/tree/master/block/des">here</a> and <a href="https://github.com/peterferrie/des">here</a>

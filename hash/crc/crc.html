@@ -1,0 +1,79 @@
+<h3>Introduction</h3>
+
+The concept of error detection codes was first proposed by mathematician and computer scientist W. Wesley Peterson in his 1961 publication <em>Cyclic Codes for Error Detection</em>. 
+
+<h3>CRC-32</h3>
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#e34adc;'>crc32x:</span>    
+<span style='color:#e34adc;'>_crc32x:</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#800000;font-weight:bold;'>lea</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+4</span><span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>          <span style='color:#696969;'>; edx = crc</span>
+    <span style='color:#800000;font-weight:bold;'>not</span>    <span style='color:#000080;'>edx</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>          <span style='color:#696969;'>; ecx = inlen</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>          <span style='color:#696969;'>; esi = in</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>          <span style='color:#696969;'>; eax = 0</span>
+    <span style='color:#800000;font-weight:bold;'>jecxz</span>  <span style='color:#e34adc;'>crc_l3</span>            <span style='color:#696969;'>; if (inlen==0) return crc;</span>
+<span style='color:#e34adc;'>crc_l0:</span>
+    <span style='color:#800000;font-weight:bold;'>lodsb</span>                    <span style='color:#696969;'>; al = *p++</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>dl</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>al</span>            <span style='color:#696969;'>; crc ^= al</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>8</span>
+<span style='color:#e34adc;'>crc_l1:</span>
+    <span style='color:#800000;font-weight:bold;'>shr</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>1</span>            <span style='color:#696969;'>; crc &gt;&gt;= 1</span>
+    <span style='color:#800000;font-weight:bold;'>jnc</span>    <span style='color:#e34adc;'>crc_l2</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#008000;'>0xEDB88320</span>
+<span style='color:#e34adc;'>crc_l2:</span>
+    <span style='color:#800000;font-weight:bold;'>loop</span>   <span style='color:#e34adc;'>crc_l1</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>loop</span>   <span style='color:#e34adc;'>crc_l0</span>
+<span style='color:#e34adc;'>crc_l3:</span>    
+    <span style='color:#800000;font-weight:bold;'>not</span>    <span style='color:#000080;'>edx</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>28</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edx</span>     <span style='color:#696969;'>; return ~crc    </span>
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>ret</span>
+</pre>
+
+<strong>CRC-32C (Castagnoli)</strong>
+
+In 2007, two years before Peterson's death, Intel added a new instruction simply called CRC32. It expects a byte in AL before computing CRC32 in EDX using the polynomial 0x82F63B78. Here's code to emulate the instruction should it be unavailable.
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#e34adc;'>crc32cx:</span>    
+<span style='color:#e34adc;'>_crc32cx:</span>
+    <span style='color:#800000;font-weight:bold;'>pushad</span>
+    <span style='color:#800000;font-weight:bold;'>lea</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+4</span><span style='color:#808030;'>]</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>          <span style='color:#696969;'>; edx = crc</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>          <span style='color:#696969;'>; ecx = inlen</span>
+    <span style='color:#800000;font-weight:bold;'>lodsd</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>          <span style='color:#696969;'>; esi = in</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>          <span style='color:#696969;'>; eax = 0</span>
+    <span style='color:#800000;font-weight:bold;'>jecxz</span>  <span style='color:#e34adc;'>crcc_l3</span>            <span style='color:#696969;'>; if (inlen==0) return crc;</span>
+<span style='color:#e34adc;'>crcc_l0:</span>
+    <span style='color:#800000;font-weight:bold;'>lodsb</span>                    <span style='color:#696969;'>; al = *p++</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>dl</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>al</span>            <span style='color:#696969;'>; crc ^= al</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>cl</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>8</span>
+<span style='color:#e34adc;'>crcc_l1:</span>
+    <span style='color:#800000;font-weight:bold;'>shr</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>1</span>            <span style='color:#696969;'>; crc &gt;&gt;= 1</span>
+    <span style='color:#800000;font-weight:bold;'>jnc</span>    <span style='color:#e34adc;'>crcc_l2</span>
+    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#008000;'>0x82F63B78</span>
+<span style='color:#e34adc;'>crcc_l2:</span>
+    <span style='color:#800000;font-weight:bold;'>loop</span>   <span style='color:#e34adc;'>crcc_l1</span>
+    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ecx</span>
+    <span style='color:#800000;font-weight:bold;'>loop</span>   <span style='color:#e34adc;'>crcc_l0</span>
+<span style='color:#e34adc;'>crcc_l3:</span>
+    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>28</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edx</span>     <span style='color:#696969;'>; return crc    </span>
+    <span style='color:#800000;font-weight:bold;'>popad</span>
+    <span style='color:#800000;font-weight:bold;'>ret</span>
+</pre>
+
+<strong>Summary</strong>
+
+A CRC function is really only suitable for short inputs. They are not collision resistant.
+
+<a href="https://github.com/odzhan/tinycrypt/tree/master/hash/crc">Sources here.</a>

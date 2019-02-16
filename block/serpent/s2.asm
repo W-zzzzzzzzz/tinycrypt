@@ -47,8 +47,8 @@ SERPENT_ENCRYPT equ 0
 SERPENT_DECRYPT equ 1
 
 %ifndef BIN
-    global _serpent_setkeyx
-    global _serpent_encryptx
+    global _serpent
+    global _serpent
 %endif
 
 struc pushad_t
@@ -63,8 +63,8 @@ struc pushad_t
   .size:
 endstruc
     
-_serpent_encryptx:
-serpent_encryptx:
+_serpent:
+serpent:
     pushad
     lea    esi, [esp+32+ 4]
     lodsd

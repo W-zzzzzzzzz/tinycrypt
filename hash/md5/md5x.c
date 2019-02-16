@@ -117,19 +117,19 @@ void md5_init(md5_ctx*c) {
     c->len =0;
 }
 
-void md5_update(md5_ctx*c,void*in,W len) {
-    B *p=in;
+void md5_update(md5_ctx*c,const void*in,W len) {
+    B *p=(B*)in;
     W i, idx;
     
     idx = c->len & 63;
     c->len += len;
     
     for (i=0;i<len;i++) {
+      c->x.b[idx]=p[i]; idx++;
       if(idx==64) {
         md5_compress(c);
         idx=0;
       }
-      c->x.b[idx++]=*p++;
     }
 }
 
@@ -149,84 +149,96 @@ void md5_final(void*h,md5_ctx*c) {
 }
 
 #ifdef TEST
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+
+// test code written by Markku-Juhani O. Saarinen
+
 #include <stdint.h>
-#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-char *tv_str[] =
-{ "",
-  "a",
-  "abc",
-  "message digest",
-  "abcdefghijklmnopqrstuvwxyz",
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-  "12345678901234567890123456789012345678901234567890123456789012345678901234567890" };
+void md5(void *out, const void *in, size_t inlen)
+{
+    md5_ctx ctx;
 
-char *tv_hash[] =
-{ "d41d8cd98f00b204e9800998ecf8427e",
-  "0cc175b9c0f1b6a831c399e269772661",
-  "900150983cd24fb0d6963f7d28e17f72",
-  "f96b697d7cb7938d525a2f31aaf161d0",
-  "c3fcd3d76192e4007dfb496cca67e13b",
-  "d174ab98d277d9f5a5611c2c9f419d9f",
-  "57edf4a22be3c955ac49da2e2107b67a" };
-
-
-size_t hex2bin (void *bin, char hex[]) {
-    size_t  len, i;
-    int     x;
-    B *p=(B*)bin;
-
-    len = strlen (hex);
-
-    if ((len & 1) != 0) {
-      return 0; 
-    }
-
-    for (i=0; i<len; i++) {
-      if (isxdigit((int)hex[i]) == 0) {
-        return 0; 
-      }
-    }
-
-    for (i=0; i<len / 2; i++) {
-      sscanf (&hex[i * 2], "%2x", &x);
-      p[i] = (B)x;
-    } 
-    return len / 2;
-} 
-
-void bin2hex(B *x) {
-    int i;
-    
-    for (i=0; i<16; i++)
-      printf(" %02X", x[i]);
-    printf("\n");
+    md5_init(&ctx);
+    md5_update(&ctx, in, inlen);
+    md5_final(out, &ctx);
 }
 
-int main(void) {
-  
-    B h[16], r[16];
-    int     i, fail=0;
-    md5_ctx c;
-    
-    for(i=0;i<sizeof(tv_hash)/sizeof(char*);i++) {
-      hex2bin(h, tv_hash[i]);
-      
-      md5_init(&c);
-      md5_update(&c, tv_str[i], strlen(tv_str[i]));
-      md5_final(r, &c);
-      
-      if(memcmp(h, r, 16)) {
-        bin2hex(h);
-        bin2hex(r);
-        printf ("Hash for test vector %i failed\n", i+1);
-        fail++;
-      }     
+// Deterministic sequences (Fibonacci generator).
+
+static void selftest_seq(uint8_t *out, size_t len, uint32_t seed)
+{
+    size_t i;
+    uint32_t t, a , b;
+
+    a = 0xDEAD4BAD * seed;              // prime
+    b = 1;
+
+    for (i = 0; i < len; i++) {         // fill the buf
+        t = a + b;
+        a = b;
+        b = t;
+        out[i] = (t >> 24) & 0xFF;
     }
-    if(!fail) printf ("All MD5 tests passed\n");  
+}
+
+int md5_selftest(void)
+{
+    // Grand hash of hash results.
+    const uint8_t md5_res[16] = {
+       0x80, 0x05, 0x62, 0x3b, 0x10, 0xb8, 0xa5, 0x75, 
+       0x5e, 0xab, 0xa8, 0x97, 0xd1, 0xa9, 0x1e, 0x2b };
+    // Parameter sets.
+    const size_t s2_in_len[6] = { 0,  3,  64, 65, 255, 1024 };
+
+    size_t i, j, inlen;
+    uint8_t in[1024], md[16];
+    md5_ctx ctx;
+
+    // 256-bit hash for testing.
+    md5_init(&ctx);
+
+    for (j = 0; j < 6; j++) {
+        inlen = s2_in_len[j];
+
+        selftest_seq(in, inlen, inlen);
+        md5(md, in, inlen);
+        md5_update(&ctx, md,16);
+    }
+
+    // Compute and compare the hash of hashes.
+    md5_final(md, &ctx);
+    
+    for (i = 0; i < 16; i++) {
+      if (md[i] != md5_res[i])
+        return -1;
+    }
+
     return 0;
 }
+
+int main(int argc, char **argv)
+{
+    int     i;
+    md5_ctx c;
+    uint8_t dgst[16];
+    
+    if (argc>1) {
+      md5_init(&c);
+      md5_update(&c, argv[1], strlen(argv[1]));
+      md5_final(dgst, &c);
+      
+      for(i=0;i<16;i++) {
+        printf("%02x", dgst[i]);
+      }
+      putchar('\n');
+    }
+    printf("md5_selftest() = %s\n",
+         md5_selftest() ? "FAIL" : "OK");
+
+    return 0;
+}
+
 #endif

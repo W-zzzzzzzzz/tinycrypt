@@ -39,8 +39,8 @@
     bits 32
  
     %ifndef BIN
-      global noekeonx
-      global _noekeonx
+      global noekeon
+      global _noekeon
     %endif
     
 %define s0 eax
@@ -50,8 +50,8 @@
 
 %define t  ecx 
     
-_noekeonx:
-noekeonx:
+_noekeon:
+noekeon:
     pushad
     mov    esi, [esp+32+4]  ; esi = data
     mov    edi, [esp+32+8]  ; edi = key
@@ -154,8 +154,3 @@ nk_l1:
     stosd    
     popad
     ret
-
-    
-
-    
-    

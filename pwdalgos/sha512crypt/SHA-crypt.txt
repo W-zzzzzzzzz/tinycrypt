@@ -161,7 +161,6 @@ means adding the salt string truncated to 16 characters.
 When the algorithm talks about adding a string the terminating NUL
 byte of the C presentation of the string in NOT added.
 
-
 Algorithm for crypt using SHA-256/SHA-512:
 
 1.  start digest A

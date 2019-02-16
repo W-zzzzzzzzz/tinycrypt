@@ -30,31 +30,14 @@
 #ifndef SPECK_H
 #define SPECK_H
 
-#include <stdint.h>
-#include <string.h>
-
-#include "../../macros.h"
-
-#define SPECK_RNDS 27
-
-#define SPECK_ENCRYPT 0
-#define SPECK_DECRYPT 1
+#include "../include/macros.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-  void speck32_setkey(const void*, void*);
-  void speck32_encrypt(const void*, int, void*);
-  void speck32_encryptx(const void*, void*);
-
-  void speck64_setkey(const void*, void*);
-  void speck64_encrypt(const void*, int, void*);
-  void speck64_encryptx(const void*, void*);
-
-  void speck128_setkey(const void*, void*);
-  void speck128_encrypt(const void*, int, void*);
-  void speck128_encryptx(const void*, void*);
+  void speck64(void*, void*);
+  void speck128(void*, void*);
     
 #ifdef __cplusplus
 }

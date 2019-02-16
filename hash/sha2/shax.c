@@ -49,13 +49,15 @@ typedef struct _sha256_ctx {
 
 #define CH(x,y,z)(((x)&(y))^(~(x)&(z)))
 #define MAJ(x,y,z)(((x)&(y))^((x)&(z))^((y)&(z)))
+
 #define EP0(x)(R(x,2)^R(x,13)^R(x,22))
 #define EP1(x)(R(x,6)^R(x,11)^R(x,25))
 #define SIG0(x)(R(x,7)^R(x,18)^((x)>>3))
 #define SIG1(x)(R(x,17)^R(x,19)^((x)>>10))
 
 void sha256_compress(sha256_ctx*c) {
-    W t1,t2,i,j,w[64],x[8];
+    W t1,t2,i,w[64],x[8];
+    
     W k[64]=
     { 0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 
       0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -74,19 +76,25 @@ void sha256_compress(sha256_ctx*c) {
       0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 
       0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2 }; 
     
-    F(16)w[i]=rev32(c->x.w[i]);
+    // load input in big endian byte order
+    F(16)w[i] = rev32(c->x.w[i]);
     
+    // expand input
     for(i=16;i<64;i++)
-      w[i]=SIG1(w[i-2])+w[i-7]+SIG0(w[i-15])+w[i-16];
+      w[i] = SIG1(w[i-2])+w[i-7]+SIG0(w[i-15])+w[i-16];
     
-    F(8)x[i]=c->s[i];
+    // load state
+    F(8)x[i] = c->s[i];
     
+    // permute
     F(64) {
-      t1=x[7]+EP1(x[4])+CH(x[4],x[5],x[6])+w[i]+k[i];
-      t2=EP0(x[0])+MAJ(x[0],x[1],x[2]);x[7]=t1+t2;x[3]+=t1;t1=x[0];
-      for(j=1;j<8;j++)t2=x[j],x[j]=t1,t1=t2;x[0]=t1;
+      t1 = x[7] + EP1(x[4]) + CH(x[4],x[5],x[6]) + w[i] + k[i];
+      t2 = EP0(x[0]) + MAJ(x[0],x[1],x[2]);
+      x[7] = x[6],x[6] = x[5],x[5] = x[4],x[4] = x[3] + t1;
+      x[3] = x[2],x[2] = x[1],x[1] = x[0], x[0] = t1 + t2;
     }
-    F(8)c->s[i]+=x[i];
+    // update state
+    F(8)c->s[i] += x[i];
 }
 
 void sha256_init(sha256_ctx*c) {    
@@ -101,106 +109,132 @@ void sha256_init(sha256_ctx*c) {
     c->len =0;
 }
 
-void sha256_update(sha256_ctx*c,void*in,W len) {
-    B *p=in;
+void sha256_update(sha256_ctx*c,const void*in,W len) {
+    B *p=(B*)in;
     W i, idx;
     
     idx = c->len & 63;
     c->len += len;
     
     for (i=0;i<len;i++) {
+      c->x.b[idx]=p[i]; idx++;
       if(idx==64) {
         sha256_compress(c);
         idx=0;
       }
-      c->x.b[idx++]=*p++;
     }
 }
 
-void sha256_final(void*h,sha256_ctx*c) {
-    W i,len,*p=h;
+void sha256_final(void*out,sha256_ctx*c) {
+    W i,len,*p=(W*)out;
     
     i = len = c->len & 63;
-    while(i<64) c->x.b[i++]=0;
+    while(i < 64) c->x.b[i++]=0;
     c->x.b[len]=0x80;
-    if(len>=56) {
+    
+    if(len >= 56) {
       sha256_compress(c);
       F(16)c->x.w[i]=0;
     }
-    c->x.q[7]=rev64((Q)c->len*8);
+    c->x.q[7]=rev64(c->len*8);
     sha256_compress(c);
     F(8)p[i]=rev32(c->s[i]);
 }
 
 #ifdef TEST
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+
+// this test code was originally written by Markku-Juhani O. Saarinen
+// i've adapted to work with this
+
 #include <stdint.h>
-#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-char *tv_str[]=
-{ "",
-  "a",
-  "abc",
-  "message digest",
-  "abcdefghijklmnopqrstuvwxyz",
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-  "12345678901234567890123456789012345678901234567890123456789012345678901234567890"};
+void sha256(void *out, const void *in, size_t inlen)
+{
+    sha256_ctx ctx;
 
-char *tv_hash[] =
-{ "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
-  "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
-  "f7846f55cf23e14eebeab5b4e1550cad5b509e3348fbc4efa3a1413d393cb650",
-  "71c480df93d6ae2f1efad1447c66c9525e316218cf51fc8d9ed832f2daf18b73",
-  "db4bfcbd4da0cd85a60c3c37d3fbd8805c77f15fc6b1fdfe614ee0a7c8fdb4c0",
-  "f371bc4a311f2b009eef952dd83ca80e2b60026c8e935592d0f9c308453c813e"};
+    sha256_init(&ctx);
+    sha256_update(&ctx, in, inlen);
+    sha256_final(out, &ctx);
+}
 
+// Deterministic sequences (Fibonacci generator).
 
-size_t hex2bin (void *bin, char hex[]) {
-    size_t  len, i;
-    int     x;
-    uint8_t *p=(uint8_t*)bin;
+static void selftest_seq(uint8_t *out, size_t len, uint32_t seed)
+{
+    size_t i;
+    uint32_t t, a , b;
 
-    len = strlen (hex);
+    a = 0xDEAD4BAD * seed;              // prime
+    b = 1;
 
-    if ((len & 1) != 0) {
-      return 0; 
+    for (i = 0; i < len; i++) {         // fill the buf
+        t = a + b;
+        a = b;
+        b = t;
+        out[i] = (t >> 24) & 0xFF;
+    }
+}
+
+int sha256_selftest(void)
+{
+    // Grand hash of hash results.
+    const uint8_t sha256_res[32] = {
+       0x6c, 0x06, 0xc1, 0x3d, 0xf2, 0x4a, 0x1c, 0x8c,
+       0x0a, 0x90, 0x63, 0xc7, 0x94, 0x46, 0x76, 0x22,
+       0xbe, 0xae, 0x5b, 0x03, 0x31, 0xa2, 0x3f, 0x93,
+       0x26, 0x15, 0x5a, 0xdb, 0x9c, 0x8b, 0xaa, 0xbd };
+    // Parameter sets.
+    const size_t s2_in_len[6] = { 0,  3,  64, 65, 255, 1024 };
+
+    size_t i, j, outlen, inlen;
+    uint8_t in[1024], md[32];
+    sha256_ctx ctx;
+
+    // 256-bit hash for testing.
+    sha256_init(&ctx);
+
+    for (j = 0; j < 6; j++) {
+        inlen = s2_in_len[j];
+
+        selftest_seq(in, inlen, inlen);
+        sha256(md, in, inlen);
+        sha256_update(&ctx, md, outlen);
     }
 
-    for (i=0; i<len; i++) {
-      if (isxdigit((int)hex[i]) == 0) {
-        return 0; 
-      }
-    }
-
-    for (i=0; i<len / 2; i++) {
-      sscanf (&hex[i * 2], "%2x", &x);
-      p[i] = (uint8_t)x;
-    } 
-    return len / 2;
-} 
-
-int main(void) {
-  
-    uint8_t    h[32], r[32];
-    int        i, fail=0;
-    sha256_ctx c;
+    // Compute and compare the hash of hashes.
+    sha256_final(md, &ctx);
     
-    for(i=0;i<sizeof(tv_hash)/sizeof(char*);i++) {
-      hex2bin(h, tv_hash[i]);
-      
-      sha256_init(&c);
-      sha256_update(&c, tv_str[i], strlen(tv_str[i]));
-      sha256_final(r, &c);
-      
-      if(memcmp(h, r, 32)) {
-        printf ("Hash for test vector %i failed\n", i+1);
-        fail++;
-      }     
+    for (i = 0; i < 32; i++) {
+      if (md[i] != sha256_res[i])
+        return -1;
     }
-    if(!fail) printf ("All SHA-256 tests passed\n");  
+
     return 0;
 }
+
+int main(int argc, char **argv)
+{
+    int        i;
+    sha256_ctx c;
+    uint8_t    dgst[32];
+    
+    if (argc>1) {
+      sha256_init(&c);
+      sha256_update(&c, argv[1], strlen(argv[1]));
+      sha256_final(dgst, &c);
+      
+      for(i=0;i<32;i++) {
+        printf("%02x", dgst[i]);
+      }
+      putchar('\n');
+    }
+    printf("sha256_selftest() = %s\n",
+         sha256_selftest() ? "FAIL" : "OK");
+
+    return 0;
+}
+
 #endif

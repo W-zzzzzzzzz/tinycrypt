@@ -9,10 +9,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <malloc.h>
+#include <stdalign.h>
 
 #include <openssl/sha.h>
 
+#ifdef _MSC_VER
 #define snprintf _snprintf
+#endif
 
 #ifndef MIN
 #define MIN(a,b) ( (a) > (b) ? (b) : (a) )
@@ -87,14 +90,14 @@ char *sha512_crypt_r (char *key, char *salt, char *buffer, size_t buflen)
 
   if ((key - (char *) 0) % __alignof (uint64_t) != 0)
   {
-    tmp = (char *) alloca (key_len + _alignof (uint64_t));
-    key = copied_key = memcpy (tmp + _alignof (uint64_t) - (tmp - (char *) 0) % _alignof (uint64_t), key, key_len);
+    tmp = (char *) alloca (key_len + __alignof (uint64_t));
+    key = copied_key = memcpy (tmp + __alignof (uint64_t) - (tmp - (char *) 0) % __alignof (uint64_t), key, key_len);
   }
 
-  if ((salt - (char *) 0) % _alignof (uint64_t) != 0)
+  if ((salt - (char *) 0) % __alignof (uint64_t) != 0)
   {
-    tmp = (char *) alloca (salt_len + _alignof (uint64_t));
-    salt = copied_salt = memcpy (tmp + _alignof (uint64_t) - (tmp - (char *) 0) % _alignof (uint64_t), salt, salt_len);
+    tmp = (char *) alloca (salt_len + __alignof (uint64_t));
+    salt = copied_salt = memcpy (tmp + __alignof (uint64_t) - (tmp - (char *) 0) % __alignof (uint64_t), salt, salt_len);
   }
 
   /* Prepare for the real work.  */

@@ -35,7 +35,7 @@ typedef unsigned long long W;
 typedef unsigned char B;
 
 typedef struct _blake2s_ctx {
-    W s[16], h[8], idx, outlen;
+    W s[16], idx, outlen;
     union {
       B b[128];
       W w[16];
@@ -43,12 +43,10 @@ typedef struct _blake2s_ctx {
     W len;
 }blake2b_ctx;
 
-int blake2b_init(blake2b_ctx*c,W outlen,void*key,W keylen);
-void blake2b_update(blake2b_ctx*,void*,W);
-void blake2b_final(void*out,blake2b_ctx*c);
+int blake2b_init(blake2b_ctx*,W,const void*,W);
+void blake2b_update(blake2b_ctx*,const void*,W);
+void blake2b_final(void*,blake2b_ctx*);
 
-void G(W *s, W *m) {
-    W i, j, a, b, c, d, r, t, *p, z;
     W v[8]=
     { 0xC840, 0xD951, 0xEA62, 0xFB73,
       0xFA50, 0xCB61, 0xD872, 0xE943 };
@@ -60,6 +58,16 @@ void G(W *s, W *m) {
       0xb8293670a4def15c, 0xa2684f05931ce7bd,
       0x5a417d2c803b9ef6, 0x0dc3e9bf5167482a,
       0xfedcba9876543210, 0x357b20c16df984ae };
+   
+    W iv[8] =
+    { 0x6A09E667F3BCC908, 0xBB67AE8584CAA73B,
+      0x3C6EF372FE94F82B, 0xA54FF53A5F1D36F1,
+      0x510E527FADE682D1, 0x9B05688C2B3E6C1F,
+      0x1F83D9ABFB41BD6B, 0x5BE0CD19137E2179 };
+      
+void G(W *s, W *m) {
+    W i, j, a, b, c, d, r, t, *p, z;
+
     p=sigma;
     
     for(i=0;i<96;) {
@@ -86,28 +94,25 @@ void G(W *s, W *m) {
 void blake2b_compress(blake2b_ctx*c, W last) {
     W i, v[16];
       
-    F(8)v[i]=c->s[i], v[i+8]=c->h[i];
+    F(8)v[i]=c->s[i], v[i+8]=iv[i];
     v[12]^=c->len;v[14]^=-last;
     G(v,c->x.w);
     F(8)c->s[i]^=v[i]^v[i+8];
 }
 
-int blake2b_init (blake2b_ctx*c,W outlen,void*key,W keylen) {
+int blake2b_init (blake2b_ctx*c,W outlen,const void*key,W keylen) {
     W i;
-    W iv[8] =
-    { 0x6A09E667F3BCC908, 0xBB67AE8584CAA73B,
-      0x3C6EF372FE94F82B, 0xA54FF53A5F1D36F1,
-      0x510E527FADE682D1, 0x9B05688C2B3E6C1F,
-      0x1F83D9ABFB41BD6B, 0x5BE0CD19137E2179 };
     
-    if(outlen==0||outlen>64||keylen>64) return -1;
+    if(outlen == 0 || outlen > 64 || keylen > 64) return -1;
     
-    F(8)c->h[i]=c->s[i]=iv[i];
+    F(8)c->s[i]=iv[i];
     
     c->s[0]  ^= 0x01010000^(keylen<<8)^outlen;
     c->len    = 0;
     c->idx    = 0;
     c->outlen = outlen;
+    
+    for(i=keylen;i<128;i++) c->x.b[i]=0;
     
     if(keylen>0) {
       blake2b_update(c,key,keylen);
@@ -116,18 +121,17 @@ int blake2b_init (blake2b_ctx*c,W outlen,void*key,W keylen) {
     return 0;
 }
 
-void blake2b_update(blake2b_ctx*c,void*in,W len) {
-    B *p=in;
+void blake2b_update(blake2b_ctx*c,const void*in,W len) {
+    B *p=(B*)in;
     W i;
     
-    while(len) {
+    F(len) {
       if(c->idx==128) {
         c->len += 128;
         blake2b_compress(c,0);
         c->idx=0;
       }
       c->x.b[c->idx++] = *p++;
-      --len;
     }
 }
 
@@ -141,82 +145,99 @@ void blake2b_final(void*out, blake2b_ctx*c) {
 }
 
 #ifdef TEST
+
+// test code written by Markku-Juhani O. Saarinen
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <ctype.h>
 
-char *tv_str[] =
-{ "",
-  "a",
-  "abc",
-  "message digest",
-  "abcdefghijklmnopqrstuvwxyz",
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-  "12345678901234567890123456789012345678901234567890123456789012345678901234567890"};
+int blake2b(void *out, size_t outlen,
+    const void *key, size_t keylen,
+    const void *in, size_t inlen)
+{
+    blake2b_ctx ctx;
 
-char *tv_hash[] =
-{ "786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce",
-  "333fcb4ee1aa7c115355ec66ceac917c8bfd815bf7587d325aec1864edd24e34d5abe2c6b1b5ee3face62fed78dbef802f2a85cb91d455a8f5249d330853cb3c",
-  "ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d17d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923",
-  "3c26ce487b1c0f062363afa3c675ebdbf5f4ef9bdc022cfbef91e3111cdc283840d8331fc30a8a0906cff4bcdbcd230c61aaec60fdfad457ed96b709a382359a",
-  "c68ede143e416eb7b4aaae0d8e48e55dd529eafed10b1df1a61416953a2b0a5666c761e7d412e6709e31ffe221b7a7a73908cb95a4d120b8b090a87d1fbedb4c",
-  "99964802e5c25e703722905d3fb80046b6bca698ca9e2cc7e49b4fe1fa087c2edf0312dfbb275cf250a1e542fd5dc2edd313f9c491127c2e8c0c9b24168e2d50",
-  "686f41ec5afff6e87e1f076f542aa466466ff5fbde162c48481ba48a748d842799f5b30f5b67fc684771b33b994206d05cc310f31914edd7b97e41860d77d282"};
+    if (blake2b_init(&ctx, outlen, key, keylen))
+        return -1;
+    blake2b_update(&ctx, in, inlen);
+    blake2b_final(out, &ctx);
 
-size_t hex2bin (void *bin, char hex[]) {
-    size_t  len, i;
-    int     x;
-    uint8_t *p=(uint8_t*)bin;
-
-    len = strlen (hex);
-
-    if ((len & 1) != 0) {
-      return 0; 
-    }
-
-    for (i=0; i<len; i++) {
-      if (isxdigit((int)hex[i]) == 0) {
-        return 0; 
-      }
-    }
-
-    for (i=0; i<len / 2; i++) {
-      sscanf (&hex[i * 2], "%2x", &x);
-      p[i] = (uint8_t)x;
-    } 
-    return len / 2;
-} 
-
-void bin2hex(uint8_t *x) {
-    int i;
-    
-    for (i=0; i<64; i++)
-      printf(" %02X", x[i]);
-    printf("\n");
-}
-
-int main(void) {
-  
-    uint8_t     h[64], r[64];
-    int         i, fail=0;
-    blake2b_ctx c;
-    
-    for(i=0;i<sizeof(tv_str)/sizeof(char*);i++) {
-      hex2bin(h, tv_hash[i]);
-      
-      blake2b_init(&c, 64, NULL, 0);
-      blake2b_update(&c, tv_str[i], strlen(tv_str[i]));
-      blake2b_final(r, &c);
-      
-      if(memcmp(h, r, 64)) {
-        bin2hex(r);
-        printf ("Hash for test vector %i failed\n", i+1);
-        fail++;
-      }     
-    }
-    if(!fail) printf ("All BLAKE2b tests passed\n");  
     return 0;
 }
+
+// Deterministic sequences (Fibonacci generator).
+
+static void selftest_seq(uint8_t *out, size_t len, uint32_t seed)
+{
+    size_t i;
+    uint32_t t, a , b;
+
+    a = 0xDEAD4BAD * seed;              // prime
+    b = 1;
+
+    for (i = 0; i < len; i++) {         // fill the buf
+        t = a + b;
+        a = b;
+        b = t;
+        out[i] = (t >> 24) & 0xFF;
+    }
+}
+
+int blake2b_selftest()
+{
+    // grand hash of hash results
+    const uint8_t blake2b_res[32] = {
+        0xC2, 0x3A, 0x78, 0x00, 0xD9, 0x81, 0x23, 0xBD,
+        0x10, 0xF5, 0x06, 0xC6, 0x1E, 0x29, 0xDA, 0x56,
+        0x03, 0xD7, 0x63, 0xB8, 0xBB, 0xAD, 0x2E, 0x73,
+        0x7F, 0x5E, 0x76, 0x5A, 0x7B, 0xCC, 0xD4, 0x75
+    };
+    // parameter sets
+    const size_t b2b_md_len[4] = { 20, 32, 48, 64 };
+    const size_t b2b_in_len[6] = { 0, 3, 128, 129, 255, 1024 };
+
+    size_t i, j, outlen, inlen;
+    uint8_t in[1024], md[64], key[64];
+    blake2b_ctx ctx;
+
+    // 256-bit hash for testing
+    if (blake2b_init(&ctx, 32, NULL, 0))
+        return -1;
+
+    for (i = 0; i < 4; i++) {
+        outlen = b2b_md_len[i];
+        for (j = 0; j < 6; j++) {
+            inlen = b2b_in_len[j];
+
+            selftest_seq(in, inlen, inlen);     // unkeyed hash
+            blake2b(md, outlen, NULL, 0, in, inlen);
+            blake2b_update(&ctx, md, outlen);   // hash the hash
+
+            selftest_seq(key, outlen, outlen);  // keyed hash
+            blake2b(md, outlen, key, outlen, in, inlen);
+            blake2b_update(&ctx, md, outlen);   // hash the hash
+        }
+    }
+
+    // compute and compare the hash of hashes
+    blake2b_final(md,&ctx);
+    for (i = 0; i < 32; i++) {
+        if (md[i] != blake2b_res[i])
+            return -1;
+    }
+
+    return 0;
+}
+
+int main(int argc, char **argv)
+{
+    printf("blake2b_selftest() = %s\n",
+         blake2b_selftest() ? "FAIL" : "OK");
+
+    return 0;
+}
+
 #endif
