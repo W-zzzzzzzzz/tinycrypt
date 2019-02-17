@@ -91,19 +91,19 @@ $latex H_7^{(0)}\: =\: b0fb0e4e $</p>
 
 <p>Updating the buffer and state is exactly the same as SHA-2 that is based on the original design for MD4 by Ron Rivest. Once the buffer has 64-bytes of data, it's processed using <var>sm3_compress</var></p>
 
-<pre style='color:#000000;background:#ffffff;'><span style='color:#800000; font-weight:bold; '>void</span> sm3_update<span style='color:#808030; '>(</span>sm3_ctx<span style='color:#808030; '>*</span>c<span style='color:#808030; '>,</span><span style='color:#800000; font-weight:bold; '>void</span><span style='color:#808030; '>*</span>in<span style='color:#808030; '>,</span>W len<span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
-    B <span style='color:#808030; '>*</span>p<span style='color:#808030; '>=</span>in<span style='color:#800080; '>;</span>
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000; font-weight:bold; '>void</span> sm3_update<span style='color:#808030; '>(</span>sm3_ctx<span style='color:#808030; '>*</span>c<span style='color:#808030; '>,</span><span style='color:#800000; font-weight:bold; '>const</span> <span style='color:#800000; font-weight:bold; '>void</span><span style='color:#808030; '>*</span>in<span style='color:#808030; '>,</span>W len<span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+    B <span style='color:#808030; '>*</span>p<span style='color:#808030; '>=</span><span style='color:#808030; '>(</span>B<span style='color:#808030; '>*</span><span style='color:#808030; '>)</span>in<span style='color:#800080; '>;</span>
     W i<span style='color:#808030; '>,</span> idx<span style='color:#800080; '>;</span>
     
     idx <span style='color:#808030; '>=</span> c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>len <span style='color:#808030; '>&amp;</span> <span style='color:#008c00; '>63</span><span style='color:#800080; '>;</span>
     c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>len <span style='color:#808030; '>+</span><span style='color:#808030; '>=</span> len<span style='color:#800080; '>;</span>
     
     <span style='color:#800000; font-weight:bold; '>for</span> <span style='color:#808030; '>(</span>i<span style='color:#808030; '>=</span><span style='color:#008c00; '>0</span><span style='color:#800080; '>;</span>i<span style='color:#808030; '>&lt;</span>len<span style='color:#800080; '>;</span>i<span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+      c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>x<span style='color:#808030; '>.</span>b<span style='color:#808030; '>[</span>idx<span style='color:#808030; '>]</span><span style='color:#808030; '>=</span>p<span style='color:#808030; '>[</span>i<span style='color:#808030; '>]</span><span style='color:#800080; '>;</span> idx<span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#800080; '>;</span>
       <span style='color:#800000; font-weight:bold; '>if</span><span style='color:#808030; '>(</span>idx<span style='color:#808030; '>=</span><span style='color:#808030; '>=</span><span style='color:#008c00; '>64</span><span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
         sm3_compress<span style='color:#808030; '>(</span>c<span style='color:#808030; '>)</span><span style='color:#800080; '>;</span>
         idx<span style='color:#808030; '>=</span><span style='color:#008c00; '>0</span><span style='color:#800080; '>;</span>
       <span style='color:#800080; '>}</span>
-      c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>x<span style='color:#808030; '>.</span>b<span style='color:#808030; '>[</span>idx<span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#808030; '>]</span><span style='color:#808030; '>=</span><span style='color:#808030; '>*</span>p<span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#800080; '>;</span>
     <span style='color:#800080; '>}</span>
 <span style='color:#800080; '>}</span>
 </pre>

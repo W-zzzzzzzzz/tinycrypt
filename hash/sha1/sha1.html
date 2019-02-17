@@ -43,20 +43,38 @@
 
 <p>Again, this is exactly the same as MD4 and MD5.</p>
 
-<pre style='color:#000000;background:#ffffff;'><span style='color:#800000; font-weight:bold; '>void</span> sha1_update<span style='color:#808030; '>(</span>sha1_ctx<span style='color:#808030; '>*</span>c<span style='color:#808030; '>,</span><span style='color:#800000; font-weight:bold; '>void</span><span style='color:#808030; '>*</span>in<span style='color:#808030; '>,</span>W len<span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
-    B <span style='color:#808030; '>*</span>p<span style='color:#808030; '>=</span>in<span style='color:#800080; '>;</span>
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000; font-weight:bold; '>void</span> sha1_update<span style='color:#808030; '>(</span>sha1_ctx<span style='color:#808030; '>*</span>c<span style='color:#808030; '>,</span><span style='color:#800000; font-weight:bold; '>const</span> <span style='color:#800000; font-weight:bold; '>void</span><span style='color:#808030; '>*</span>in<span style='color:#808030; '>,</span>W len<span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+    B <span style='color:#808030; '>*</span>p<span style='color:#808030; '>=</span><span style='color:#808030; '>(</span>B<span style='color:#808030; '>*</span><span style='color:#808030; '>)</span>in<span style='color:#800080; '>;</span>
     W i<span style='color:#808030; '>,</span> idx<span style='color:#800080; '>;</span>
     
     idx <span style='color:#808030; '>=</span> c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>len <span style='color:#808030; '>&amp;</span> <span style='color:#008c00; '>63</span><span style='color:#800080; '>;</span>
     c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>len <span style='color:#808030; '>+</span><span style='color:#808030; '>=</span> len<span style='color:#800080; '>;</span>
     
     <span style='color:#800000; font-weight:bold; '>for</span> <span style='color:#808030; '>(</span>i<span style='color:#808030; '>=</span><span style='color:#008c00; '>0</span><span style='color:#800080; '>;</span>i<span style='color:#808030; '>&lt;</span>len<span style='color:#800080; '>;</span>i<span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+      c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>x<span style='color:#808030; '>.</span>b<span style='color:#808030; '>[</span>idx<span style='color:#808030; '>]</span><span style='color:#808030; '>=</span>p<span style='color:#808030; '>[</span>i<span style='color:#808030; '>]</span><span style='color:#800080; '>;</span> idx<span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#800080; '>;</span>
       <span style='color:#800000; font-weight:bold; '>if</span><span style='color:#808030; '>(</span>idx<span style='color:#808030; '>=</span><span style='color:#808030; '>=</span><span style='color:#008c00; '>64</span><span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
         sha1_compress<span style='color:#808030; '>(</span>c<span style='color:#808030; '>)</span><span style='color:#800080; '>;</span>
         idx<span style='color:#808030; '>=</span><span style='color:#008c00; '>0</span><span style='color:#800080; '>;</span>
       <span style='color:#800080; '>}</span>
-      c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>x<span style='color:#808030; '>.</span>b<span style='color:#808030; '>[</span>idx<span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#808030; '>]</span><span style='color:#808030; '>=</span><span style='color:#808030; '>*</span>p<span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#800080; '>;</span>
     <span style='color:#800080; '>}</span>
+<span style='color:#800080; '>}</span>
+</pre>
+
+<h3><strong>Finalization</strong></h3>
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000; font-weight:bold; '>void</span> sha1_final<span style='color:#808030; '>(</span><span style='color:#800000; font-weight:bold; '>void</span><span style='color:#808030; '>*</span>h<span style='color:#808030; '>,</span>sha1_ctx<span style='color:#808030; '>*</span>c<span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+    W i<span style='color:#808030; '>,</span>len<span style='color:#808030; '>,</span><span style='color:#808030; '>*</span>p<span style='color:#808030; '>=</span>h<span style='color:#800080; '>;</span>
+    
+    i <span style='color:#808030; '>=</span> len <span style='color:#808030; '>=</span> c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>len <span style='color:#808030; '>&amp;</span> <span style='color:#008c00; '>63</span><span style='color:#800080; '>;</span>
+    <span style='color:#800000; font-weight:bold; '>while</span><span style='color:#808030; '>(</span>i<span style='color:#808030; '>&lt;</span><span style='color:#008c00; '>64</span><span style='color:#808030; '>)</span> c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>x<span style='color:#808030; '>.</span>b<span style='color:#808030; '>[</span>i<span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#808030; '>]</span><span style='color:#808030; '>=</span><span style='color:#008c00; '>0</span><span style='color:#800080; '>;</span>
+    c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>x<span style='color:#808030; '>.</span>b<span style='color:#808030; '>[</span>len<span style='color:#808030; '>]</span><span style='color:#808030; '>=</span><span style='color:#008000; '>0x80</span><span style='color:#800080; '>;</span>
+    <span style='color:#800000; font-weight:bold; '>if</span><span style='color:#808030; '>(</span>len<span style='color:#808030; '>></span><span style='color:#808030; '>=</span><span style='color:#008c00; '>56</span><span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+      sha1_compress<span style='color:#808030; '>(</span>c<span style='color:#808030; '>)</span><span style='color:#800080; '>;</span>
+      F<span style='color:#808030; '>(</span><span style='color:#008c00; '>16</span><span style='color:#808030; '>)</span>c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>x<span style='color:#808030; '>.</span>w<span style='color:#808030; '>[</span>i<span style='color:#808030; '>]</span><span style='color:#808030; '>=</span><span style='color:#008c00; '>0</span><span style='color:#800080; '>;</span>
+    <span style='color:#800080; '>}</span>
+    c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>x<span style='color:#808030; '>.</span>q<span style='color:#808030; '>[</span><span style='color:#008c00; '>7</span><span style='color:#808030; '>]</span><span style='color:#808030; '>=</span>rev64<span style='color:#808030; '>(</span>c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>len<span style='color:#808030; '>*</span><span style='color:#008c00; '>8</span><span style='color:#808030; '>)</span><span style='color:#800080; '>;</span>
+    sha1_compress<span style='color:#808030; '>(</span>c<span style='color:#808030; '>)</span><span style='color:#800080; '>;</span>
+    F<span style='color:#808030; '>(</span><span style='color:#008c00; '>5</span><span style='color:#808030; '>)</span>p<span style='color:#808030; '>[</span>i<span style='color:#808030; '>]</span><span style='color:#808030; '>=</span>rev32<span style='color:#808030; '>(</span>c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>s<span style='color:#808030; '>[</span>i<span style='color:#808030; '>]</span><span style='color:#808030; '>)</span><span style='color:#800080; '>;</span>
 <span style='color:#800080; '>}</span>
 </pre>
 

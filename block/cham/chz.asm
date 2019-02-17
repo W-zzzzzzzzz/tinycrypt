@@ -39,11 +39,8 @@
       bits 32
      
       %ifndef BIN
-        global cham128_setkeyx
-        global _cham128_setkeyx
-        
-        global cham128_encryptx
-        global _cham128_encryptx
+        global cham
+        global _cham
       %endif
       
 %define K 128   ; key length
@@ -58,8 +55,8 @@
 %define x3 esi
 %define rk edi
 
-cham128_encryptx:
-_cham128_encryptx:
+cham:
+_cham:
     pushad
     mov    esi, [esp+32+4]  ; k = key
     mov    ebp, [esp+32+8]  ; x = data

@@ -31,16 +31,21 @@
 #define F(n)for(i=0;i<n;i++)
 typedef unsigned int W;
 
-void speck(void*mk,void*p){
+void speck64(void*mk,void*p){
   W k[4],*x=p,i,t;
   
   F(4)k[i]=((W*)mk)[i];
   
   F(27)
-    *x=(R(*x,8)+x[1])^*k,
-    x[1]=R(x[1],29)^*x,
-    t=k[3],
-    k[3]=(R(k[1],8)+*k)^i,
-    *k=R(*k,29)^k[3],
-    k[1]=k[2],k[2]=t;
+    // apply linear+nonlinear layer, mix key
+    x[0] = (R(x[0], 8) + x[1]) ^ k[0];
+    x[1] = R(x[1], 29) ^ x[0];
+    
+    // create next subkey
+    k[1] = (R(k[1], 8) + k[0]) ^ i;
+    k[0] = R(k[0], 29) ^ k[1];
+    
+    // permute key
+    t = k[1], k[1] = k[2], k[2] = k[3], k[3] = t;
 }
+

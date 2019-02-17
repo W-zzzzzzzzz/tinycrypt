@@ -54,8 +54,10 @@ void md4_compress(md4_ctx*c) {
     B g[16]={0,4,8,12,1,5,9,13,2,6,10,14,3,7,11,15};
     B h[16]={0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15};
 
+    // load state
     F(4)s[i]=c->s[i];
     
+    // permute
     F(48) {
       if(i<16){
         s[0]+=FF(s[1],s[2],s[3])+c->x.w[i];
@@ -69,6 +71,7 @@ void md4_compress(md4_ctx*c) {
       }
       t=R(s[0],t);s[0]=s[3];s[3]=s[2];s[2]=s[1];s[1]=t;
     }
+    // update state
     F(4)c->s[i]+=s[i];
 }
 
