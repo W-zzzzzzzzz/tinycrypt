@@ -139,6 +139,7 @@ void md5_final(void*h,md5_ctx*c) {
     i = len = c->len & 63;
     while(i<64) c->x.b[i++]=0;
     c->x.b[len]=0x80;
+    
     if(len>=56) {
       md5_compress(c);
       F(16)c->x.w[i]=0;

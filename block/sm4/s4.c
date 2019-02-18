@@ -35,7 +35,7 @@ typedef unsigned int W;
 
 #define rev __builtin_bswap32
 
-B AX(B x) {     
+B A(B x) {     
     B m=0xA7,s=0,t;
     do {
       for(t=x&m;t;t>>=1)s^=(t&1);
@@ -48,7 +48,7 @@ B AX(B x) {
 B S(B x) {
     B i, c, y;
     // affine transformation
-    x = AX(x);
+    x = A(x);
     // multiplicative inverse
     // uses x^8 + x^7 + x^6 + x^5 + x^4 + x^2 + 1 as IRP
     if (x) {
@@ -56,30 +56,30 @@ B S(B x) {
       x=y;
     }
     // affine transformation
-    return AX(x);
+    return A(x);
 }
 
-void sm4(void*mk,void*in) {
+void sm4(void*mk,void*data) {
     W *p,c,i,j,s,t,x[8];
     W fk[4]={0xa3b1bac6,0x56aa3350,0x677d9197,0xb27022dc};
-    // load the key and plaintext
-    F(i,4)x[i]=rev(((W*)mk)[i])^fk[i],x[i+4]=rev(((W*)in)[i]);
+    // load the 128-bit key and 128-bit plaintext
+    F(i,4)x[i+4]=rev(((W*)mk)[i])^fk[i],x[i]=rev(((W*)data)[i]);
     // encrypt plaintext
     F(i,32) {
       // calculate round constant
-      F(j,4)t<<=8,t|=((((i*4)+j)*7)&255);
-      F(s,2) {
+      F(j,4)c<<=8,c|=((((i*4)+(j))*7)&255);
+      for(s=1;(int)s>=0;s--) {
         p=&x[s*4];
         // add round constant or sub key
-        t^=p[(i+1)%4]^p[(i+2)%4]^p[(i+3)%4];
+        c^=p[(i+1)%4]^p[(i+2)%4]^p[(i+3)%4];
         // non-linear layer
-        F(j,4)t=(t&-256)|S(t),t=R(t,8);
+        F(j,4)c=(c&-256)|S(c),c=R(c,8);
         // linear layer
-        t=p[i%4]^=t^((s)?R(t,30)^R(t,22)^R(t,14)^R(t,8):R(t,19)^R(t,9));
+        c=p[i%4]^=c^((s) ? R(c,19)^R(c,9) : R(c,30)^R(c,22)^R(c,14)^R(c,8));
       }
     }
     // swap
-    X(x[0+4],x[3+4]);X(x[1+4],x[2+4]);
+    X(x[0],x[3]);X(x[1],x[2]);
     // store ciphertext
-    F(i,4)((W*)in)[i]=rev(x[i+4]);
+    F(i,4)((W*)data)[i]=rev(x[i]);
 }

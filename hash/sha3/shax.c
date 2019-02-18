@@ -93,6 +93,7 @@ void sha3_final(void*out, sha3_ctx*c) {
     
     c->s.b[c->i]^=6;
     c->s.b[c->r-1]^=0x80;
+    
     P(&c->s);
     F(i,c->h)p[i]=c->s.b[i];
 }

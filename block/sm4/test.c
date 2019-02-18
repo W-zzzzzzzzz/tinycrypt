@@ -33,10 +33,14 @@ uint8_t tv_key[]=
   0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10 };
   
 void sm4(void*,void*);
+uint8_t S(uint8_t x);
+uint8_t Sx(uint8_t x);
+uint8_t AX(uint8_t x);
+uint8_t A(uint8_t x);
 
 int main(void)
 {
-  sm4_ctx  c;
+//  sm4_ctx  c;
   //uint32_t i;
   int      equ;
   
