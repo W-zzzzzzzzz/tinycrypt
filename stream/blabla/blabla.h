@@ -27,26 +27,30 @@
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
   
-#ifndef BB20_H
-#define BB20_H
+#ifndef BLABLA_H
+#define BLABLA_H
 
 #include "../../macros.h"
 
-#define BB20_STATE_LEN 128
-#define BB20_BLK_LEN   128
-#define BB20_KEY_LEN    32
-#define BB20_NONCE_LEN  16
-#define BB20_ROUNDS     10
+#define BLABLA_STATE_LEN 128
+#define BLABLA_BLK_LEN   128
+#define BLABLA_KEY_LEN    32
+#define BLABLA_NONCE_LEN  16
+#define BLABLA_ROUNDS     10
 
-typedef w1024_t bb20_ctx;
+typedef union _blabla_ctx_t {
+  uint8_t b[128];
+  uint32_t w[32];
+  uint64_t q[16];
+} blabla_ctx;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-  void bb20_setkey(bb20_ctx*, void*, void*);
-  void bb20_encrypt(uint64_t, void*, bb20_ctx*);
-  void bb20_keystream(uint64_t, void*, bb20_ctx*);
+  void blabla_setkey(blabla_ctx*, const void*, const void*);
+  void blabla_encrypt(blabla_ctx*,void*,size_t);
+  void blabla_keystream(blabla_ctx*,void*,size_t);
   
 #ifdef __cplusplus
 }

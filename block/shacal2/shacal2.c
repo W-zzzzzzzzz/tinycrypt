@@ -54,7 +54,7 @@ typedef struct _sha256_ctx {
 #define SIG1(x)(R(x,17)^R(x,19)^((x)>>10))
 
 void shacal2(void*mk,void*data) {
-    W t1,t2,i,j,w[64],s[8],*k=mk,*x=data;
+    W t1,t2,i,w[64],s[8],*k=mk,*x=data;
     
     W K[64]=
     { 0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 
@@ -74,7 +74,7 @@ void shacal2(void*mk,void*data) {
       0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 
       0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2 }; 
     
-    // load 512-bit key
+    // load master key
     F(16)w[i]=rev32(k[i]);
     // expand key
     for(i=16;i<64;i++)
@@ -84,8 +84,9 @@ void shacal2(void*mk,void*data) {
     // encrypt
     F(64) {
       t1=s[7]+EP1(s[4])+CH(s[4],s[5],s[6])+w[i]+K[i];
-      t2=EP0(s[0])+MAJ(s[0],s[1],s[2]);s[7]=t1+t2;s[3]+=t1;t1=s[0];
-      for(j=1;j<8;j++)t2=s[j],s[j]=t1,t1=t2;s[0]=t1;
+      t2=EP0(s[0])+MAJ(s[0],s[1],s[2]);
+      s[7]=s[6],s[6]=s[5],s[5]=s[4],s[4]=s[3]+t1;
+      s[3]=s[2],s[2]=s[1],s[1]=s[0],s[0]=t1+t2;
     }
     // store 256-bit ciphertext
     F(8)x[i]=rev32(s[i]);

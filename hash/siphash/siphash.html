@@ -1,12 +1,6 @@
 <h3><strong>Introduction</strong></h3>
 
-<a href="https://131002.net/siphash/">SipHash</a>: a fast short-input <em>Pseudo-Random-Function</em>(PRF) was designed and published in 2012 by <a href="https://131002.net/">Jean-Philippe Aumasson</a> and <a href="http://cr.yp.to/djb.html">Daniel J. Bernstein</a>.
-
-Last month, MR. Aumasson posted to <a href="http://www.openwall.com/lists/kernel-hardening/2016/12/16/14">the kernel-hardening mail list</a> a link to a "<em>Half SipHash</em>" implementation which is intended to boost performance. What I show here is Half SipHash but only generates 32-bit hashes.
-
-I already looked at the <a href="https://github.com/veorq/SipHash">original code</a> and felt it didn't fit well onto a 32-bit architecture. Incidentally <a href="http://mouha.be/chaskey/">ChasKey</a> by Nicky Mouha is derived from SipHash, designed specifically for 32-bit architectures and provides 128-bit security.
-
-So this code is really just half of the Half SipHash function returning 32-bits which might not be adequate for some people. The assembly code is presumably slower than a compiler generated version due to the choice of instructions.
+<p><a href="https://131002.net/siphash/">SipHash</a>: a fast short-input <em>Pseudo-Random-Function</em>(PRF) was designed and published in 2012 by <a href="https://131002.net/">Jean-Philippe Aumasson</a> and <a href="http://cr.yp.to/djb.html">Daniel J. Bernstein</a>.</p>
 
 <h3><strong>Round function</strong></h3>
 

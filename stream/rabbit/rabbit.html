@@ -1,34 +1,18 @@
 <h3><strong>Introduction</strong></h3>
 
-<a href="http://www.ecrypt.eu.org/stream/p3ciphers/rabbit/rabbit_p3.pdf">Rabbit</a> is a stream cipher designed in 2003 by Martin Boesgaard, Mette Vesterager, Thomas Pedersen, Jesper Christiansen and Ove Scavenius. It was published in 2005 and selected as a software cipher for the <a href="http://www.ecrypt.eu.org/stream/rabbitpf.html">eSTREAM portfolio in 2008</a>.
-
-It's designed for high performance in software implementations but is also known to work well in hardware environments.  Both key setup and encryption are very fast, making the algorithm particularly suited for all applications where large amounts of data or large numbers of data packages have to be encrypted.  
-
-Examples include, but are not limited to, server-side encryption, multimedia encryption, hard-disk encryption, and encryption on limited-resource devices. It is currently not known to exhibit any weaknesses and so I decided to implement it in x86 assembly after much tweaking of original C code.
-
-A description by the authors can be found in <a href="https://tools.ietf.org/rfc/rfc4503.txt">RFC4503</a>
+<p><a href="http://www.ecrypt.eu.org/stream/p3ciphers/rabbit/rabbit_p3.pdf">Rabbit</a> is a stream cipher designed in 2003 by Martin Boesgaard, Mette Vesterager, Thomas Pedersen, Jesper Christiansen and Ove Scavenius. It was published in 2005 and selected as a software cipher for the <a href="http://www.ecrypt.eu.org/stream/rabbitpf.html">eSTREAM portfolio in 2008</a>. It's designed for high performance in software implementations but is also known to work well in hardware environments. A more extensive description by the authors can be found in <a href="https://tools.ietf.org/rfc/rfc4503.txt">RFC 4503</a></p>
 
 <blockquote>Technically, Rabbit consists of a pseudorandom bitstream generator that takes a 128-bit key and a 64-bit initialization vector (IV) as input and generates a stream of 128-bit blocks.  Encryption is performed by combining this output with the message, using the exclusive-OR operation.  Decryption is performed in exactly the same way as encryption.</blockquote>
 
 <h3><strong>About the assembly code</strong></h3>
 
-This was a joint effort between <a href="http://pferrie.host22.com/">Peter Ferrie</a> and myself.
-
-It didn't initially appear like it would be as compact compared with <a href="https://tinycrypt.wordpress.com/2016/06/05/asmcodes-salsa20/">Salsa20</a> or <a href="https://tinycrypt.wordpress.com/2016/08/05/asmcodes-hc-256/">HC-256</a> which are also from the eSTREAM portfolio. 
-
-However, the only other cipher from eSTREAM software portfolio was <a href="http://www.ecrypt.eu.org/stream/sosemanukpf.html">SOSEMANUK</a> which is based on Serpent and it seemed pointless implementing a stream cipher based on a block cipher which can already be used with CTR mode to work as a stream cipher.
+<p>This was a joint effort between <a href="http://pferrie.host22.com/">Peter Ferrie</a> and myself. It's not as compact as <a href="https://tinycrypt.wordpress.com/2016/06/05/asmcodes-salsa20/">Salsa20</a> or <a href="https://tinycrypt.wordpress.com/2016/08/05/asmcodes-hc-256/">HC-256</a> that are also part the eSTREAM portfolio.</p>
 
 <h3><strong>Optimization trick with PUSHAD/POPAD</strong></h3>
 
-Although this has nothing to do with the cipher itself, I think it's worth noting. While writing the assembly code for RABBIT, I accidently "discovered" something that I didn't realize was possible with PUSHAD instruction. <del datetime="2016-12-19T03:01:07+00:00">It may only work on Windows so if you use it in your own code, careful consideration should be given to whether or not it will work across all operating systems running on x86 architecture and not just Windows.</del> <strong>UPDATE</strong>: <a href="http://pferrie.host22.com/">Peter Ferrie</a> has confirmed this is a feature of the CPU itself and will work on Linux also.
+<p>Although this has nothing to do with the cipher itself, I think it's worth noting. While writing the assembly code for RABBIT, I accidently "discovered" something that I didn't realize was possible with the PUSHAD instruction. When PUSHAD is executed, it saves all the general purpose registers including ESP on the stack. The total stack space occupied for this operation is 32-bytes. What I didn't know is that it's possible to overwrite ESP and when POPAD is executed, the original value of ESP is still restored to its original value.</p>
 
-When PUSHAD is executed, it saves all the general purpose registers including ESP on the stack. The total stack space occupied for this operation is 32-bytes. But what I didn't know is that it's possible to overwrite ESP and when POPAD is executed, the original value of ESP remains unaffected.
-
-"<em>So what?</em>" you may say.. but think about it. This is a neat way to allocate and release 32-bytes of memory without worrying about overwriting ESP.
-
-If the original value of ESP were not restored, only 12 bytes would be available, but that's still useful for some code. So instead of using SUB, ADD or ENTER..etc to allocate 32-bytes or more in future, consider using PUSHAD since it doesn't appear to matter if ESP is overwritten.
-
-Try it for yourself with the following code:
+"<em>So what?</em>" you may say.. but think about it. This is a neat way to allocate and release 32-bytes of memory without worrying about overwriting ESP. If the original value of ESP were not restored, only 12 bytes would be available, but that's still useful for some code. Instead of using SUB, ADD or ENTER to allocate 32-bytes or more in future, consider using PUSHAD since it doesn't appear to matter if ESP is overwritten. Try it for yourself with the following code:</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>;</span>
     <span style='color:#800000;font-weight:bold;'>pushad</span>                   <span style='color:#696969;'>; save all registers</span>
@@ -40,9 +24,7 @@ Try it for yourself with the following code:
     <span style='color:#800000;font-weight:bold;'>popad</span>                    <span style='color:#696969;'>; like "magic", ESP is restored</span>
 </pre>
 
-I've updated other sources to use this "trick" and they all work fine.
-
-It is used here in RABBIT_setiv and RABBIT_crypt
+<p>I've updated other sources to use this "trick" and they all work fine. It is used here in RABBIT_setiv and RABBIT_crypt.</p>
 
 <h3><strong>Key setup</strong></h3>
 
@@ -97,7 +79,7 @@ It is used here in RABBIT_setiv and RABBIT_crypt
 <span style='color:#800080;'>}</span>
 </pre>
 
-This assembly...
+<h3><strong>x86 assembly</strong></h3>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>; Key setup</span>
 <span style='color:#e34adc;'>RABBIT_setkeyx:</span>
@@ -270,7 +252,7 @@ This assembly...
 <span style='color:#800080;'>}</span>
 </pre>
 
-Assembly...
+<h3><strong>x86 assembly</strong></h3>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>; IV setup</span>
 <span style='color:#e34adc;'>RABBIT_setivx:</span>
@@ -361,7 +343,7 @@ Assembly...
 <span style='color:#800080;'>}</span>
 </pre>
 
-Assembly
+<h3><strong>x86 assembly</strong></h3>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>; encrypt/decrypt a message of any size</span>
 <span style='color:#e34adc;'>RABBIT_cryptx:</span>
@@ -436,18 +418,5 @@ Assembly
     <span style='color:#800000;font-weight:bold;'>ret</span>
 </pre>
 
-<h3><strong>Summary</strong></h3>
 
-<table>
-<tr>
-<th>architecture</th><th>size</th>
-</tr>
-<tr><td>x86</td><td>458</td></tr>
-<tr><td>x64</td><td>n/a</td></tr>
-</table>
-
-Please refer to <a href="https://github.com/odzhan/tinycrypt/tree/master/stream/rabbit">here</a> and <a href="https://github.com/peterferrie/rabbit">here</a> for sources, documentation and any future updates.
-
-Salsa20 which was also chosen for eSTREAM portfolio, ChaCha20 and HC-256 are all significantly smaller than Rabbit and probably just as secure since they support 256-bit keys. I have not tested each algorithm for speed but with multiplication/division used here, it may be slower than optimized versions of Salsa20 and ChaCha20.
-
-The final size for hand written assembly is approx. 450 bytes and approx. 700 for code generated by MSVC
+<p><a href="https://github.com/odzhan/tinycrypt/tree/master/stream/rabbit">Sources here.</a></p>

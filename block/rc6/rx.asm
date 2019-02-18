@@ -42,8 +42,8 @@
 
 
         %ifndef BIN
-          global xrc6_cryptx
-          global _xrc6_cryptx
+          global rc6
+          global _rc6
         %endif
         
 %define RC6_ROUNDS 20
@@ -54,8 +54,8 @@
 %define C edx
 %define D ebp
         
-xrc6_cryptx:
-_xrc6_cryptx:
+rc6:
+_rc6:
     pushad
     mov    esi, [esp+32+4]     ; edi = key / L
     mov    ebx, [esp+32+8]     ; esi = data

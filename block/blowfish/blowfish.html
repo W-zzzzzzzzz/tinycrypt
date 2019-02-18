@@ -1,254 +1,82 @@
 <h3><strong>Introduction</strong></h3>
 
-<a href="https://www.schneier.com/academic/blowfish/">Blowfish</a> is a 64-bit block symmetric cipher supporting 32-bit keys up to 448-bits. 
-
-It was published in 1994 by the American cryptgrapher <a href="https://www.schneier.com/blog/about/">Bruce Schneier</a>, and intended to be a drop-in replacement for DES.
-
-Since 1994, the same cryptographer helped design and publish Twofish (1998) and Threefish (2008) which offer many advantages over this algorithm.
-
-Generation of the p and s box values is described in <a href="https://tinycrypt.wordpress.com/2017/12/09/magic_numbers/">separate post here</a>
+<p><a href="https://www.schneier.com/academic/blowfish/">Blowfish</a> is a 64-bit block cipher that supports key lengths between 32 and 448-bit keys. It was published in 1994 by the <a href="https://www.schneier.com/blog/about/">Bruce Schneier</a> who also helped design Twofish in 1998 and Threefish in 2008, both of which provide more security than this algorithm. Generation of the <var>P</var> and <var>S</var> box values are described in <a href="https://tinycrypt.wordpress.com/2017/12/09/magic_numbers/">this post.</a> Blowfish isn't suitable for resource constrained devices. Other 64-bit ciphers are more suitable. For example, SPECK-64/128.</p>
 
 <h3><strong>Key setup</strong></h3>
 
-The user key is XOR'd against the p and sbox values. This key is then used to encrypt a 64-bit zero value. The resulting ciphertext replaces the p and sbox values. 
+<p>The user key is XOR'd against the p and sbox values. This key is then used to encrypt a 64-bit zero value. The resulting ciphertext replaces the p and sbox values. Blowfish requires a lot of RAM for this, and if you don't want to precompute the PI values, then you need lots of ROM too.</p>
 
-Blowfish requires a lot of RAM for this, and if you don't want to precompute the PI values, then you need lots of ROM too.
+<pre style='color:#000000;background:#ffffff;'><span style='color:#696969; '>// create blowfish key</span>
+<span style='color:#696969; '>// return 1 (TRUE) for okay, else 0 (FALSE</span>
+<span style='color:#800000; font-weight:bold; '>int</span> BF_set_key <span style='color:#808030; '>(</span>BF_KEY <span style='color:#808030; '>*</span>key<span style='color:#808030; '>,</span> uint32_t len<span style='color:#808030; '>,</span> uint8_t<span style='color:#808030; '>*</span> data<span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+    uint32_t i<span style='color:#808030; '>,</span> j<span style='color:#808030; '>,</span> k_idx<span style='color:#808030; '>,</span> ri<span style='color:#808030; '>,</span> in<span style='color:#808030; '>[</span><span style='color:#008c00; '>2</span><span style='color:#808030; '>]</span><span style='color:#800080; '>;</span>
+    uint32_t <span style='color:#808030; '>*</span>x<span style='color:#800080; '>;</span>
 
-<pre style='color:#000000;background:#ffffff;'><span style='color:#800000;font-weight:bold;'>int</span> bf_setkey <span style='color:#808030;'>(</span>BF_KEY <span style='color:#808030;'>*</span>key<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>void</span><span style='color:#808030;'>*</span> input<span style='color:#808030;'>,</span> <span style='color:#603000;'>size_t</span> len<span style='color:#808030;'>)</span>
-<span style='color:#800080;'>{</span>
-  <span style='color:#800000;font-weight:bold;'>int</span> i<span style='color:#808030;'>,</span> j<span style='color:#808030;'>,</span> k_idx<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span>
-  BF_LONG ri<span style='color:#808030;'>,</span> in<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
-  uint8_t <span style='color:#808030;'>*</span>data<span style='color:#808030;'>=</span><span style='color:#808030;'>(</span>uint8_t<span style='color:#808030;'>*</span><span style='color:#808030;'>)</span>input<span style='color:#800080;'>;</span>
+    <span style='color:#696969; '>// 1. keys should be between 4 and 56 bytes</span>
+    <span style='color:#800000; font-weight:bold; '>if</span> <span style='color:#808030; '>(</span>len <span style='color:#808030; '>&lt;</span> <span style='color:#008c00; '>4</span> <span style='color:#808030; '>|</span><span style='color:#808030; '>|</span> len <span style='color:#808030; '>></span> <span style='color:#008c00; '>56</span><span style='color:#808030; '>)</span> <span style='color:#800000; font-weight:bold; '>return</span> <span style='color:#008c00; '>0</span><span style='color:#800080; '>;</span>
 
-  <span style='color:#696969;'>// init key</span>
-  <span style='color:#603000;'>memcpy</span> <span style='color:#808030;'>(</span>key<span style='color:#808030;'>,</span> <span style='color:#808030;'>&amp;</span>bf_init<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>sizeof</span> <span style='color:#808030;'>(</span>BF_KEY<span style='color:#808030;'>)</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
-
-  <span style='color:#696969;'>// keys should be at least 4-bytes</span>
-  <span style='color:#800000;font-weight:bold;'>if</span> <span style='color:#808030;'>(</span>len <span style='color:#808030;'>&lt;</span> BF_KEY_MIN<span style='color:#808030;'>)</span> <span style='color:#800000;font-weight:bold;'>return</span> <span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span>
-  
-  <span style='color:#696969;'>// no more than 56-bytes</span>
-  len<span style='color:#808030;'>=</span><span style='color:#808030;'>(</span>len <span style='color:#808030;'>&gt;</span> BF_KEY_MAX<span style='color:#808030;'>)</span> <span style='color:#800080;'>?</span> BF_KEY_MAX <span style='color:#800080;'>:</span> len<span style='color:#800080;'>;</span>
-  
-  <span style='color:#696969;'>// mix key bytes with bf key</span>
-  <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>i<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>&lt;</span><span style='color:#808030;'>(</span>BF_ROUNDS<span style='color:#808030;'>+</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
-    ri<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span>
-    <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>j<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> j<span style='color:#808030;'>&lt;</span><span style='color:#008c00;'>4</span><span style='color:#800080;'>;</span> j<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
-      ri <span style='color:#808030;'>&lt;</span><span style='color:#808030;'>&lt;</span><span style='color:#808030;'>=</span> <span style='color:#008c00;'>8</span><span style='color:#800080;'>;</span>
-      ri <span style='color:#808030;'>|</span><span style='color:#808030;'>=</span> data<span style='color:#808030;'>[</span>k_idx<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span> <span style='color:#808030;'>%</span> len<span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
-    <span style='color:#800080;'>}</span>
-    key<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>p<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span> <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> ri<span style='color:#800080;'>;</span>
-  <span style='color:#800080;'>}</span>
-
-  in<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> <span style='color:#008c00;'>0</span><span style='color:#006600;'>L</span><span style='color:#800080;'>;</span>
-  in<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> <span style='color:#008c00;'>0</span><span style='color:#006600;'>L</span><span style='color:#800080;'>;</span>
-  
-  <span style='color:#696969;'>// encrypt key</span>
-  <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>i <span style='color:#808030;'>=</span> <span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> i <span style='color:#808030;'>&lt;</span> <span style='color:#800000;font-weight:bold;'>sizeof</span><span style='color:#808030;'>(</span>BF_KEY<span style='color:#808030;'>)</span><span style='color:#808030;'>/</span><span style='color:#800000;font-weight:bold;'>sizeof</span><span style='color:#808030;'>(</span>BF_LONG<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span> i <span style='color:#808030;'>+</span><span style='color:#808030;'>=</span> <span style='color:#008c00;'>2</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
-    bf_encrypt<span style='color:#808030;'>(</span>key<span style='color:#808030;'>,</span> in<span style='color:#808030;'>,</span> in<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
-    key<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>p<span style='color:#808030;'>[</span>i<span style='color:#808030;'>+</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> SWAP32<span style='color:#808030;'>(</span>in<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
-    key<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>p<span style='color:#808030;'>[</span>i<span style='color:#808030;'>+</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> SWAP32<span style='color:#808030;'>(</span>in<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
-  <span style='color:#800080;'>}</span>
-  <span style='color:#800000;font-weight:bold;'>return</span> <span style='color:#008c00;'>1</span><span style='color:#800080;'>;</span>
-<span style='color:#800080;'>}</span>
-</pre>
-
-Assembly..
-
-<pre style='color:#000000;background:#ffffff;'><span style='color:#e34adc;'>_bf_setkey:</span>
-<span style='color:#e34adc;'>bf_setkey:</span>
-    <span style='color:#800000;font-weight:bold;'>pushad</span>
-
-    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+4</span><span style='color:#808030;'>]</span>  <span style='color:#696969;'>; key</span>
+    <span style='color:#696969; '>// 2. initialize key</span>
+    <span style='color:#603000; '>memcpy</span> <span style='color:#808030; '>(</span>key<span style='color:#808030; '>,</span> <span style='color:#808030; '>&amp;</span>bf_init<span style='color:#808030; '>,</span> <span style='color:#800000; font-weight:bold; '>sizeof</span><span style='color:#808030; '>(</span>BF_KEY<span style='color:#808030; '>)</span><span style='color:#808030; '>)</span><span style='color:#800080; '>;</span>
     
-    <span style='color:#696969;'>; memcpy (key, &amp;bf_init, sizeof (BF_KEY));</span>
-    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edx</span>
-    <span style='color:#800000;font-weight:bold;'>lea</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span>bf_init<span style='color:#808030;'>]</span>
-    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> BF_KEY_size <span style='color:#808030;'>/</span> <span style='color:#008c00;'>4</span>
-    <span style='color:#800000;font-weight:bold;'>rep</span>    <span style='color:#800000;font-weight:bold;'>movsd</span>
-    <span style='color:#696969;'>; ============================</span>
-    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#808030;'>+</span> <span style='color:#008c00;'>8</span><span style='color:#808030;'>]</span>  <span style='color:#696969;'>; input</span>
-    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+12</span><span style='color:#808030;'>]</span>  <span style='color:#696969;'>; keylen</span>
-    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edx</span>          <span style='color:#696969;'>; bf_key</span>
-    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edx</span>
-    <span style='color:#800000;font-weight:bold;'>push</span>   BF_ROUNDS<span style='color:#808030;'>+</span><span style='color:#008c00;'>2</span>
-    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>ecx</span>
-    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>edi</span>
-<span style='color:#e34adc;'>mix_key:</span>
-    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>ecx</span>
-    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#008c00;'>4</span>
-    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>ecx</span>
-    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
-<span style='color:#e34adc;'>load_key_word:</span>
-    <span style='color:#696969;'>; ri &lt;&lt;= 8;</span>
-    <span style='color:#800000;font-weight:bold;'>shl</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>8</span>
-    <span style='color:#696969;'>; ri |= k[k_idx++ % len];</span>
-    <span style='color:#800000;font-weight:bold;'>or</span>     <span style='color:#000080;'>al</span><span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>byte</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>+</span><span style='color:#000080;'>edx</span><span style='color:#808030;'>]</span>
-    <span style='color:#800000;font-weight:bold;'>inc</span>    <span style='color:#000080;'>edx</span>
-    <span style='color:#800000;font-weight:bold;'>cmp</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ebx</span>
-    <span style='color:#800000;font-weight:bold;'>sbb</span>    <span style='color:#000080;'>ebp</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ebp</span>
-    <span style='color:#800000;font-weight:bold;'>and</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ebp</span>
-    <span style='color:#800000;font-weight:bold;'>loop</span>   <span style='color:#e34adc;'>load_key_word</span>
-    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>ecx</span>
-    <span style='color:#696969;'>; p[i] ^= ri;</span>
-    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#808030;'>[</span><span style='color:#000080;'>edi</span><span style='color:#808030;'>]</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
-    <span style='color:#800000;font-weight:bold;'>scasd</span>
-    <span style='color:#800000;font-weight:bold;'>loop</span>   <span style='color:#e34adc;'>mix_key</span>
-    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>edi</span>
-    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ebx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edi</span>
-    <span style='color:#696969;'>; ==============================</span>
-    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>eax</span>
-    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>eax</span>       <span style='color:#696969;'>; in[0] = 0</span>
-    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>eax</span>       <span style='color:#696969;'>; in[1] = 0</span>
-    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>esp</span>
-    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>ecx</span><span style='color:#808030;'>,</span> BF_KEY_size <span style='color:#808030;'>/</span> <span style='color:#008c00;'>8</span>
-<span style='color:#e34adc;'>encrypt_key:</span>
-    <span style='color:#696969;'>; bf_encrypt(key, in, in);</span>
-    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>esi</span>         <span style='color:#696969;'>; in</span>
-    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>esi</span>         <span style='color:#696969;'>; in</span>
-    <span style='color:#800000;font-weight:bold;'>push</span>   <span style='color:#000080;'>ebx</span>         <span style='color:#696969;'>; key</span>
-    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>bf_encrypt</span>
-    <span style='color:#800000;font-weight:bold;'>add</span>    <span style='color:#000080;'>esp</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>3</span><span style='color:#808030;'>*</span><span style='color:#008c00;'>4</span>
-    <span style='color:#696969;'>; p[i+0] = bswap(in[0]);</span>
-    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>]</span>
-    <span style='color:#800000;font-weight:bold;'>bswap</span>  <span style='color:#000080;'>eax</span>
-    <span style='color:#800000;font-weight:bold;'>stosd</span>
-    <span style='color:#696969;'>; p[i+1] = bswap(in[1]);</span>
-    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span>
-    <span style='color:#800000;font-weight:bold;'>bswap</span>  <span style='color:#000080;'>eax</span>
-    <span style='color:#800000;font-weight:bold;'>stosd</span>
-    <span style='color:#800000;font-weight:bold;'>loop</span>   <span style='color:#e34adc;'>encrypt_key</span>
-    <span style='color:#696969;'>; release in variable</span>
-    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>eax</span>
-    <span style='color:#800000;font-weight:bold;'>pop</span>    <span style='color:#000080;'>eax</span>
+    <span style='color:#696969; '>// 3. create key dependent sboxes</span>
+    <span style='color:#800000; font-weight:bold; '>for</span> <span style='color:#808030; '>(</span>k_idx<span style='color:#808030; '>=</span>i<span style='color:#808030; '>=</span><span style='color:#008c00; '>0</span><span style='color:#800080; '>;</span> i<span style='color:#808030; '>&lt;</span><span style='color:#808030; '>(</span>BF_ROUNDS<span style='color:#808030; '>+</span><span style='color:#008c00; '>2</span><span style='color:#808030; '>)</span><span style='color:#800080; '>;</span> i<span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+      ri<span style='color:#808030; '>=</span><span style='color:#008c00; '>0</span><span style='color:#800080; '>;</span>
+      <span style='color:#800000; font-weight:bold; '>for</span> <span style='color:#808030; '>(</span>j<span style='color:#808030; '>=</span><span style='color:#008c00; '>0</span><span style='color:#800080; '>;</span> j<span style='color:#808030; '>&lt;</span><span style='color:#008c00; '>4</span><span style='color:#800080; '>;</span> j<span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+        ri <span style='color:#808030; '>&lt;</span><span style='color:#808030; '>&lt;</span><span style='color:#808030; '>=</span> <span style='color:#008c00; '>8</span><span style='color:#800080; '>;</span>
+        ri <span style='color:#808030; '>|</span><span style='color:#808030; '>=</span> data<span style='color:#808030; '>[</span>k_idx <span style='color:#808030; '>%</span> len<span style='color:#808030; '>]</span><span style='color:#800080; '>;</span> 
+        k_idx<span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#800080; '>;</span>
+      <span style='color:#800080; '>}</span>
+      key<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>p<span style='color:#808030; '>[</span>i<span style='color:#808030; '>]</span> <span style='color:#808030; '>^</span><span style='color:#808030; '>=</span> ri<span style='color:#800080; '>;</span>
+    <span style='color:#800080; '>}</span>
+
+    in<span style='color:#808030; '>[</span><span style='color:#008c00; '>0</span><span style='color:#808030; '>]</span> <span style='color:#808030; '>=</span> <span style='color:#008c00; '>0</span><span style='color:#006600; '>L</span><span style='color:#800080; '>;</span> in<span style='color:#808030; '>[</span><span style='color:#008c00; '>1</span><span style='color:#808030; '>]</span> <span style='color:#808030; '>=</span> <span style='color:#008c00; '>0</span><span style='color:#006600; '>L</span><span style='color:#800080; '>;</span>
+    x <span style='color:#808030; '>=</span> <span style='color:#808030; '>&amp;</span>key<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>p<span style='color:#808030; '>[</span><span style='color:#008c00; '>0</span><span style='color:#808030; '>]</span><span style='color:#800080; '>;</span>
     
-    <span style='color:#800000;font-weight:bold;'>popad</span>
-    <span style='color:#800000;font-weight:bold;'>ret</span>
+    <span style='color:#696969; '>// 4. encrypt key</span>
+    <span style='color:#800000; font-weight:bold; '>for</span> <span style='color:#808030; '>(</span>i<span style='color:#808030; '>=</span><span style='color:#008c00; '>0</span><span style='color:#800080; '>;</span> i<span style='color:#808030; '>&lt;</span><span style='color:#808030; '>(</span><span style='color:#800000; font-weight:bold; '>sizeof</span><span style='color:#808030; '>(</span>BF_KEY<span style='color:#808030; '>)</span><span style='color:#808030; '>/</span><span style='color:#800000; font-weight:bold; '>sizeof</span><span style='color:#808030; '>(</span>uint32_t<span style='color:#808030; '>)</span><span style='color:#808030; '>)</span><span style='color:#800080; '>;</span> i<span style='color:#808030; '>+</span><span style='color:#808030; '>=</span><span style='color:#008c00; '>2</span><span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+      BF_encrypt<span style='color:#808030; '>(</span>in<span style='color:#808030; '>,</span> key<span style='color:#808030; '>)</span><span style='color:#800080; '>;</span>
+      
+      x<span style='color:#808030; '>[</span>i<span style='color:#808030; '>]</span> <span style='color:#808030; '>=</span> in<span style='color:#808030; '>[</span><span style='color:#008c00; '>0</span><span style='color:#808030; '>]</span><span style='color:#800080; '>;</span> x<span style='color:#808030; '>[</span>i<span style='color:#808030; '>+</span><span style='color:#008c00; '>1</span><span style='color:#808030; '>]</span> <span style='color:#808030; '>=</span> in<span style='color:#808030; '>[</span><span style='color:#008c00; '>1</span><span style='color:#808030; '>]</span><span style='color:#800080; '>;</span>
+    <span style='color:#800080; '>}</span>
+    <span style='color:#800000; font-weight:bold; '>return</span> <span style='color:#008c00; '>1</span><span style='color:#800080; '>;</span>
+<span style='color:#800080; '>}</span>
 </pre>
 
 <h3><strong>Round Function</strong></h3>
 
-The round function reminds me of <a href="https://tinycrypt.wordpress.com/2016/12/19/asmcodes-belt/">Bel-T</a> cipher from Belarus, that seems to have been inspired in some way by Blowfish.
+<p>The round function reminds me of <a href="https://tinycrypt.wordpress.com/2016/12/19/asmcodes-belt/">Bel-T</a> cipher from Belarus, that seems to have been inspired in some way by Blowfish.</p>
 
-<pre style='color:#000000;background:#ffffff;'><span style='color:#800000;font-weight:bold;'>void</span> bf_round <span style='color:#808030;'>(</span>BF_KEY <span style='color:#808030;'>*</span>key<span style='color:#808030;'>,</span> BF_LONG <span style='color:#808030;'>*</span>l<span style='color:#808030;'>,</span> BF_LONG <span style='color:#808030;'>*</span>r<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>int</span> i<span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
-  BF_LONG tl<span style='color:#808030;'>=</span><span style='color:#808030;'>*</span>l<span style='color:#808030;'>,</span> tx<span style='color:#800080;'>;</span>
-  
-  tl <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> key<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>p<span style='color:#808030;'>[</span>i<span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
-  tx  <span style='color:#808030;'>=</span> key<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>sbox1<span style='color:#808030;'>[</span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span>tl <span style='color:#808030;'>&gt;</span><span style='color:#808030;'>&gt;</span> <span style='color:#008c00;'>24</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>&amp;</span> <span style='color:#008000;'>0xFF</span><span style='color:#808030;'>)</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
-  tx <span style='color:#808030;'>+</span><span style='color:#808030;'>=</span> key<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>sbox2<span style='color:#808030;'>[</span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span>tl <span style='color:#808030;'>&gt;</span><span style='color:#808030;'>&gt;</span> <span style='color:#008c00;'>16</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>&amp;</span> <span style='color:#008000;'>0xFF</span><span style='color:#808030;'>)</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
-  tx <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> key<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>sbox3<span style='color:#808030;'>[</span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span>tl <span style='color:#808030;'>&gt;</span><span style='color:#808030;'>&gt;</span>  <span style='color:#008c00;'>8</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>&amp;</span> <span style='color:#008000;'>0xFF</span><span style='color:#808030;'>)</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
-  tx <span style='color:#808030;'>+</span><span style='color:#808030;'>=</span> key<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>sbox4<span style='color:#808030;'>[</span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span>tl      <span style='color:#808030;'>)</span> <span style='color:#808030;'>&amp;</span> <span style='color:#008000;'>0xFF</span><span style='color:#808030;'>)</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
-  tx <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> <span style='color:#808030;'>*</span>r<span style='color:#800080;'>;</span>
-  <span style='color:#808030;'>*</span>r <span style='color:#808030;'>=</span> tl<span style='color:#800080;'>;</span>
-  <span style='color:#808030;'>*</span>l <span style='color:#808030;'>=</span> tx<span style='color:#800080;'>;</span>
-<span style='color:#800080;'>}</span>
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000; font-weight:bold; '>void</span> BF_round <span style='color:#808030; '>(</span><span style='color:#800000; font-weight:bold; '>const</span> BF_KEY <span style='color:#808030; '>*</span>key<span style='color:#808030; '>,</span> uint32_t <span style='color:#808030; '>*</span>l<span style='color:#808030; '>,</span> uint32_t <span style='color:#808030; '>*</span>r<span style='color:#808030; '>,</span> uint32_t i<span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+    uint32_t tl<span style='color:#808030; '>=</span><span style='color:#808030; '>*</span>l<span style='color:#808030; '>,</span> tx<span style='color:#800080; '>;</span>
+    
+    tl <span style='color:#808030; '>^</span><span style='color:#808030; '>=</span> key<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>p<span style='color:#808030; '>[</span>i<span style='color:#808030; '>]</span><span style='color:#800080; '>;</span>
+    tx  <span style='color:#808030; '>=</span> key<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>sbox1<span style='color:#808030; '>[</span><span style='color:#808030; '>(</span><span style='color:#808030; '>(</span>tl <span style='color:#808030; '>></span><span style='color:#808030; '>></span> <span style='color:#008c00; '>24</span><span style='color:#808030; '>)</span> <span style='color:#808030; '>&amp;</span> <span style='color:#008000; '>0xFF</span><span style='color:#808030; '>)</span><span style='color:#808030; '>]</span><span style='color:#800080; '>;</span>
+    tx <span style='color:#808030; '>+</span><span style='color:#808030; '>=</span> key<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>sbox2<span style='color:#808030; '>[</span><span style='color:#808030; '>(</span><span style='color:#808030; '>(</span>tl <span style='color:#808030; '>></span><span style='color:#808030; '>></span> <span style='color:#008c00; '>16</span><span style='color:#808030; '>)</span> <span style='color:#808030; '>&amp;</span> <span style='color:#008000; '>0xFF</span><span style='color:#808030; '>)</span><span style='color:#808030; '>]</span><span style='color:#800080; '>;</span>
+    tx <span style='color:#808030; '>^</span><span style='color:#808030; '>=</span> key<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>sbox3<span style='color:#808030; '>[</span><span style='color:#808030; '>(</span><span style='color:#808030; '>(</span>tl <span style='color:#808030; '>></span><span style='color:#808030; '>></span>  <span style='color:#008c00; '>8</span><span style='color:#808030; '>)</span> <span style='color:#808030; '>&amp;</span> <span style='color:#008000; '>0xFF</span><span style='color:#808030; '>)</span><span style='color:#808030; '>]</span><span style='color:#800080; '>;</span>
+    tx <span style='color:#808030; '>+</span><span style='color:#808030; '>=</span> key<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>sbox4<span style='color:#808030; '>[</span><span style='color:#808030; '>(</span><span style='color:#808030; '>(</span>tl      <span style='color:#808030; '>)</span> <span style='color:#808030; '>&amp;</span> <span style='color:#008000; '>0xFF</span><span style='color:#808030; '>)</span><span style='color:#808030; '>]</span><span style='color:#800080; '>;</span>
+    tx <span style='color:#808030; '>^</span><span style='color:#808030; '>=</span> <span style='color:#808030; '>*</span>r<span style='color:#800080; '>;</span>
+    <span style='color:#808030; '>*</span>r <span style='color:#808030; '>=</span> tl<span style='color:#800080; '>;</span>
+    <span style='color:#808030; '>*</span>l <span style='color:#808030; '>=</span> tx<span style='color:#800080; '>;</span>
+<span style='color:#800080; '>}</span>
 </pre>
 
 <h3><strong>Encryption</strong></h3>
 
-<pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>// encrypt 8 bytes / 64-bits of plain text</span>
-<span style='color:#800000;font-weight:bold;'>void</span> bf_encrypt <span style='color:#808030;'>(</span>BF_KEY <span style='color:#808030;'>*</span>key<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>void</span><span style='color:#808030;'>*</span> input<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>void</span><span style='color:#808030;'>*</span> output<span style='color:#808030;'>)</span>
-<span style='color:#800080;'>{</span>
-  BF_LONG l<span style='color:#808030;'>,</span> r<span style='color:#808030;'>,</span> <span style='color:#808030;'>*</span>in<span style='color:#808030;'>,</span> <span style='color:#808030;'>*</span>out<span style='color:#800080;'>;</span>
-  <span style='color:#800000;font-weight:bold;'>int</span> i<span style='color:#800080;'>;</span>
-  
-  in  <span style='color:#808030;'>=</span> <span style='color:#808030;'>(</span>BF_LONG<span style='color:#808030;'>*</span><span style='color:#808030;'>)</span>input<span style='color:#800080;'>;</span>
-  out <span style='color:#808030;'>=</span> <span style='color:#808030;'>(</span>BF_LONG<span style='color:#808030;'>*</span><span style='color:#808030;'>)</span>output<span style='color:#800080;'>;</span>
-  
-  l <span style='color:#808030;'>=</span> SWAP32<span style='color:#808030;'>(</span>in<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
-  r <span style='color:#808030;'>=</span> SWAP32<span style='color:#808030;'>(</span>in<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000; font-weight:bold; '>void</span> BF_encrypt <span style='color:#808030; '>(</span>uint32_t <span style='color:#808030; '>*</span>data<span style='color:#808030; '>,</span> <span style='color:#800000; font-weight:bold; '>const</span> BF_KEY <span style='color:#808030; '>*</span>key<span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+    uint32_t l<span style='color:#808030; '>,</span> r<span style='color:#808030; '>,</span> <span style='color:#808030; '>*</span>x<span style='color:#808030; '>=</span><span style='color:#808030; '>(</span>uint32_t<span style='color:#808030; '>*</span><span style='color:#808030; '>)</span>data<span style='color:#800080; '>;</span>
+    <span style='color:#800000; font-weight:bold; '>int</span>      i<span style='color:#800080; '>;</span>
+    
+    l <span style='color:#808030; '>=</span> x<span style='color:#808030; '>[</span><span style='color:#008c00; '>0</span><span style='color:#808030; '>]</span><span style='color:#800080; '>;</span> r <span style='color:#808030; '>=</span> x<span style='color:#808030; '>[</span><span style='color:#008c00; '>1</span><span style='color:#808030; '>]</span><span style='color:#800080; '>;</span>
 
-  <span style='color:#800000;font-weight:bold;'>for</span> <span style='color:#808030;'>(</span>i<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span> i<span style='color:#808030;'>&lt;</span>BF_ROUNDS<span style='color:#800080;'>;</span> i<span style='color:#808030;'>+</span><span style='color:#808030;'>+</span><span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
-    bf_round <span style='color:#808030;'>(</span>key<span style='color:#808030;'>,</span> <span style='color:#808030;'>&amp;</span>l<span style='color:#808030;'>,</span> <span style='color:#808030;'>&amp;</span>r<span style='color:#808030;'>,</span> i<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
-  <span style='color:#800080;'>}</span>
-  
-  l <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> key<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>p<span style='color:#808030;'>[</span>BF_ROUNDS<span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
-  r <span style='color:#808030;'>^</span><span style='color:#808030;'>=</span> key<span style='color:#808030;'>-</span><span style='color:#808030;'>&gt;</span>p<span style='color:#808030;'>[</span>BF_ROUNDS<span style='color:#808030;'>+</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
+    <span style='color:#800000; font-weight:bold; '>for</span> <span style='color:#808030; '>(</span>i<span style='color:#808030; '>=</span><span style='color:#008c00; '>0</span><span style='color:#800080; '>;</span> i<span style='color:#808030; '>&lt;</span>BF_ROUNDS<span style='color:#800080; '>;</span> i<span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+      BF_round <span style='color:#808030; '>(</span>key<span style='color:#808030; '>,</span> <span style='color:#808030; '>&amp;</span>l<span style='color:#808030; '>,</span> <span style='color:#808030; '>&amp;</span>r<span style='color:#808030; '>,</span> i<span style='color:#808030; '>)</span><span style='color:#800080; '>;</span>
+    <span style='color:#800080; '>}</span>
+    
+    l <span style='color:#808030; '>^</span><span style='color:#808030; '>=</span> key<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>p<span style='color:#808030; '>[</span>BF_ROUNDS<span style='color:#808030; '>]</span><span style='color:#800080; '>;</span>
+    r <span style='color:#808030; '>^</span><span style='color:#808030; '>=</span> key<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>p<span style='color:#808030; '>[</span>BF_ROUNDS<span style='color:#808030; '>+</span><span style='color:#008c00; '>1</span><span style='color:#808030; '>]</span><span style='color:#800080; '>;</span>
 
-  out<span style='color:#808030;'>[</span><span style='color:#008c00;'>0</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> SWAP32<span style='color:#808030;'>(</span>r<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
-  out<span style='color:#808030;'>[</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> SWAP32<span style='color:#808030;'>(</span>l<span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
-<span style='color:#800080;'>}</span>
+    x<span style='color:#808030; '>[</span><span style='color:#008c00; '>0</span><span style='color:#808030; '>]</span> <span style='color:#808030; '>=</span> r<span style='color:#800080; '>;</span> x<span style='color:#808030; '>[</span><span style='color:#008c00; '>1</span><span style='color:#808030; '>]</span> <span style='color:#808030; '>=</span> l<span style='color:#800080; '>;</span>
+<span style='color:#800080; '>}</span>
 </pre>
 
-<pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>; perform main round of blowfish</span>
-<span style='color:#e34adc;'>bf_round:</span>
-    <span style='color:#696969;'>; l ^= key-&gt;p[i];</span>
-    <span style='color:#800000;font-weight:bold;'>xor</span>  l<span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>*</span><span style='color:#000080;'>ebp</span><span style='color:#808030;'>+</span>p<span style='color:#808030;'>]</span>
-    <span style='color:#800000;font-weight:bold;'>mov</span>  <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> l
-    <span style='color:#800000;font-weight:bold;'>rol</span>  <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>16</span>
-    <span style='color:#696969;'>; t  = key-&gt;sbox1[((l &gt;&gt; 24) &amp; 0xFF)];</span>
-    <span style='color:#800000;font-weight:bold;'>mov</span>  <span style='color:#000080;'>dl</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ah</span>
-    <span style='color:#800000;font-weight:bold;'>mov</span>  t<span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>*</span><span style='color:#000080;'>edx</span><span style='color:#808030;'>+</span>sbox1<span style='color:#808030;'>]</span>
-    <span style='color:#696969;'>; t += key-&gt;sbox2[((l &gt;&gt; 16) &amp; 0xFF)];</span>
-    <span style='color:#800000;font-weight:bold;'>mov</span>  <span style='color:#000080;'>dl</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>al</span>
-    <span style='color:#800000;font-weight:bold;'>add</span>  t<span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>*</span><span style='color:#000080;'>edx</span><span style='color:#808030;'>+</span>sbox2<span style='color:#808030;'>]</span>
-    <span style='color:#696969;'>; t ^= key-&gt;sbox3[((l &gt;&gt;  8) &amp; 0xFF)];</span>
-    <span style='color:#800000;font-weight:bold;'>mov</span>  <span style='color:#000080;'>dl</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>bh</span>
-    <span style='color:#800000;font-weight:bold;'>xor</span>  t<span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>*</span><span style='color:#000080;'>edx</span><span style='color:#808030;'>+</span>sbox3<span style='color:#808030;'>]</span>
-    <span style='color:#696969;'>; t += key-&gt;sbox4[((l      ) &amp; 0xFF)];</span>
-    <span style='color:#800000;font-weight:bold;'>mov</span>  <span style='color:#000080;'>dl</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>bl</span>
-    <span style='color:#800000;font-weight:bold;'>add</span>  t<span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>*</span><span style='color:#000080;'>edx</span><span style='color:#808030;'>+</span>sbox4<span style='color:#808030;'>]</span>
-    <span style='color:#800000;font-weight:bold;'>xor</span>  r<span style='color:#808030;'>,</span> t
-    <span style='color:#800000;font-weight:bold;'>xchg</span> r<span style='color:#808030;'>,</span> l
-    <span style='color:#800000;font-weight:bold;'>ret</span>
-    
-<span style='color:#e34adc;'>_bf_encrypt:</span>
-<span style='color:#e34adc;'>bf_encrypt:</span>
-    <span style='color:#800000;font-weight:bold;'>pushad</span>
-    
-    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+8</span><span style='color:#808030;'>]</span> <span style='color:#696969;'>; input</span>
-    
-    <span style='color:#696969;'>; load plaintext</span>
-    
-    <span style='color:#696969;'>; l = in[0];</span>
-    <span style='color:#800000;font-weight:bold;'>lodsd</span>
-    <span style='color:#800000;font-weight:bold;'>bswap</span>  <span style='color:#000080;'>eax</span>
-    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> l
-    
-    <span style='color:#696969;'>; r = in[1];</span>
-    <span style='color:#800000;font-weight:bold;'>lodsd</span>
-    <span style='color:#800000;font-weight:bold;'>bswap</span>  <span style='color:#000080;'>eax</span>
-    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> r
-    
-    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+4</span><span style='color:#808030;'>]</span> <span style='color:#696969;'>; key</span>
-    
-    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>ebp</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>ebp</span>
-    <span style='color:#800000;font-weight:bold;'>xor</span>    <span style='color:#000080;'>edx</span><span style='color:#808030;'>,</span> <span style='color:#000080;'>edx</span>
-
-<span style='color:#e34adc;'>enc_loop:</span>
-    <span style='color:#800000;font-weight:bold;'>call</span>   <span style='color:#e34adc;'>bf_round</span>
-    <span style='color:#800000;font-weight:bold;'>inc</span>    <span style='color:#000080;'>ebp</span>
-    <span style='color:#800000;font-weight:bold;'>cmp</span>    <span style='color:#000080;'>ebp</span><span style='color:#808030;'>,</span> BF_ROUNDS
-    <span style='color:#800000;font-weight:bold;'>jnz</span>    <span style='color:#e34adc;'>enc_loop</span>
-    
-    <span style='color:#800000;font-weight:bold;'>xor</span>    l<span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>+</span>BF_ROUNDS<span style='color:#808030;'>*</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>+</span>p<span style='color:#808030;'>]</span>
-    <span style='color:#800000;font-weight:bold;'>xor</span>    r<span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esi</span><span style='color:#808030;'>+</span><span style='color:#808030;'>(</span>BF_ROUNDS<span style='color:#808030;'>+</span><span style='color:#008c00;'>1</span><span style='color:#808030;'>)</span><span style='color:#808030;'>*</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>+</span>p<span style='color:#808030;'>]</span>
-    
-    <span style='color:#696969;'>; save</span>
-    <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+12</span><span style='color:#808030;'>]</span>
-    
-    <span style='color:#696969;'>; out[0] = r;</span>
-    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> r
-    <span style='color:#800000;font-weight:bold;'>bswap</span>  <span style='color:#000080;'>eax</span>
-    <span style='color:#800000;font-weight:bold;'>stosd</span>
-    
-    <span style='color:#696969;'>; out[1] = l;</span>
-    <span style='color:#800000;font-weight:bold;'>xchg</span>   <span style='color:#000080;'>eax</span><span style='color:#808030;'>,</span> l
-    <span style='color:#800000;font-weight:bold;'>bswap</span>  <span style='color:#000080;'>eax</span>
-    <span style='color:#800000;font-weight:bold;'>stosd</span>
-    
-    <span style='color:#800000;font-weight:bold;'>popad</span>
-    <span style='color:#800000;font-weight:bold;'>ret</span>
-</pre>
-
-<h3><strong>Summary</strong></h3>
-
-Blowfish isn't suitable for hardware or resource constrained environments. There are better designs now. 
- 
-<table>
-<tr>
-<th>architecture</th><th>size</th>
-</tr>
-<tr><td>x86</td><td>4,424</td></tr>
-</table>
-
-See <a href="https://github.com/odzhan/tinycrypt/tree/master/block/blowfish">sources here</a>
+<p><a href="https://github.com/odzhan/tinycrypt/tree/master/block/blowfish">Sources here.</a></p>

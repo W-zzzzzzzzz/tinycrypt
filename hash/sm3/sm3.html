@@ -21,7 +21,14 @@
 
 <h3><strong>Introduction</strong></h3>
 
-<p>In December of 2007, the <em>Chinese National Cryptographic Administration Bureau</em> released the specification of a Trusted Cryptography Module, detailing a cryptoprocessor to be used within the Trusted Computing framework in China. The module specifies a set of cryptographic algorithms that include the <a href="http://www.oscca.gov.cn/UpFile/200621016423197990.pdf">SM4</a> block cipher, the <a href="http://www.oscca.gov.cn/UpFile/2010122214822692.pdf">SM2</a> asymmetric algorithm and <a href="http://www.oscca.gov.cn/UpFile/20101222141857786.pdf">SM3</a> cryptographic hash algorithm. I've discussed SM4 in an earlier post <a href="https://tinycrypt.wordpress.com/2017/02/15/asmcodes-sm4/">here</a>. SM3 uses a <em>Merkle-Damgard</em> construction similar to MD5 or SHA-2 that processes 512-bit input message blocks and returns a 256-bit hash value. It was designed by Mathematician and cryptographer <a href="http://www.infosec.sdu.edu.cn/2person_wangxiaoyun.htm">Xiaoyun Wang</a> who is responsible for discovering attacks against many cryptographic hash functions, most notably MD5 and SHA-1. At the CRYPTO 2004 conference, she and co-authors demonstrated collision attacks against MD5 and SHA-0. Attacks against SHA-1 were published later in 2005. Unfortunately there's no explanation for how the changes made to SHA-2 strengthen it against attacks so I'll briefly cover some of the minor differences between SM3 and <a href="http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf">SHA-2</a></p>
+<p>SM3 is 256-bit cryptographic hash algorithm derived from <a href="http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf">SHA-2 designed by the NSA.</a> It was designed by <a href="https://en.wikipedia.org/wiki/Wang_Xiaoyun">Xiaoyun Wang</a> who is responsible for discovering attacks against many cryptographic hash functions, most notably MD5 and SHA-1. At the CRYPTO 2004 conference, she and co-authors demonstrated collision attacks against MD5 and SHA-0. Attacks against SHA-1 were published later in 2005. SM3 was published in December 2007 by the Chinese National Cryptographic Administration Bureau as part of the Trusted Computing framework in China. SM3 uses a Merkle-Damgard construction like MD4, MD5, SHA-1 and SHA-2. SM means commercial cipher. The full list of cryptographic standards for commercial purposes are as follows.</p>
+
+<ul>
+<li><a href="https://tools.ietf.org/html/draft-sca-cfrg-sm3-02">SM2</a> - Elliptic curve algorithms for digital signatures and key exchange.</li>
+<li><a href="https://tools.ietf.org/html/draft-sca-cfrg-sm3-02">SM3</a> - A cryptographic hash.</li>
+<li><a href="https://tools.ietf.org/id/draft-ribose-cfrg-sm4-09.html">SM4</a> - A block cipher.</li>
+<li><a href="https://eprint.iacr.org/2017/117">SM9</a> - A set of identity-based cryptographic schemes from pairings.</li> 
+</ul>
 
 <h3><strong>Macros and data types</strong></h3>
 
@@ -131,7 +138,7 @@ $latex H_7^{(0)}\: =\: b0fb0e4e $</p>
 
 <h3><strong>Compression</strong></h3>
 
-<p>The main difference between SHA-2 and SM3 is in the compression function. In SHA-2, the 512-bit message is expanded into 64 32-bit words. For SM3, it's expanded into 68 32-bit words.  The following 2 linear functions used in expansion are defined:</p>
+<p>The main difference between SHA-2 and SM3 is in the compression function. In SHA-2, the 512-bit message is expanded into 64 32-bit words. For SM3, it's expanded into 68 32-bit words.  The following two linear functions are defined:</p>
 
 <p>$latex P_1$ for expansion, $latex P_0$ for compression</p>
 
@@ -143,7 +150,7 @@ $latex P_1(X) = X\oplus (X\lll 15)\oplus (X\lll 23)$</p>
 <span style='color:#004a43; '>#</span><span style='color:#004a43; '>define</span><span style='color:#004a43; '> P1</span><span style='color:#808030; '>(</span><span style='color:#004a43; '>x</span><span style='color:#808030; '>)</span><span style='color:#004a43; '>x</span><span style='color:#808030; '>^</span><span style='color:#004a43; '>R</span><span style='color:#808030; '>(</span><span style='color:#004a43; '>x</span><span style='color:#808030; '>,</span><span style='color:#004a43; '>15</span><span style='color:#808030; '>)</span><span style='color:#808030; '>^</span><span style='color:#004a43; '>R</span><span style='color:#808030; '>(</span><span style='color:#004a43; '>x</span><span style='color:#808030; '>,</span><span style='color:#004a43; '>23</span><span style='color:#808030; '>)</span>
 </pre>
 
-<p>the following </p>
+<p>The first part of expansion is similar to SHA-2, but uses different offsets.</p>
 <p>
 $latex \text{for}\: i=16\: \text{to}\: 67\\
 \hphantom{---}W_i\leftarrow P_1(W_{i-16}\oplus W_{i-9}\oplus(W_{i-3}\lll 15))\oplus (W_{i-13}\lll 7)\oplus 
@@ -256,7 +263,7 @@ $latex H_7^{(i)}=h\oplus H_7^{(i-1)} $<br>
 
 <p>The output state from compression is XORed with the previous hash value to produce the next hash value. In the first round when there is no previous hash value it uses a constant pre-specified initial values.</p>
 
-<p align="center"> 
+<p> 
 $latex H_i=E_{m_i}(H_{i-1})\oplus H_{i-1}.$
 </p>
 
@@ -295,9 +302,5 @@ $latex H_i=E_{m_i}(H_{i-1})\oplus H_{i-1}.$
 <span style='color:#800080; '>}</span>
 </pre>
 
-<h3><strong>x86 assembly</strong></h3>
-
-<h3><strong>Summary</strong></h3>
-
-<p><a href="https://github.com/odzhan/tinycrypt/tree/master/hash/sm3">Sources here</a>. Thanks to 0x4d_ for submitting $latex \LaTeX$ equations.</p>
+<p><a href="https://github.com/odzhan/tinycrypt/tree/master/hash/sm3">Sources here.</a> Thanks to 0x4d_ for submitting $latex \LaTeX$ equations.</p>
 

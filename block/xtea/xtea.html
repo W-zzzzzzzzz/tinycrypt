@@ -6,10 +6,10 @@
 
 <h3><strong>Encryption</strong></h3>
 
-<p>This version uses 32 rounds by default. Despite <var>i</var> being initialized to 64, it's possible to perform encryption of each 32-bit value via swapping and an if statement.</p>
+<p>This version uses 32 rounds by default. Despite <var>i</var> being initialized to 64, it's possible to perform encryption of each 32-bit value via swapping and an if statement. <var>mk</var> should point to a 128-bit key while <var>data</var> should point to a 64-bit block of plaintext to encrypt.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>// uses 32 rounds by default</span>
-<span style='color:#800000;font-weight:bold;'>void</span> xtea_encrypt<span style='color:#808030;'>(</span><span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>key<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>data<span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
+<span style='color:#800000;font-weight:bold;'>void</span> xtea<span style='color:#808030;'>(</span><span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>key<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>data<span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
     <span style='color:#800000;font-weight:bold;'>int</span>      i<span style='color:#800080;'>;</span>
     uint32_t x0<span style='color:#808030;'>,</span> x1<span style='color:#808030;'>,</span> t<span style='color:#808030;'>,</span> sum<span style='color:#808030;'>=</span><span style='color:#008c00;'>0</span><span style='color:#800080;'>;</span>
     
@@ -51,8 +51,8 @@
     
 <span style='color:#004a43;'>&#xa0;&#xa0;&#xa0;&#xa0;</span><span style='color:#004a43;'>%define</span><span style='color:#004a43;'> sum edx</span>
     
-<span style='color:#e34adc;'>xtea_encryptx:</span>    
-<span style='color:#e34adc;'>_xtea_encryptx:</span>
+<span style='color:#e34adc;'>xtea:</span>    
+<span style='color:#e34adc;'>_xtea:</span>
     <span style='color:#800000;font-weight:bold;'>pushad</span>
     <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>edi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+4</span><span style='color:#808030;'>]</span>   <span style='color:#696969;'>; edi = key</span>
     <span style='color:#800000;font-weight:bold;'>mov</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+8</span><span style='color:#808030;'>]</span>   <span style='color:#696969;'>; esi = data</span>

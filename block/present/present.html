@@ -25,7 +25,7 @@
 
 <p>PRESENT is a 64-bit block cipher published in 2007 that supports key lengths of 80 and 128-bits. It was designed by <a href="http://www2.compute.dtu.dk/~anbog/">Andrey Bogdanov</a>, <a href="http://www2.mat.dtu.dk/people/Lars.R.Knudsen/">Lars R. Knudsen</a>, <a href="https://www.emsec.rub.de/chair/_staff/Gregor_Leander/">Gregor Leander</a>, <a href="https://www.emsec.rub.de/chair/_staff/christof-paar/">Christof Paar</a>, <a href="https://www.emsec.rub.de/chair/_staff/axel-poschmann/">Axel Poschmann</a>, <a href="https://en.wikipedia.org/wiki/Matt_Robshaw">Matthew J. B. Robshaw</a>, <a href="http://yannickseurin.free.fr/research.html">Yannick Seurin</a>, and C. Vikkelsoe. It has been standardized in <a href="https://www.iso.org/standard/56552.html">ISO-29192</a> along with CLEFIA which was designed by Sony Corporation. PRESENT was designed to be implemented on hardware. However, I found the bit-permutation layer interesting and was curious to see results using 64-bit assembly. You can find a number of <a href="http://www.lightweightcrypto.org/implementations.php">implementations in C and python here.</a></p>
  
-<h3><strong>Key whitening</strong></h3>
+<h3><strong>Key mixing layer</strong></h3>
 
 <p>A linear operation seen in pretty much every block cipher designed since being used by <a href="http://people.csail.mit.edu/rivest/">Ron Rivest</a> in 1984 to strengthen the DES block cipher. It uses a simple eXclusive OR operation with the key and data.</p>
 
@@ -34,7 +34,7 @@ $latex \textbf{addRoundKey. } \text{Given round key } K_i=\kappa_{63}^i\dots \ka
 \textsc{state } b_{63}\dots b_0, \text{ addRoundKey consists of the operation for } 0\leq j\leq 63,$
 $latex b_j\rightarrow b_j\oplus\kappa_j^i.$</p></strong>
 
-<h3><strong>Byte substitution</strong></h3>
+<h3><strong>Nonlinear layer</strong></h3>
 
 <p>The non-linear layer is based on a single 4-bit S-box which was designed with hardware optimizations in mind. It replaces each nibble of 64-bits with 4-bit value from predefined table.</p>
 
@@ -95,7 +95,7 @@ $latex \begin{array}{|c||c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
     <span style='color:#004a43;'>db</span>      <span style='color:#008000;'>0x3</span><span style='color:#808030;'>,</span> <span style='color:#008000;'>0xe</span><span style='color:#808030;'>,</span> <span style='color:#008000;'>0xf</span><span style='color:#808030;'>,</span> <span style='color:#008000;'>0x8</span><span style='color:#808030;'>,</span> <span style='color:#008000;'>0x4</span><span style='color:#808030;'>,</span> <span style='color:#008000;'>0x7</span><span style='color:#808030;'>,</span> <span style='color:#008000;'>0x1</span><span style='color:#808030;'>,</span> <span style='color:#008000;'>0x2</span>
 </pre>
 
-<h3><strong>Bit permutation</strong></h3>
+<h3><strong>Linear layer</strong></h3>
 
 <p>A linear operation that permutates 64-bits of the ciphertext state. Each bit is repositioned according to a predefined table.</p>
 
@@ -502,5 +502,5 @@ B S<span style='color:#808030; '>(</span>B x<span style='color:#808030; '>)</spa
 
 <p>PRESENT is clearly intended for hardware and not terribly efficient in software but has some interesting features/ideas that could be used elsewhere. Thanks to 0x4d_ for submitting $latex \LaTeX$ formulas.</p>
 
-<a href="https://github.com/odzhan/tinycrypt/tree/master/block/present">Sources here.</a>
+<p><a href="https://github.com/odzhan/tinycrypt/tree/master/block/present">Sources here.</a></p>
 

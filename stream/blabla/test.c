@@ -43,20 +43,20 @@ void bin2hex(char *s, void *p, int len) {
   
 int main(void)
 {
-    uint8_t  key[BB20_KEY_LEN];
-    uint8_t  nonce[BB20_NONCE_LEN]={0};
-    int      i, equ;
-    uint8_t  stream[300];
-    bb20_ctx c;
+    uint8_t    key[BLABLA_KEY_LEN];
+    uint8_t    nonce[BLABLA_NONCE_LEN]={0};
+    int        i, equ;
+    uint8_t    stream[300];
+    blabla_ctx c;
     
-    for (i=0; i<BB20_KEY_LEN; i++) {
+    for (i=0; i<BLABLA_KEY_LEN; i++) {
       key[i] = (uint8_t)i;
     }
     
     bin2hex("v", bb_tv, sizeof(bb_tv));
     
-    bb20_setkey(&c, key, nonce);
-    bb20_keystream(sizeof(stream), stream, &c);
+    blabla_setkey(&c, key, nonce);
+    blabla_keystream(&c, stream, sizeof(stream));
     
     bin2hex("s", stream, sizeof(stream));
     

@@ -1,4 +1,7 @@
 
+// test unit for RC6-128/256
+// odzhan
+
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -45,11 +48,20 @@ size_t hex2bin (void *bin, char hex[]) {
   return len / 2;
 } 
 
-void run_tests (void)
+void bin2hex(char *s, void *p, int len) {
+  int i;
+  printf("%s : ", s);
+  for (i=0; i<len; i++) {
+    printf ("%02x ", ((uint8_t*)p)[i]);
+  }
+  printf("\n\n");
+}
+void rc6(void*mk,void*p);
+
+int main (void)
 {
   int     i;
-  uint8_t pt1[16], pt2[16], ct1[16], ct2[16], key[32];
-  RC6_KEY ctx;
+  uint8_t pt1[16], ct1[16], ct2[16], key[32];
   
   for (i=0; i<sizeof (test_keys)/sizeof(char*); i++)
   {    
@@ -57,33 +69,15 @@ void run_tests (void)
     hex2bin (ct1, test_ciphertexts[i]);
     hex2bin (pt1, test_plaintexts[i]);
     
-    #ifdef SINGLE
-      memcpy(ct2, pt1, sizeof(ct2)); 
-      xrc6_cryptx(key, ct2);
-    #else  
-      rc6_setkey (&ctx, key);
-      rc6_crypt (&ctx, pt1, ct2, RC6_ENCRYPT);
-    #endif
+    memcpy(ct2, pt1, sizeof(ct2)); 
+    rc6(key, ct2);
     
     if (memcmp (ct1, ct2, sizeof(ct1))==0) {
-      printf ("Encryption Passed test #%i\n", (i+1));
-      
-      rc6_setkey (&ctx, key);     
-      rc6_crypt (&ctx, ct2, pt2, RC6_DECRYPT);
-      
-      if (memcmp (pt1, pt2, sizeof(pt1))==0) {
-        printf ("Decryption passed test #%i\n", (i+1));
-      } else {
-        printf ("Decryption failed\n");
-      }
+      printf ("\nRC6 encryption passed #%i\n", (i+1));
     } else {
-      printf ("Failed test #%i\n", (i+1));
+      printf ("\nRC6 failed test #%i\n", (i+1));
     }
+    bin2hex("c:", ct2, sizeof(ct2));
   }
-}
-
-int main (void)
-{
-  run_tests();
   return 0;
 }

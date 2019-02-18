@@ -1,6 +1,6 @@
 <h3><strong>Introduction</strong></h3>
 
-<p><a href="http://ascon.iaik.tugraz.at">Ascon</a> is an <em>Authenticated Encryption Associated Data</em> (AEAD) algorithm submitted to The <em>Competition for Authenticated Encryption: Security, Applicability, and Robustness</em> (<a href="https://competitions.cr.yp.to/caesar.html">CAESAR</a>) It was designed by <a href="https://www.iaik.tugraz.at/content/about_iaik/people/dobraunig_christoph/">Christoph Dobraunig</a>, <a href="https://www.iaik.tugraz.at/content/about_iaik/people/eichlseder_maria/">Maria Eichlseder</a>, <a href="https://www.iaik.tugraz.at/content/about_iaik/people/alumni_mendel_florian/index.php">Florian Mendel</a> and <a href="https://www.iaik.tugraz.at/content/about_iaik/people/alumni_schlaeffer_martin/">Martin Schläffer</a>. Some of the authors mentioned are also behind designs such as <a href="https://gimli.cr.yp.to/">Gimli permutation function</a>, and the <a href="http://www.groestl.info/">Grøstl cryptographic hash algorithm</a> so even if Ascon doesn't make the final portfolio for CAESAR, the permutation function may still be useful in other applications running on 64-bit architectures.</p>
+<p><a href="http://ascon.iaik.tugraz.at">Ascon</a> is an Authenticated Encryption Associated Data (AEAD) algorithm submitted to the competition for Authenticated Encryption: Security, Applicability, and Robustness (<a href="https://competitions.cr.yp.to/caesar.html">CAESAR</a>) It was designed by <a href="https://www.iaik.tugraz.at/content/about_iaik/people/dobraunig_christoph/">Christoph Dobraunig</a>, <a href="https://www.iaik.tugraz.at/content/about_iaik/people/eichlseder_maria/">Maria Eichlseder</a>, <a href="https://www.iaik.tugraz.at/content/about_iaik/people/alumni_mendel_florian/index.php">Florian Mendel</a> and <a href="https://www.iaik.tugraz.at/content/about_iaik/people/alumni_schlaeffer_martin/">Martin Schläffer</a>. Some of the authors mentioned are also behind designs such as <a href="https://gimli.cr.yp.to/">Gimli permutation function</a>, and the <a href="http://www.groestl.info/">Grøstl cryptographic hash algorithm</a>.</p>
 
 <h3>Compact code.</h3>
 
@@ -193,7 +193,7 @@
 </pre>
 
 
-<h3><strong>ARM64 / AArch64</strong></h3>
+<h3><strong>ARM64 / AArch64 assembly</strong></h3>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#808030; '>/</span><span style='color:#808030; '>/</span> ASCON <span style='color:#800000; font-weight:bold; '>in</span> ARM6<span style='color:#008c00; '>4</span> assembly
 <span style='color:#808030; '>/</span><span style='color:#808030; '>/</span> <span style='color:#008c00; '>192</span> bytes
@@ -285,4 +285,4 @@
     <span style='color:#800000; font-weight:bold; '>ret</span>
 </pre>
 
-<p>Sources here.</p>
+<p><a href="https://github.com/odzhan/tinycrypt/tree/master/permutation/ascon">Sources here.</a></p>

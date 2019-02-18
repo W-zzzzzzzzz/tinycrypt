@@ -4,7 +4,7 @@
 
 <h3><strong>Compact code</strong></h3>
 
-<p>This function can be used to initialize a context and encrypt or decrypt a stream of bytes. <var>P</var> is the $latex KECCAK-f[1600]$ permutation function that is also used by SHA-3. This code is only provided as an example of how one might use SHAKE128 as a stream cipher, and shouldn't be used for any mission critical application.</p>
+<p>This function can be used to initialize a context and encrypt or decrypt a stream of bytes. <var>P</var> is the <var>KECCAK-f[1600]</var> permutation function that is also used by SHA-3. This code is only provided as an example of how one might use SHAKE128 as a stream cipher, and shouldn't be used for any mission critical application.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#004a43; '>#</span><span style='color:#004a43; '>define</span><span style='color:#004a43; '> R</span><span style='color:#808030; '>(</span><span style='color:#004a43; '>v</span><span style='color:#808030; '>,</span><span style='color:#004a43; '>n</span><span style='color:#808030; '>)</span><span style='color:#808030; '>(</span><span style='color:#808030; '>(</span><span style='color:#808030; '>(</span><span style='color:#004a43; '>v</span><span style='color:#808030; '>)</span><span style='color:#808030; '>></span><span style='color:#808030; '>></span><span style='color:#808030; '>(</span><span style='color:#004a43; '>n</span><span style='color:#808030; '>)</span><span style='color:#808030; '>)</span><span style='color:#808030; '>|</span><span style='color:#808030; '>(</span><span style='color:#808030; '>(</span><span style='color:#004a43; '>v</span><span style='color:#808030; '>)</span><span style='color:#808030; '>&lt;</span><span style='color:#808030; '>&lt;</span><span style='color:#808030; '>(</span><span style='color:#004a43; '>64</span><span style='color:#808030; '>-</span><span style='color:#808030; '>(</span><span style='color:#004a43; '>n</span><span style='color:#808030; '>)</span><span style='color:#808030; '>)</span><span style='color:#808030; '>)</span><span style='color:#808030; '>)</span>
 <span style='color:#004a43; '>#</span><span style='color:#004a43; '>define</span><span style='color:#004a43; '> F</span><span style='color:#808030; '>(</span><span style='color:#004a43; '>a</span><span style='color:#808030; '>,</span><span style='color:#004a43; '>b</span><span style='color:#808030; '>)</span><span style='color:#004a43; '>for</span><span style='color:#808030; '>(</span><span style='color:#004a43; '>a</span><span style='color:#808030; '>=</span><span style='color:#004a43; '>0</span><span style='color:#808030; '>;</span><span style='color:#004a43; '>a</span><span style='color:#808030; '>&lt;</span><span style='color:#004a43; '>b</span><span style='color:#808030; '>;</span><span style='color:#004a43; '>a</span><span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#808030; '>)</span>
@@ -65,6 +65,4 @@
 <span style='color:#800080; '>}</span>
 </pre>
 
-<h3><strong>Source</strong></h3>
-
-<a href="https://github.com/odzhan/tinycrypt/tree/master/stream/shake128">sources here.</a>
+<p><a href="https://github.com/odzhan/tinycrypt/tree/master/stream/shake128">sources here.</a></p>

@@ -34,8 +34,8 @@ void simeck(void*mk,void*p){
   unsigned int t,k0,k1,k2,k3,l,r,*k=mk,*x=p;
   unsigned long long s=0x938BCA3083F;
 
-  k0=*k;k1=k[1];k2=k[2];k3=k[3]; 
-  r=*x;l=x[1];
+  k0=k[0];k1=k[1];k2=k[2];k3=k[3]; 
+  r=x[0];l=x[1];
 
   do{
     r^=R(l,1)^(R(l,5)&l)^k0;
@@ -44,5 +44,5 @@ void simeck(void*mk,void*p){
     k0^=R(k1,1)^(R(k1,5)&k1)^t;    
     X(k0,k1);X(k1,k2);X(k2,k3);
   } while(s>>=1);
-  *x=r; x[1]=l;
+  x[0]=r; x[1]=l;
 }

@@ -1,11 +1,32 @@
-<h3>Introduction</h3>
+<h3><strong>Introduction</strong></h3>
 
-The concept of error detection codes was first proposed by mathematician and computer scientist W. Wesley Peterson in his 1961 publication <em>Cyclic Codes for Error Detection</em>. 
+<p>The concept of error detection codes was first proposed by mathematician and computer scientist W. Wesley Peterson in his 1961 publication <a href="https://github.com/odzhan/tinycrypt/blob/master/hash/crc/docs/peterson1961.pdf">Cyclic Codes for Error Detection.</a></p>
 
-<h3>CRC-32</h3>
 
-<pre style='color:#000000;background:#ffffff;'><span style='color:#e34adc;'>crc32x:</span>    
-<span style='color:#e34adc;'>_crc32x:</span>
+<h3><strong>CRC-32 in C</strong></h3>
+
+<pre style='color:#000000;background:#ffffff;'>uint32_t crc32<span style='color:#808030; '>(</span>uint32_t crc<span style='color:#808030; '>,</span> uint32_t inlen<span style='color:#808030; '>,</span> <span style='color:#800000; font-weight:bold; '>void</span> <span style='color:#808030; '>*</span>in<span style='color:#808030; '>)</span>
+<span style='color:#800080; '>{</span>
+  uint32_t i<span style='color:#808030; '>,</span> c<span style='color:#800080; '>;</span>
+  uint8_t  <span style='color:#808030; '>*</span>p<span style='color:#808030; '>=</span><span style='color:#808030; '>(</span>uint8_t<span style='color:#808030; '>*</span><span style='color:#808030; '>)</span>in<span style='color:#800080; '>;</span>
+  
+  crc <span style='color:#808030; '>=</span> <span style='color:#808030; '>~</span>crc<span style='color:#800080; '>;</span>
+  
+  <span style='color:#800000; font-weight:bold; '>while</span> <span style='color:#808030; '>(</span>inlen<span style='color:#808030; '>-</span><span style='color:#808030; '>-</span> <span style='color:#808030; '>!</span><span style='color:#808030; '>=</span> <span style='color:#008c00; '>0</span><span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+    crc <span style='color:#808030; '>^</span><span style='color:#808030; '>=</span> <span style='color:#808030; '>*</span>p<span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#800080; '>;</span>
+    
+    <span style='color:#800000; font-weight:bold; '>for</span> <span style='color:#808030; '>(</span>i<span style='color:#808030; '>=</span><span style='color:#008c00; '>0</span><span style='color:#800080; '>;</span> i<span style='color:#808030; '>&lt;</span><span style='color:#008c00; '>8</span><span style='color:#800080; '>;</span> i<span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+      crc <span style='color:#808030; '>=</span> <span style='color:#808030; '>(</span>crc <span style='color:#808030; '>></span><span style='color:#808030; '>></span> <span style='color:#008c00; '>1</span><span style='color:#808030; '>)</span> <span style='color:#808030; '>^</span> <span style='color:#808030; '>(</span><span style='color:#008000; '>0xEDB88320</span> <span style='color:#808030; '>*</span> <span style='color:#808030; '>(</span>crc <span style='color:#808030; '>&amp;</span> <span style='color:#008c00; '>1</span><span style='color:#808030; '>)</span><span style='color:#808030; '>)</span><span style='color:#800080; '>;</span>
+    <span style='color:#800080; '>}</span>
+  <span style='color:#800080; '>}</span>
+  <span style='color:#800000; font-weight:bold; '>return</span> <span style='color:#808030; '>~</span>crc<span style='color:#800080; '>;</span>
+<span style='color:#800080; '>}</span>
+</pre>
+
+<h3><strong>CRC-32 in x86 assembly</strong></h3>
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#e34adc;'>crc32:</span>    
+<span style='color:#e34adc;'>_crc32:</span>
     <span style='color:#800000;font-weight:bold;'>pushad</span>
     <span style='color:#800000;font-weight:bold;'>lea</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+4</span><span style='color:#808030;'>]</span>
     <span style='color:#800000;font-weight:bold;'>lodsd</span>
@@ -37,12 +58,31 @@ The concept of error detection codes was first proposed by mathematician and com
     <span style='color:#800000;font-weight:bold;'>ret</span>
 </pre>
 
-<strong>CRC-32C (Castagnoli)</strong>
+<strong>CRC-32C in C</strong>
 
-In 2007, two years before Peterson's death, Intel added a new instruction simply called CRC32. It expects a byte in AL before computing CRC32 in EDX using the polynomial 0x82F63B78. Here's code to emulate the instruction should it be unavailable.
+<p>In 2007, Intel added a new instruction simply called CRC32. It expects a byte in AL before computing CRC32 in EDX using the polynomial 0x82F63B78. Here's code to emulate the instruction should it be unavailable.</p>
 
-<pre style='color:#000000;background:#ffffff;'><span style='color:#e34adc;'>crc32cx:</span>    
-<span style='color:#e34adc;'>_crc32cx:</span>
+<pre style='color:#000000;background:#ffffff;'><span style='color:#696969; '>// Castagnoli polynomial is 0x1edc6f41</span>
+uint32_t crc32c<span style='color:#808030; '>(</span>uint32_t crc<span style='color:#808030; '>,</span> uint32_t inlen<span style='color:#808030; '>,</span> <span style='color:#800000; font-weight:bold; '>void</span> <span style='color:#808030; '>*</span>in<span style='color:#808030; '>)</span>
+<span style='color:#800080; '>{</span>
+  uint32_t i<span style='color:#808030; '>,</span> c<span style='color:#800080; '>;</span>
+  uint8_t  <span style='color:#808030; '>*</span>p<span style='color:#808030; '>=</span><span style='color:#808030; '>(</span>uint8_t<span style='color:#808030; '>*</span><span style='color:#808030; '>)</span>in<span style='color:#800080; '>;</span>
+  
+  <span style='color:#800000; font-weight:bold; '>while</span> <span style='color:#808030; '>(</span>inlen<span style='color:#808030; '>-</span><span style='color:#808030; '>-</span> <span style='color:#808030; '>!</span><span style='color:#808030; '>=</span> <span style='color:#008c00; '>0</span><span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+    crc <span style='color:#808030; '>^</span><span style='color:#808030; '>=</span> <span style='color:#808030; '>*</span>p<span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#800080; '>;</span>
+    
+    <span style='color:#800000; font-weight:bold; '>for</span> <span style='color:#808030; '>(</span>i<span style='color:#808030; '>=</span><span style='color:#008c00; '>0</span><span style='color:#800080; '>;</span> i<span style='color:#808030; '>&lt;</span><span style='color:#008c00; '>8</span><span style='color:#800080; '>;</span> i<span style='color:#808030; '>+</span><span style='color:#808030; '>+</span><span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+      crc <span style='color:#808030; '>=</span> <span style='color:#808030; '>(</span>crc <span style='color:#808030; '>></span><span style='color:#808030; '>></span> <span style='color:#008c00; '>1</span><span style='color:#808030; '>)</span> <span style='color:#808030; '>^</span> <span style='color:#808030; '>(</span><span style='color:#008000; '>0x82F63B78</span> <span style='color:#808030; '>*</span> <span style='color:#808030; '>(</span>crc <span style='color:#808030; '>&amp;</span> <span style='color:#008c00; '>1</span><span style='color:#808030; '>)</span><span style='color:#808030; '>)</span><span style='color:#800080; '>;</span>
+    <span style='color:#800080; '>}</span>
+  <span style='color:#800080; '>}</span>
+  <span style='color:#800000; font-weight:bold; '>return</span> crc<span style='color:#800080; '>;</span>
+<span style='color:#800080; '>}</span>
+</pre>
+
+<strong>CRC-32C in x86 assembly</strong>
+
+<pre style='color:#000000;background:#ffffff;'><span style='color:#e34adc;'>crc32c:</span>    
+<span style='color:#e34adc;'>_crc32c:</span>
     <span style='color:#800000;font-weight:bold;'>pushad</span>
     <span style='color:#800000;font-weight:bold;'>lea</span>    <span style='color:#000080;'>esi</span><span style='color:#808030;'>,</span> <span style='color:#808030;'>[</span><span style='color:#000080;'>esp</span><span style='color:#808030;'>+</span><span style='color:#008c00;'>32</span><span style='color:#008c00;'>+4</span><span style='color:#808030;'>]</span>
     <span style='color:#800000;font-weight:bold;'>lodsd</span>
@@ -72,8 +112,5 @@ In 2007, two years before Peterson's death, Intel added a new instruction simply
     <span style='color:#800000;font-weight:bold;'>ret</span>
 </pre>
 
-<strong>Summary</strong>
+<p>A CRC function is really only suitable for short inputs. They are not collision resistant. <a href="https://github.com/odzhan/tinycrypt/tree/master/hash/crc">Sources here.</a></p>
 
-A CRC function is really only suitable for short inputs. They are not collision resistant.
-
-<a href="https://github.com/odzhan/tinycrypt/tree/master/hash/crc">Sources here.</a>

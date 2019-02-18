@@ -36,8 +36,8 @@ typedef unsigned char B;
 typedef unsigned long long W;
 
 // setup the key/internal state
-void bb20_setkey(bb20_ctx *c, void *key, void *nonce) {
-    W i, *k=(W*)key, *n=(W*)nonce;
+void blabla_setkey(blabla_ctx *c, const void *key, const void *nonce) {
+    int i;
     
     c->q[ 0] = 0x6170786593810fab;
     c->q[ 1] = 0x3320646ec7398aee;
@@ -45,7 +45,7 @@ void bb20_setkey(bb20_ctx *c, void *key, void *nonce) {
     c->q[ 3] = 0x6b206574babadada;
 
     // copy 256-bit key
-    F(4) c->q[i+4] = k[i];
+    F(4) c->q[i+4] = ((W*)key)[i];
     
     c->q[ 8] = 0x2ae36e593e46ad5f;
     c->q[ 9] = 0xb68f143029225fc9;
@@ -57,16 +57,18 @@ void bb20_setkey(bb20_ctx *c, void *key, void *nonce) {
     c->q[13] = 1; 
     
     // copy 128-bit nonce
-    F(2)c->q[i+14]=n[i];
+    F(2)c->q[i+14]=((W*)nonce)[i];
 }
 
-void bb20_stream(bb20_ctx*s, uint64_t*x) {
-    W a,b,c,d,i,t,r;
+void blabla_stream(blabla_ctx *s, void *out) {
+    W a,b,c,d,i,t,r,*x=(W*)out;
     uint16_t v[8]={0xC840,0xD951,0xEA62,0xFB73,
                    0xFA50,0xCB61,0xD872,0xE943};
             
-    F(16)x[i]=s->q[i];
+    // store internal state in buffer
+    F(16)x[i] = s->q[i];
     
+    // permute buffer
     F(80) {
       d=v[i%8];
       a=(d&15);b=(d>>4&15);
@@ -77,30 +79,32 @@ void bb20_stream(bb20_ctx*s, uint64_t*x) {
         x[d]=R(x[d]^x[a],(r&255)),
         X(a,c),X(b,d);
     }
-    F(16)x[i]+=s->q[i];
+    // add internal state to buffer
+    F(16)x[i] += s->q[i];
+    // increase counter of internal state
     s->q[13]++;
 }
 
 // encrypt or decrypt stream of len-bytes
-void bb20_encrypt (size_t len, void *in, bb20_ctx *ctx) {
-    W i, r, s[16];
-    B *p=(B*)in, *c=(B*)&s[0];
+void blabla_encrypt(blabla_ctx *ctx, void *buf, size_t len) {
+    W i, r;
+    B c[128], *p=(B*)buf;
     
-    while (len) {      
-      bb20_stream(ctx, s);
-      
-      r = MIN(len, BB20_BLK_LEN);
-      
-      // XOR input with stream
-      for(i=0;i<r;i++)p[i]^=c[i];
+    while(len) {
+      // generate 128-bytes of ciphertext
+      blabla_stream(ctx, c);
+      r = len>128?128:len;
+      // xor plaintext with ciphertext
+      F(r) p[i] ^= c[i];
+      // decrease total length, advance buffer
       len -= r; p+= r;
     }
 }
 
 // generate key stream of len-bytes
-void bb20_keystream(size_t len, void *out, bb20_ctx *c) {
+void blabla_keystream(blabla_ctx *c, void *buf, size_t len) {
     W i;
     
-    F(len)((B*)out)[i]=0;   // zero initialize output
-    bb20_encrypt(len, out, c);    // encrypt it
+    F(len)((B*)buf)[i]=0;           // zero initialize buffer
+    blabla_encrypt(c, buf, len);    // encrypt it
 }
