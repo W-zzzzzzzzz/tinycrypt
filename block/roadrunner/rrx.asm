@@ -40,8 +40,8 @@
     bits 32
     
     %ifndef BIN
-      global road64_encryptx
-      global _road64_encryptx
+      global roadrunner
+      global _roadrunner
     %endif
     
 struc pushad_t
@@ -64,24 +64,24 @@ endstruc
 %define rk      edi
 %define sk      edi
     
-road64_encryptx:
-_road64_encryptx:
+roadrunner:
+_roadrunner:
     pushad
-    mov    x,  [esp+32+4] ; esi : x  = data
-    mov    rk, [esp+32+8] ; edi : rk = key
+    mov    edi, [esp+32+8] ; edi : k = mk
+    mov    esi, [esp+32+4] ; esi : x = data
     ; key_idx = 4;
     push   4
-    pop    key_idx        
+    pop    ebx
     ; apply K-Layer
-    ; ; x->w[0] ^= rk[0];
-    mov    eax, [rk]
-    xor    [x], eax       
-    ; apply rounds
-    ; rnd = RR_ROUNDS
+    ; x[0] ^= k[0];
+    mov    edx, [esi]
+    xor    edx, [edi]
+    ; apply 12 rounds of encryption
+    ; for(r=12; r>0; r--) {
     push   12             
-    pop    rnd
+    pop    ecx
 rr_encrypt:    
-    ; ------------------------- F round
+    ; F round
     pushad
     ; t = x->w;
     mov    t, [x]

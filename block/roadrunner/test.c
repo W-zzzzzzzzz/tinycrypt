@@ -23,15 +23,17 @@ uint8_t key[RR_KEY_LEN] =
 uint8_t cipher[RR_BLK_LEN] = 
 {0xD9,0xDF,0x06,0x8F,0x59,0x93,0x88,0x82};
 
+void roadrunner(void*,void*);
+
 int main(void)
 {
-  uint8_t buf[RR_BLK_LEN];
+  uint8_t buf[16];
   uint8_t subkeys[RR_ROUND_KEYS_LEN];
   int     equ;
   
   memcpy(buf, plain, RR_BLK_LEN);
   
-  road64_encryptx(buf, key);
+  roadrunner(key,buf);
   
   equ = memcmp(buf, cipher, RR_BLK_LEN)==0;
   

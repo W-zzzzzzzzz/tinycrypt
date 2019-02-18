@@ -1,6 +1,6 @@
 <h3><strong>Introduction</strong></h3>
 
-<p><a href="http://www3.ntu.edu.sg/home/wuhj/research/hc/index.html">HC-256</a> is a software-efficient stream cipher designed and written by <a href="http://www3.ntu.edu.sg/home/wuhj/">Wu Hongjun</a> in 2004. In 2008, it was selected for the final portfolio of <a href="http://www.ecrypt.eu.org/stream/">eSTREAM</a>, the stream cipher project of the European Network of Excellence for Cryptology (ECRYPT, 2004-2008). <blockquote>HC-256 was designed to demonstrate that strong stream cipher can be built from nonlinear feedback function and nonlinear output function. The large secret states of the two ciphers are updated in a nonlinear way, and table lookup (with changing tables) is used in the generation of keystream.</blockquote></p>
+<p><a href="http://www3.ntu.edu.sg/home/wuhj/research/hc/index.html">HC-256</a> is a 256-bit stream cipher designed and written by <a href="http://www3.ntu.edu.sg/home/wuhj/">Wu Hongjun</a> and published in 2004. In 2008, it was selected for the final portfolio of <a href="http://www.ecrypt.eu.org/stream/">eSTREAM</a>, the stream cipher project of the European Network of Excellence for Cryptology (ECRYPT, 2004-2008). <blockquote>HC-256 was designed to demonstrate that strong stream cipher can be built from nonlinear feedback function and nonlinear output function. The large secret states of the two ciphers are updated in a nonlinear way, and table lookup (with changing tables) is used in the generation of keystream.</blockquote></p>
 
 <h3><strong>Stack exception problems</strong></h3>
 
@@ -25,13 +25,13 @@
                              <span style='color:#696969;'>; unable to allocate</span>
 </pre>
 
-If you don't perform the page probe after allocating the space required, an exception will occur once you try to use that address of memory. I never imagined this could be an issue... but again, it's one of those things you need to consider when using lots of stack space.
+<p>If you don't perform the page probe after allocating the space required, an exception will occur once you try to use that address of memory. I never imagined this could be an issue... but again, it's one of those things you need to consider when using lots of stack space.</p>
 
 <strong>Key Initialization</strong>
 
 <blockquote>The initialization process of HC-256 consists of expanding the key and initialization vector into P and Q (similar to the message setup in SHA-256) and running the cipher 4096 steps without generating output.</blockquote>
 
-Steps 4 and 5 are obviously from the SHA-256 hash algorithm.
+<p>Steps 4 and 5 are obviously from the SHA-256 hash algorithm.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#004a43;'>#</span><span style='color:#004a43;'>define</span><span style='color:#004a43;'> SIG0</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>x</span><span style='color:#808030;'>)</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>ROTR32</span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>x</span><span style='color:#808030;'>)</span><span style='color:#808030;'>,</span><span style='color:#004a43;'>  7</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>^</span><span style='color:#004a43;'> ROTR32</span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>x</span><span style='color:#808030;'>)</span><span style='color:#808030;'>,</span><span style='color:#004a43;'> 18</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>^</span><span style='color:#004a43;'> </span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>x</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>&gt;</span><span style='color:#808030;'>&gt;</span><span style='color:#004a43;'>  3</span><span style='color:#808030;'>)</span><span style='color:#808030;'>)</span>
 <span style='color:#004a43;'>#</span><span style='color:#004a43;'>define</span><span style='color:#004a43;'> SIG1</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>x</span><span style='color:#808030;'>)</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>ROTR32</span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>x</span><span style='color:#808030;'>)</span><span style='color:#808030;'>,</span><span style='color:#004a43;'> 17</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>^</span><span style='color:#004a43;'> ROTR32</span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>x</span><span style='color:#808030;'>)</span><span style='color:#808030;'>,</span><span style='color:#004a43;'> 19</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>^</span><span style='color:#004a43;'> </span><span style='color:#808030;'>(</span><span style='color:#808030;'>(</span><span style='color:#004a43;'>x</span><span style='color:#808030;'>)</span><span style='color:#004a43;'> </span><span style='color:#808030;'>&gt;</span><span style='color:#808030;'>&gt;</span><span style='color:#004a43;'> 10</span><span style='color:#808030;'>)</span><span style='color:#808030;'>)</span>
@@ -166,7 +166,7 @@ Steps 4 and 5 are obviously from the SHA-256 hash algorithm.
     <span style='color:#800000;font-weight:bold;'>ret</span>
 </pre>
 
-<strong>Keystream Generation</strong>
+<h3><strong>Keystream Generation</strong></h3>
 
 <blockquote>At each step, one element of a table is updated and one 32-bit output is generated. An S-box is used to generate only 1024 outputs, then it is updated in the next 1024 steps. The keystream generation process of HC-256 is given below.</blockquote>
 
@@ -287,7 +287,7 @@ uint32_t generate<span style='color:#808030;'>(</span>hc_ctx<span style='color:#
     <span style='color:#800000;font-weight:bold;'>ret</span>
 </pre>
 
-<strong>Encryption and Decryption</strong>
+<h3><strong>Encryption and Decryption</strong></h3>
 
 <blockquote>The keystream is XORed with the message for encryption. The decryption is to XOR the keystream with the ciphertext.</blockquote>
 
@@ -334,42 +334,13 @@ uint32_t generate<span style='color:#808030;'>(</span>hc_ctx<span style='color:#
     <span style='color:#800000;font-weight:bold;'>ret</span>
 </pre>
 
-<strong>Test Vector results</strong>
+<h3><strong>Summary</strong></h3>
 
-<pre style='color:#000000;background:#ffffff;'>HC256 test #<span style='color:#008c00;'>1</span> <span style='color:#808030;'>-</span> OK
-5b<span style='color:#808030;'>,</span> <span style='color:#008c00;'>07</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>89</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>85</span><span style='color:#808030;'>,</span> d8<span style='color:#808030;'>,</span> f6<span style='color:#808030;'>,</span> f3<span style='color:#808030;'>,</span> 0d<span style='color:#808030;'>,</span>
-<span style='color:#008c00;'>42</span><span style='color:#808030;'>,</span> c5<span style='color:#808030;'>,</span> c0<span style='color:#808030;'>,</span> 2f<span style='color:#808030;'>,</span> a6<span style='color:#808030;'>,</span> b6<span style='color:#808030;'>,</span> <span style='color:#008c00;'>79</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>51</span><span style='color:#808030;'>,</span>
-<span style='color:#008c00;'>53</span><span style='color:#808030;'>,</span> f0<span style='color:#808030;'>,</span> <span style='color:#008c00;'>65</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>34</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>80</span><span style='color:#808030;'>,</span> 1f<span style='color:#808030;'>,</span> <span style='color:#008c00;'>89</span><span style='color:#808030;'>,</span> f2<span style='color:#808030;'>,</span>
-4e<span style='color:#808030;'>,</span> <span style='color:#008c00;'>74</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>24</span><span style='color:#808030;'>,</span> 8b<span style='color:#808030;'>,</span> <span style='color:#008c00;'>72</span><span style='color:#808030;'>,</span> 0b<span style='color:#808030;'>,</span> <span style='color:#008c00;'>48</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>18</span><span style='color:#808030;'>,</span>
+<p>Since it was chosen for the final portfolio of eSTREAM, it's likely to have undergone extensive cryptanalysis. It's unpatented and a suitable for 32-bit CPUs. The main problem, however, is that it requires a lot of ROM/RAM for the lookup tables. In my humble opinion, it's not suitable for resource constrained environments.</>
 
-HC256 test #<span style='color:#008c00;'>2</span> <span style='color:#808030;'>-</span> OK
-af<span style='color:#808030;'>,</span> <span style='color:#008c00;'>e2</span><span style='color:#808030;'>,</span> a2<span style='color:#808030;'>,</span> bf<span style='color:#808030;'>,</span> 4f<span style='color:#808030;'>,</span> <span style='color:#008c00;'>17</span><span style='color:#808030;'>,</span> ce<span style='color:#808030;'>,</span> <span style='color:#008c00;'>e9</span><span style='color:#808030;'>,</span>
-fe<span style='color:#808030;'>,</span> c2<span style='color:#808030;'>,</span> <span style='color:#008c00;'>05</span><span style='color:#808030;'>,</span> 8b<span style='color:#808030;'>,</span> d1<span style='color:#808030;'>,</span> b1<span style='color:#808030;'>,</span> 8b<span style='color:#808030;'>,</span> b1<span style='color:#808030;'>,</span>
-5f<span style='color:#808030;'>,</span> c0<span style='color:#808030;'>,</span> <span style='color:#008c00;'>42</span><span style='color:#808030;'>,</span> ee<span style='color:#808030;'>,</span> <span style='color:#008c00;'>71</span><span style='color:#808030;'>,</span> 2b<span style='color:#808030;'>,</span> <span style='color:#008c00;'>31</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>01</span><span style='color:#808030;'>,</span>
-dd<span style='color:#808030;'>,</span> <span style='color:#008c00;'>50</span><span style='color:#808030;'>,</span> 1f<span style='color:#808030;'>,</span> c6<span style='color:#808030;'>,</span> 0b<span style='color:#808030;'>,</span> <span style='color:#008c00;'>08</span><span style='color:#808030;'>,</span> 2a<span style='color:#808030;'>,</span> <span style='color:#008c00;'>50</span><span style='color:#808030;'>,</span>
+<p><a href="https://github.com/odzhan/tinycrypt/tree/master/stream/hc256">Sources here.</a></p>
 
-HC256 test #<span style='color:#008c00;'>3</span> <span style='color:#808030;'>-</span> OK
-1c<span style='color:#808030;'>,</span> <span style='color:#008c00;'>40</span><span style='color:#808030;'>,</span> 4a<span style='color:#808030;'>,</span> fe<span style='color:#808030;'>,</span> 4f<span style='color:#808030;'>,</span> <span style='color:#008c00;'>e2</span><span style='color:#808030;'>,</span> 5f<span style='color:#808030;'>,</span> ed<span style='color:#808030;'>,</span>
-<span style='color:#008c00;'>95</span><span style='color:#808030;'>,</span> 8f<span style='color:#808030;'>,</span> 9a<span style='color:#808030;'>,</span> d1<span style='color:#808030;'>,</span> ae<span style='color:#808030;'>,</span> <span style='color:#008c00;'>36</span><span style='color:#808030;'>,</span> c0<span style='color:#808030;'>,</span> 6f<span style='color:#808030;'>,</span>
-<span style='color:#008c00;'>88</span><span style='color:#808030;'>,</span> a6<span style='color:#808030;'>,</span> 5a<span style='color:#808030;'>,</span> 3c<span style='color:#808030;'>,</span> c0<span style='color:#808030;'>,</span> ab<span style='color:#808030;'>,</span> <span style='color:#008c00;'>e2</span><span style='color:#808030;'>,</span> <span style='color:#008c00;'>23</span><span style='color:#808030;'>,</span>
-ae<span style='color:#808030;'>,</span> b3<span style='color:#808030;'>,</span> <span style='color:#008c00;'>90</span><span style='color:#808030;'>,</span> 2f<span style='color:#808030;'>,</span> <span style='color:#008c00;'>42</span><span style='color:#808030;'>,</span> 0e<span style='color:#808030;'>,</span> d3<span style='color:#808030;'>,</span> a8<span style='color:#808030;'>,</span>
-</pre>
+<h3><strong>Known attacks</strong></h3>
 
-<strong>Summary</strong>
-
-<table>
-<tr>
-<th>architecture</th><th>size</th>
-</tr>
-<tr><td>x86</td><td>272</td></tr>
-<tr><td>x64</td><td>n/a</td></tr>
-</table>
-
-Since it was chosen for the final portfolio of eSTREAM, it's likely to have undergone extensive cryptanalysis. It's unpatented, suitable for 32-bit CPUs and the assembly output of hc256x.c is approx. 454 bytes which is just a little bigger than ChaCha20 (424 bytes) a close relative of Salsa20 which was also selected for the final portfolio.
-
-Please refer to <a href="https://github.com/odzhan/tinycrypt/tree/master/stream/hc256">here</a> for sources, documentation and any future updates that may not be shown here.
-
-<strong>Known attacks</strong>
-
-<a href="https://securewww.esat.kuleuven.be/cosic/publications/article-1258.pdf">Improved Distinguishing Attacks on HC-256</a> by <a href="http://dblp.uni-trier.de/pers/hd/s/Sekar:Gautham">Gautham Sekar</a> and <a href="http://homes.esat.kuleuven.be/~preneel/">Bart Preneel</a>
-<a href="http://www.erikzenner.name/docs/2008_cache_sac.pdf">A Cache Timing Analysis of HC-256</a> by <a href="http://www.erikzenner.name/">Erik Zenner</a>
+<p><a href="https://securewww.esat.kuleuven.be/cosic/publications/article-1258.pdf">Improved Distinguishing Attacks on HC-256</a> by <a href="http://dblp.uni-trier.de/pers/hd/s/Sekar:Gautham">Gautham Sekar</a> and <a href="http://homes.esat.kuleuven.be/~preneel/">Bart Preneel</a>
+<a href="http://www.erikzenner.name/docs/2008_cache_sac.pdf">A Cache Timing Analysis of HC-256</a> by <a href="http://www.erikzenner.name/">Erik Zenner</a></p>

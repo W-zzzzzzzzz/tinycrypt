@@ -1,12 +1,8 @@
 <h3><strong>Introduction</strong></h3>
 
-<a href="https://iacr.org/archive/ches2006/04/04.pdf">HIGHT</a> which stands for <strong>HIGh security and light weigHT</strong> is a block cipher first proposed at the 2006 <a href="https://iacr.org/archive/ches2006/ches2006.html">Cryptographic Hardware and Embedded Systems</a> (CHES) conference held in Japan.
+<p><a href="https://iacr.org/archive/ches2006/04/04.pdf">HIGHT</a> which stands for <strong>HIGh security and light weigHT</strong> is a block cipher first proposed at the 2006 <a href="https://iacr.org/archive/ches2006/ches2006.html">Cryptographic Hardware and Embedded Systems</a> (CHES) conference held in Japan. HIGHT attracted a lot of attention upon its release because it only uses ARX operations (modular addition, bitwise rotation, and XOR) on 8-bit words. It was selected in 2010 by the <a href="http://www.tta.or.kr/English/">Telecommunications Technology Association</a> (TTA) of Korea to become part of the <a href="https://www.iso.org/standard/54531.html">ISO/IEC 18033-3</a> portfolio which also consists of the following 64-bit block ciphers: TDEA, MISTY1, CAST-128.</p>
 
-HIGHT attracted a lot of attention upon its release because it only uses ARX operations (modular addition, bitwise rotation, and XOR) on 8-bit words.
-
-It was selected in 2010 by the <a href="http://www.tta.or.kr/English/">Telecommunications Technology Association</a> (TTA) of Korea to become part of the <a href="https://www.iso.org/standard/54531.html">ISO/IEC 18033-3</a> portfolio which also consists of the following 64-bit block ciphers: TDEA, MISTY1, CAST-128.
-
-Some points to note.
+<p>Some points to note.</p>
 
 <strong><ul>
 	<li>64-bit input/output data block size</li>
@@ -20,15 +16,11 @@ Some points to note.
 	<li>Designed for low-resource device (data storage, power, etc.)</li>
 </ul></strong>
 
-I normally don't implement hardware based ciphers, but thought i'd make exception for this one, as it initially appeared to be compact. 
-
-Only encryption is presented, and it's not optimized for performance.
+<p>I normally don't implement hardware based ciphers, but thought i'd make exception for this one, as it initially appeared to be compact. Only encryption is presented, and it's not optimized for performance.</p>
 
 <h3><strong>Constant Generation</strong></h3>
 
-"Random" constants are used in the generation of subkeys. These are to protect the cipher against simple Slide Attacks.
-
-I've included the option of using a lookup table or function to calculate the constants at runtime.
+<p>"Random" constants are used in the generation of subkeys. These are to protect the cipher against simple Slide Attacks. I've included the option of using a lookup table or function to calculate the constants at runtime.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>// use lookup table for constants</span>
 <span style='color:#004a43;'>#</span><span style='color:#004a43;'>ifdef</span><span style='color:#004a43;'> LUT</span>
@@ -399,4 +391,4 @@ As said already, the only nonlinear operations are modular addition, and there c
 
 A bit-slice S-box layer for each round of encryption might have mitigated against any future problems found in ARX. 
 
-<a href="https://github.com/odzhan/tinycrypt/tree/master/block/hight">Sources here.</a>
+<p><a href="https://github.com/odzhan/tinycrypt/tree/master/block/hight">Sources here.</a></p>

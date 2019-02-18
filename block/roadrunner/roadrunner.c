@@ -27,95 +27,65 @@
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
   
-#include "roadrunner.h"
+#define R(v,n)(((v)<<(n))|((v)>>(8-(n))))
+#define X(x,y)t=x,x=y,y=t;
+
+typedef unsigned char B;
+typedef unsigned int W;
 
 // S-Layer
-void sbox(uint8_t *x)
-{
-    uint8_t t;
+void S(void *p) {
+    B t, *x=(B*)p;
     
-    t = x[3];
-
-    x[3] &= x[2];
+    t = x[3]; 
+    x[3] &= x[2]; 
     x[3] ^= x[1];
     x[1] |= x[2];
+     
     x[1] ^= x[0];
-    x[0] &= x[3];
+    x[0] &= x[3]; 
     x[0] ^=  t; 
-       t &= x[1];
+    t    &= x[1];    
     x[2] ^=  t;
 }
 
-// SLK function 
-void SLK(w32_t *x, uint8_t *sk)
-{
-    int     i;
-    uint8_t t;
-    uint8_t *p=x->b;
-    
-    // apply S-Layer
-    sbox(p);
-    
-    for (i=4; i>0; i--) {      
-      // apply L-Layer
-      t   = ROTL8(*p, 1) ^ *p;       
-      *p ^= ROTL8(t,  1); 
-      
-      // apply K-Layer
-      *p++ ^= *sk++;
-    }
-}
-    
-// F round
-void F(w64_t *blk, void *key, 
-    uint8_t *key_idx, uint8_t ci)
-{
-    int      i;
-    uint32_t t;
-    uint8_t  *rk=(uint8_t*)key;
-    w32_t    *x=(w32_t*)blk;
-    
-    // save 32-bits
-    t = x->w;
-    
-    for (i=3; i>0; i--) {
-      // add round constant
-      if (i==1) x->b[3] ^= ci;
-      // apply S,L,K layers
-      SLK (x, rk + *key_idx);      
-      // advance master key index
-      *key_idx = (*key_idx + 4) & 15;
-    }
-    
-    // apply S-Layer
-    sbox(x->b);
-    
-    // add upper 32-bits
-    blk->w[0]^= blk->w[1];
-    blk->w[1] = t;
-}
-
 // encrypt 64-bits of data using 128-bit key  
-void road64_encrypt(void *data, void *key)
-{
-    int      rnd;
-    uint8_t  key_idx;
-    uint32_t t;
-    w64_t    *x=(w64_t*)data;
-    uint32_t *rk=(uint32_t*)key;
-
-    // initialize master key index
-    key_idx = 4;
+void roadrunner(void *mk, void *data) {
+    int i, j, r;
+    W   t, *x=(W*)data, *k=(W*)mk;
+    B   s, *p, k_idx=0;
     
     // apply K-Layer
-    x->w[0] ^= rk[0];
+    x[0] ^= ((W*)mk)[0];
     
-    // apply rounds
-    for (rnd=RR_ROUNDS; rnd>0; rnd--) {
-      F(x, rk, &key_idx, rnd);
+    // apply 12 rounds of encryption
+    for(r=12; r>0; r--) {
+      // F round
+      t = x[0];
+      p = (B*)x;
+      for(i=3; i>0; i--) {
+        // add constant
+        if(i==1) p[3] ^= r;
+        // apply S-Layer
+        S(p);
+        k_idx = (k_idx+4) % 16;
+        
+        for (j=3; j>=0; j--) {      
+          // apply L-Layer
+          s = R(p[j], 1) ^ p[j];       
+          s = R(s, 1) ^ p[j]; 
+          // apply K-Layer
+          p[j] = s ^ ((B*)k)[k_idx+j];
+        }
+      }
+      // apply S-Layer
+      S(p);
+      // add upper 32-bits
+      x[0]^= x[1]; 
+      x[1] = t;
     }
-    // P-Layer?
-    XCHG(x->w[0], x->w[1]);
+    // permute
+    X(x[0], x[1]);
     // apply K-Layer
-    x->w[0] ^= rk[1];
+    x[0] ^= ((W*)mk)[1];
 }
