@@ -97,7 +97,7 @@ void sha256_compress(sha256_ctx*c) {
     F(8)c->s[i] += x[i];
 }
 
-void sha256_init(sha256_ctx*c) {    
+void sha256_init(sha256_ctx *c) {    
     c->s[0]=0x6a09e667;
     c->s[1]=0xbb67ae85;
     c->s[2]=0x3c6ef372;
@@ -109,7 +109,7 @@ void sha256_init(sha256_ctx*c) {
     c->len =0;
 }
 
-void sha256_update(sha256_ctx*c,const void*in,W len) {
+void sha256_update(sha256_ctx *c,const void *in,W len) {
     B *p=(B*)in;
     W i, idx;
     
@@ -125,7 +125,7 @@ void sha256_update(sha256_ctx*c,const void*in,W len) {
     }
 }
 
-void sha256_final(void*out,sha256_ctx*c) {
+void sha256_final(void *out,sha256_ctx *c) {
     W i,len,*p=(W*)out;
     
     i = len = c->len & 63;

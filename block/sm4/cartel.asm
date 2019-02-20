@@ -132,11 +132,9 @@ sm_L6:
     inc    eax                ; i++
     cmp    al, 32             ; i<32
     jnz    sm_L2
-    
-    ; swap
-    ; X(x[0],x[3]);X(x[1],x[2]);
+
     ; store ciphertext
-    ; F(i,4)((W*)data)[i]=rev(x[i]);
+    ; F(i,4)((W*)data)[3-i]=rev(x[i]);
     mov    edi, [esp+64+8]     ; edi = data
     mov    cl, 4
 sm_L7:

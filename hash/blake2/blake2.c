@@ -27,58 +27,79 @@
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.*/
 
-#define R(v,n)(((v)>>(n))|((v)<<(32-(n))))
+// parameters for BLAKE2s
+#ifdef S
+#define VERSION  "s"
+#define WORDLEN  32
+#define BLOCKLEN 64
+#define ROUNDS   80
+#define ROTATION 0x07080C10
+#define OUTLEN   32
+#define KEYLEN   32
+typedef unsigned int W;
+    W iv[8] =
+    { 0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A,
+      0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19 };
+#else
+// parameters for BLAKE2b
+#define VERSION   "b"
+#define WORDLEN   64
+#define BLOCKLEN 128
+#define ROUNDS    96
+#define ROTATION 0x3F101820
+#define OUTLEN    64
+#define KEYLEN    64
+typedef unsigned long long W;
+    W iv[8] =
+    { 0x6A09E667F3BCC908, 0xBB67AE8584CAA73B,
+      0x3C6EF372FE94F82B, 0xA54FF53A5F1D36F1,
+      0x510E527FADE682D1, 0x9B05688C2B3E6C1F,
+      0x1F83D9ABFB41BD6B, 0x5BE0CD19137E2179 };
+#endif
+
+#define R(v,n)(((v)>>(n))|((v)<<(WORDLEN-(n))))
 #define X(a,b)(t)=(a),(a)=(b),(b)=(t)
 #define F(n)for(i=0;i<n;i++)
 
-typedef unsigned long long Q;
-typedef unsigned int W;
 typedef unsigned char B;
+typedef unsigned long long Q;
 
-typedef struct _blake2s_ctx {
+typedef struct _blake2_ctx {
     W s[16], idx, outlen;
     union {
-      B b[64];
-      W w[16];
-      Q q[8];
+      B b[BLOCKLEN];
+      W w[BLOCKLEN/WORDLEN];
     }x;
-    union {
-      W w[2];
-      Q q;
-    }len;
-}blake2s_ctx;
+    Q len;
+}blake2_ctx;
 
-int blake2s_init(blake2s_ctx*,W,const void*,W);
-void blake2s_update(blake2s_ctx*,const void*,W);
-void blake2s_final(void*,blake2s_ctx*);
+int blake2_init(blake2_ctx*,W,const void*,W);
+void blake2_update(blake2_ctx*,const void*,W);
+void blake2_final(void*,blake2_ctx*);
 
     W v[8]=
     { 0xC840, 0xD951, 0xEA62, 0xFB73,
       0xFA50, 0xCB61, 0xD872, 0xE943 };
-    
-    Q sigma[10] = 
+      
+    Q sigma[12] = 
     { 0xfedcba9876543210, 0x357b20c16df984ae,
       0x491763eadf250c8b, 0x8f04a562ebcd1397,
       0xd386cb1efa427509, 0x91ef57d438b0a6c2,
       0xb8293670a4def15c, 0xa2684f05931ce7bd,
-      0x5a417d2c803b9ef6, 0x0dc3e9bf5167482a };
-      
-    W iv[8] =
-    { 0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A,
-      0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19 };
+      0x5a417d2c803b9ef6, 0x0dc3e9bf5167482a,
+      0xfedcba9876543210, 0x357b20c16df984ae };
       
 void G(W *s, W *m) {
     W i, j, a, b, c, d, r, t;
-
-    Q *p=sigma, z;
+    Q z, *p=sigma;
     
-    for(i=0;i<80;) {
+    for(i=0;i<ROUNDS;) {
       z=*p++;
       while(z) {
         d=v[i++%8];
         a=(d&15);b=(d>>4&15);
         c=(d>>8&15);d>>=12;
-        r=0x07080C10;
+        r=ROTATION;
         for(j=0;j<4;j++) {
           if(!(j&1)) {
             s[a]+=m[z&15];
@@ -92,89 +113,95 @@ void G(W *s, W *m) {
       }
     }
 }
-      
-void blake2s_compress(blake2s_ctx*c, W last) {
+
+void blake2_compress(blake2_ctx *c, W last) {
     W i, v[16];
-    
-    F(8)v[i]=c->s[i], v[i+8] = iv[i];
-    v[12]^=c->len.w[0];v[13]^=c->len.w[1];v[14]^=-last;
+      
+    F(8)v[i]=c->s[i], v[i+8]=iv[i];
+  #ifdef S
+    v[12]^=((W*)&c->len)[0];v[13]^=((W*)&c->len)[1];
+  #else
+    v[12]^=c->len;
+  #endif
+    v[14]^=-last;
     G(v,c->x.w);
     F(8)c->s[i]^=v[i]^v[i+8];
 }
-      
-int blake2s_init (blake2s_ctx *c,W outlen,const void *key,W keylen) {
+
+int blake2_init (blake2_ctx *c,W outlen,const void *key,W keylen) {
     W i;
     
-    // the output must be between 1 and 32 bytes, 
-    // the key should not exceed 32 bytes
-    if(outlen == 0 || outlen > 32 || keylen > 32) return -1;
+    if(outlen == 0 || outlen > BLOCKLEN || keylen > BLOCKLEN) return -1;
     
     // set the initial values
     F(8)c->s[i]=iv[i];
     
-    c->s[0]  ^= 0x01010000 ^ (keylen << 8) ^ outlen;
-    c->len.q  = 0;
+    c->s[0]  ^= 0x01010000^(keylen<<8)^outlen;
+    c->len    = 0;
     c->idx    = 0;
     c->outlen = outlen;
     
     // zero initialize buffer
-    for(i=keylen;i<64;i++) c->x.b[i]=0;
+    for(i=keylen;i<BLOCKLEN;i++) c->x.b[i]=0;
     
-    // add the key
-    if(keylen > 0) {
-      blake2s_update(c, key, keylen);
-      c->idx = 64;
+    // add key if provided
+    if(keylen>0) {
+      blake2_update(c,key,keylen);
+      c->idx = BLOCKLEN;
     }
     return 0;
 }
 
-void blake2s_update(blake2s_ctx *c,const void *in,W len) {
+void blake2_update(blake2_ctx *c,const void *in,W len) {
     B *p=(B*)in;
     W i;
     
     F(len) {
       // buffer filled?
-      if(c->idx==64) {
+      if(c->idx == BLOCKLEN) {
         // update length
-        c->len.q += 64;
-        blake2s_compress(c, 0);
+        c->len += BLOCKLEN;
+        blake2_compress(c, 0);
         // reset buffer index
-        c->idx=0;
+        c->idx = 0;
       }
       // add byte to buffer, increase index
       c->x.b[c->idx] = p[i]; c->idx++;
     }
 }
 
-void blake2s_final(void *out, blake2s_ctx *c) {
+void blake2_final(void *out, blake2_ctx *c) {
     W i;
     
-    c->len.q += c->idx;
-    while(c->idx<64) c->x.b[c->idx++]=0;
-    blake2s_compress(c,1);
+    c->len += c->idx;
+    // zero remainder of buffer
+    while(c->idx < BLOCKLEN) c->x.b[c->idx++] = 0;
+    // permute
+    blake2_compress(c, 1);
+    // return hash
     F(c->outlen)((B*)out)[i]=((B*)c->s)[i];
 }
-
 
 #ifdef TEST
 
 // test code written by Markku-Juhani O. Saarinen
 
-#include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <ctype.h>
 
-int blake2s(void *out, size_t outlen,
+int blake2(void *out, size_t outlen,
     const void *key, size_t keylen,
     const void *in, size_t inlen)
 {
-    blake2s_ctx ctx;
+    blake2_ctx ctx;
 
-    if (blake2s_init(&ctx, outlen, key, keylen))
+    if (blake2_init(&ctx, outlen, key, keylen))
         return -1;
-    blake2s_update(&ctx, in, inlen);
-    blake2s_final(out, &ctx);
+    blake2_update(&ctx, in, inlen);
+    blake2_final(out, &ctx);
 
     return 0;
 }
@@ -197,47 +224,57 @@ static void selftest_seq(uint8_t *out, size_t len, uint32_t seed)
     }
 }
 
-
-int blake2s_selftest(void)
+int blake2_selftest()
 {
-    // Grand hash of hash results.
-    const uint8_t blake2s_res[32] = {
+  #ifdef S
+    // grand hash of hash results for BLAKE2s
+    const uint8_t blake2_res[32] = {
         0x6A, 0x41, 0x1F, 0x08, 0xCE, 0x25, 0xAD, 0xCD,
         0xFB, 0x02, 0xAB, 0xA6, 0x41, 0x45, 0x1C, 0xEC,
         0x53, 0xC5, 0x98, 0xB2, 0x4F, 0x4F, 0xC7, 0x87,
-        0xFB, 0xDC, 0x88, 0x79, 0x7F, 0x4C, 0x1D, 0xFE
-    };
-    // Parameter sets.
-    const size_t b2s_md_len[4] = { 16, 20, 28, 32 };
-    const size_t b2s_in_len[6] = { 0,  3,  64, 65, 255, 1024 };
+        0xFB, 0xDC, 0x88, 0x79, 0x7F, 0x4C, 0x1D, 0xFE };
+    const size_t b2_md_len[4] = { 16, 20, 28, 32 };
+    const size_t b2_in_len[6] = { 0,  3,  64, 65, 255, 1024 };
+  #else
+    // grand hash of hash results for BLAKE2b
+    const uint8_t blake2_res[32] = {
+        0xC2, 0x3A, 0x78, 0x00, 0xD9, 0x81, 0x23, 0xBD,
+        0x10, 0xF5, 0x06, 0xC6, 0x1E, 0x29, 0xDA, 0x56,
+        0x03, 0xD7, 0x63, 0xB8, 0xBB, 0xAD, 0x2E, 0x73,
+        0x7F, 0x5E, 0x76, 0x5A, 0x7B, 0xCC, 0xD4, 0x75 };
+    const size_t b2_md_len[4] = { 20, 32, 48, 64 };
+    const size_t b2_in_len[6] = { 0, 3, 128, 129, 255, 1024 };
+  #endif
+    // parameter sets
+
 
     size_t i, j, outlen, inlen;
-    uint8_t in[1024], md[32], key[32];
-    blake2s_ctx ctx;
+    uint8_t in[1024], md[OUTLEN], key[KEYLEN];
+    blake2_ctx ctx;
 
-    // 256-bit hash for testing.
-    if (blake2s_init(&ctx, 32, NULL, 0))
+    // 256-bit hash for testing
+    if (blake2_init(&ctx, 32, NULL, 0))
         return -1;
 
     for (i = 0; i < 4; i++) {
-        outlen = b2s_md_len[i];
+        outlen = b2_md_len[i];
         for (j = 0; j < 6; j++) {
-            inlen = b2s_in_len[j];
+            inlen = b2_in_len[j];
 
             selftest_seq(in, inlen, inlen);     // unkeyed hash
-            blake2s(md, outlen, NULL, 0, in, inlen);
-            blake2s_update(&ctx, md, outlen);   // hash the hash
+            blake2(md, outlen, NULL, 0, in, inlen);
+            blake2_update(&ctx, md, outlen);   // hash the hash
 
             selftest_seq(key, outlen, outlen);  // keyed hash
-            blake2s(md, outlen, key, outlen, in, inlen);
-            blake2s_update(&ctx, md, outlen);   // hash the hash
+            blake2(md, outlen, key, outlen, in, inlen);
+            blake2_update(&ctx, md, outlen);   // hash the hash
         }
     }
 
-    // Compute and compare the hash of hashes.
-    blake2s_final(md, &ctx);
+    // compute and compare the hash of hashes
+    blake2_final(md,&ctx);
     for (i = 0; i < 32; i++) {
-        if (md[i] != blake2s_res[i])
+        if (md[i] != blake2_res[i])
             return -1;
     }
 
@@ -246,8 +283,8 @@ int blake2s_selftest(void)
 
 int main(int argc, char **argv)
 {
-    printf("blake2s_selftest() = %s\n",
-         blake2s_selftest() ? "FAIL" : "OK");
+    printf("blake2%s_selftest() = %s\n", VERSION,
+         blake2_selftest() ? "FAIL" : "OK");
 
     return 0;
 }

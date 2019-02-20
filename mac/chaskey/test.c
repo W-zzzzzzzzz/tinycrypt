@@ -74,37 +74,37 @@ const uint32_t vectors[64][4] =
 };
 
 int test_vectors() {
-  uint8_t m[64];
-  uint8_t tag[16];
-  uint32_t k[4] = 
-{ 0x833D3433, 0x009F389F, 0x2398E64F, 0x417ACF39 };
+    uint8_t m[64];
+    uint8_t tag[16];
+    uint32_t k[4] = 
+  { 0x833D3433, 0x009F389F, 0x2398E64F, 0x417ACF39 };
 
-  uint8_t key[48]; 
-  int i;
-  int ok = 1;
-  uint32_t taglen = 16;
+    uint8_t key[48]; 
+    int i;
+    int ok = 1;
+    uint32_t taglen = 16;
 
-  // key schedule 
-  chas_setkey(key, k);
+    // key schedule 
+    chaskey_setkey(key, k);
 
-  // test vectors for mac function 
-  for (i = 0; i < 64; i++) {
-    m[i] = i;
-    
-    chas_mac(tag, m, i, key);
+    // test vectors for mac function 
+    for (i = 0; i < 64; i++) {
+      m[i] = i;
+      
+      chaskey_mac(tag, m, i, key);
 
-    if (memcmp( tag, vectors[i], taglen )) {
-      printf("test vector failed for %d-byte message\n", i);
-      ok = 0;
+      if (memcmp( tag, vectors[i], taglen )) {
+        printf("test vector failed for %d-byte message\n", i);
+        ok = 0;
+      }
     }
-  }
 
-  return ok;
+    return ok;
 }
 
 int main() {
-  if (test_vectors()) printf("test vectors ok\n");
+    if (test_vectors()) printf("test vectors ok\n");
 
-  return 0;
+    return 0;
 }
 

@@ -129,7 +129,7 @@ B S<span style='color:#808030; '>(</span>B x<span style='color:#808030; '>)</spa
 
 <h3><strong>Sbox initialization</strong></h3>
 
-<p>The designers of Kuznyechik asserted the sbox values were chosen "randomly", <a href="http://wwwfr.uni.lu/recherche/fstc/computer_science_and_communications_research_unit/membres/alex_biryukov">Alex Biryukov</a>, <a href="http://wwwen.uni.lu/snt/people/leo_paul_perrin">Leo Perrin</a>, and <a href="http://wwwen.uni.lu/snt/people/aleksei_udovenko">Aleksei Udovenko</a> show in their paper <a href="https://eprint.iacr.org/2016/071">Reverse-Engineering the S-Box of Streebog, Kuznyechik and STRIBOBr1</a> that the S-Boxes of both Kuznyechik and Streebog were not created pseudo-randomly, but was generated using a hidden algorithm that they were partially able to reverse engineer. In 2019, Leo Perrin published further research in a paper called <a href="https://eprint.iacr.org/2019/092">Partitions in the S-Box of Streebog and Kuznyechik</a> and has <a href="https://mailarchive.ietf.org/arch/msg/cfrg/4PmssKzCBsxTmLCieDgqD7Nynwg">implied</a> there may be a weakness in Kuznyechik that only the designers know about.</p>
+<p>The designers of Kuznyechik asserted the sbox values were chosen "randomly". <a href="http://wwwfr.uni.lu/recherche/fstc/computer_science_and_communications_research_unit/membres/alex_biryukov">Alex Biryukov</a>, <a href="http://wwwen.uni.lu/snt/people/leo_paul_perrin">Leo Perrin</a>, and <a href="http://wwwen.uni.lu/snt/people/aleksei_udovenko">Aleksei Udovenko</a> show in their paper <a href="https://eprint.iacr.org/2016/071">Reverse-Engineering the S-Box of Streebog, Kuznyechik and STRIBOBr1</a> that the S-Boxes of both Kuznyechik and Streebog were not created pseudo-randomly, but was generated using a hidden algorithm that they were partially able to reverse engineer. In 2019, Leo Perrin published further research in a paper called <a href="https://eprint.iacr.org/2019/092">Partitions in the S-Box of Streebog and Kuznyechik</a> and has <a href="https://mailarchive.ietf.org/arch/msg/cfrg/4PmssKzCBsxTmLCieDgqD7Nynwg">implied</a> there may be a weakness in Kuznyechik that only the designers know about.</p>
 
 <pre style='color:#000000;background:#ffffff;'>#define F<span style='color:#808030; '>(</span>n<span style='color:#808030; '>)</span><span style='color:#004a43; '>for</span><span style='color:#808030; '>(</span>j<span style='color:#808030; '>=</span><span style='color:#008c00; '>0</span><span style='color:#696969; '>;j&lt;n;j++)</span>
 <span style='color:#004a43; '>typedef</span> unsigned char B<span style='color:#696969; '>;</span>
@@ -197,7 +197,6 @@ B S<span style='color:#808030; '>(</span>B x<span style='color:#808030; '>)</spa
 #<span style='color:#004a43; '>endif</span>
 </pre>
 
-
 <p>Creating the inverse sbox tables with code is smaller than including it as array.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>; initialize sbox tables </span>
@@ -258,7 +257,7 @@ B S<span style='color:#808030; '>(</span>B x<span style='color:#808030; '>)</spa
 
 <strong>Key mixing</strong>
 
-<p>Those of you familiar with previous asmcode entries should know by now the purpose of key whitening which essentially improves resistance to brute force attacks. It involves exclusive OR operation on the data being encrypted/decrypted using subkeys. It's the exact same as AddRoundKey in AES and was first used by <a href="https://people.csail.mit.edu/rivest/">Ron Rivest</a> in 1984 for DES-X.</p>
+<p>Key mixing or whitening improves resistance to brute force attacks. It involves an exclusive OR operation on the data being encrypted using subkeys derived from the master key.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#800000;font-weight:bold;'>static</span> <span style='color:#800000;font-weight:bold;'>void</span> kuz_whiten<span style='color:#808030;'>(</span>w128_t <span style='color:#808030;'>*</span>w<span style='color:#808030;'>,</span> kuz_key_t <span style='color:#808030;'>*</span>key<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>int</span> idx<span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
   <span style='color:#800000;font-weight:bold;'>int</span> i<span style='color:#800080;'>;</span>
@@ -270,7 +269,7 @@ B S<span style='color:#808030; '>(</span>B x<span style='color:#808030; '>)</spa
 <span style='color:#800080;'>}</span>
 </pre>
 
-<p>Assembly is same as that used in AES, Serpent and Twofish.</p>
+<h3><strong>x86 assembly</strong></h3>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>; key whitening</span>
 <span style='color:#696969;'>; esi = w</span>
@@ -291,7 +290,7 @@ B S<span style='color:#808030; '>(</span>B x<span style='color:#808030; '>)</spa
 
 <strong>Linear layer</strong>
 
-<p>Think of the linear transformation in Serpent, the mix columns operation in Rijndael or the Maximum Distance Seperable code in Twofish. They all serve the same purpose which is to create diffusion. In Diffusion the statistical structure of the plaintext is dissipated into long range statistics of the cipher text. This is achieved by having each plaintext digit affect the value of many cipher text digits. Which is equivalent to saying that each cipher text digit is affected by many plaintext digits.</p>
+<p>Think of the linear transformation in Serpent, the MixColumns module in Rijndael or the Maximum Distance Seperable code in Twofish. They all serve the same purpose which is to create diffusion. In Diffusion, the statistical structure of the plaintext is dissipated into long range statistics of the cipher text. This is achieved by having each plaintext digit affect the value of many cipher text digits. Which is equivalent to saying that each cipher text digit is affected by many plaintext digits.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>// poly multiplication mod p(x) = x^8 + x^7 + x^6 + x + 1</span>
 <span style='color:#696969;'>// totally not constant time</span>
@@ -346,7 +345,7 @@ B S<span style='color:#808030; '>(</span>B x<span style='color:#808030; '>)</spa
 <span style='color:#800080;'>}</span>
 </pre>
 
-<p>Peter was able to combine both operations in assembly using ECX (crypto flag).</p>
+<p>Peter was able to combine both operations in assembly using ECX (<var>enc</var> flag).</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>; linear transformation</span>
 <span style='color:#696969;'>; esi = w</span>
@@ -414,7 +413,7 @@ B S<span style='color:#808030; '>(</span>B x<span style='color:#808030; '>)</spa
 
 <strong>Nonlinear layer</strong>
 
-<p>The purpose of an sbox or substituion box is to obscure the relationship between key and ciphertext — Shannon's property of confusion. Claude E. Shannon proposed ideas related to information security in his 1948 paper <em><a href="http://netlab.cs.ucla.edu/wiki/files/shannon1949.pdf">Communication Theory of Secrecy Systems</a></em> Confusion seeks to make a relationship between the statistics of the cipher text and the value of the encryption key as complex as possible. Thus even if the attacker can get some handle on the statistics of the cipher text, the way in which the key was used to produce that cipher text is so complex as to make it difficult to deduce the key.</p>
+<p>The purpose of an sbox or substituion box is to obscure the relationship between key and ciphertext - Shannon's property of confusion. Claude E. Shannon proposed ideas related to information security in his 1948 paper <a href="http://netlab.cs.ucla.edu/wiki/files/shannon1949.pdf">Communication Theory of Secrecy Systems</a>. Confusion seeks to make a relationship between the statistics of the cipher text and the value of the encryption key as complex as possible. Even if the attacker can get some handle on the statistics of the cipher text, the way in which the key was used to produce that cipher text is so complex as to make it difficult to deduce the key.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>// substitute bytes</span>
 <span style='color:#800000;font-weight:bold;'>static</span> <span style='color:#800000;font-weight:bold;'>void</span> kuz_subbytes<span style='color:#808030;'>(</span>w128_t <span style='color:#808030;'>*</span>w<span style='color:#808030;'>,</span> kuz_key_t <span style='color:#808030;'>*</span>key<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>int</span> enc<span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
@@ -429,7 +428,7 @@ B S<span style='color:#808030; '>(</span>B x<span style='color:#808030; '>)</spa
 
 <strong>Key scheduling</strong>
 
-<p>Based on <a href="https://en.wikipedia.org/wiki/Feistel_cipher">Feistel Network</a> design. It would certainly be possible to create subkeys during encryption or decryption but I wanted to keep it simple.</p>
+<p>Based on <a href="https://en.wikipedia.org/wiki/Feistel_cipher">Feistel Network</a> design.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#808030;'>/</span> key setup
 <span style='color:#800000;font-weight:bold;'>void</span> kuz_setkey<span style='color:#808030;'>(</span>kuz_key_t <span style='color:#808030;'>*</span>kuz<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>const</span> uint8_t key<span style='color:#808030;'>[</span><span style='color:#008c00;'>32</span><span style='color:#808030;'>]</span><span style='color:#808030;'>)</span>
@@ -474,7 +473,7 @@ B S<span style='color:#808030; '>(</span>B x<span style='color:#808030; '>)</spa
 <span style='color:#800080;'>}</span>
 </pre>
 
-<p>Markku's code uses 64-bit values here which I replaced with REP MOVSB operations. Using MMX code might reduce code further and for 64-bit implementations, it would make more sense to use 64-bit registers instead of stack memory.</p>
+<p>Markku's code uses 64-bit values that have been replaced with REP MOVSB operations.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>; key setup</span>
 <span style='color:#e34adc;'>kuz_setkeyx:</span>
@@ -604,7 +603,7 @@ B S<span style='color:#808030; '>(</span>B x<span style='color:#808030; '>)</spa
 <span style='color:#800080;'>}</span>
 </pre>
 
-<p>The assembly takes advantage of similarity between both encryption/decryption operations by storing pointer to functions in registers and swapping them depending on <strong>enc</strong> parameter stored in ecx.</p>
+<p>The assembly takes advantage of similarity between both encryption/decryption operations by storing a pointer to functions in registers and swapping them depending on the <var>enc</var> parameter stored in ecx.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>; encrypt/decrypt a block</span>
 <span style='color:#e34adc;'>kuz_encryptx:</span>
@@ -649,8 +648,6 @@ B S<span style='color:#808030; '>(</span>B x<span style='color:#808030; '>)</spa
     <span style='color:#800000;font-weight:bold;'>popad</span>
     <span style='color:#800000;font-weight:bold;'>ret</span>
 </pre>
-
-<h3><strong>Summary</strong></h3>
 
 <p><a href="https://github.com/odzhan/tinycrypt/tree/master/block/kuznyechik">Sources here.</a></p>
 

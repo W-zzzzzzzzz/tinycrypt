@@ -36,14 +36,9 @@
 extern "C" {
 #endif
 
-void chas_setkeyx(void *out, void *in);
-void chas_macx (uint8_t *tag,  
-    uint8_t *msg, uint32_t msglen, uint8_t *key);
-    
-void chas_setkey(void *out, void *in);
+void chaskey_setkey(void *out, void *in);
 
-void chas_mac (uint8_t *tag,  
-    uint8_t *msg, uint32_t msglen, uint8_t *key);
+void chaskey_mac(void *tag,void *data, uint32_t len, void *key);
 
     
 #ifdef __cplusplus

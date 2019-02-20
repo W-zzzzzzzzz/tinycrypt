@@ -29,7 +29,6 @@
 
 #define R(v,n)(((v)>>(n))|((v)<<(32-(n))))
 #define F(a,b)for(a=0;a<b;a++)
-#define X(x,y)t=x,x=y,y=t;
 typedef unsigned char B;
 typedef unsigned int W;
 
@@ -60,7 +59,7 @@ B S(B x) {
 }
 
 void sm4(void*mk,void*data) {
-    W *p,c,i,j,s,t,x[8];
+    W *p,c,i,j,s,x[8];
     W fk[4]={0xa3b1bac6,0x56aa3350,0x677d9197,0xb27022dc};
     // load the 128-bit key and 128-bit plaintext
     F(i,4)x[i+4]=rev(((W*)mk)[i])^fk[i],x[i]=rev(((W*)data)[i]);
@@ -75,11 +74,9 @@ void sm4(void*mk,void*data) {
         // non-linear layer
         F(j,4)c=(c&-256)|S(c),c=R(c,8);
         // linear layer
-        c=p[i%4]^=c^((s) ? R(c,19)^R(c,9) : R(c,30)^R(c,22)^R(c,14)^R(c,8));
+        c=p[i%4]^=c^((s)?R(c,19)^R(c,9):R(c,30)^R(c,22)^R(c,14)^R(c,8));
       }
     }
-    // swap
-    X(x[0],x[3]);X(x[1],x[2]);
     // store ciphertext
-    F(i,4)((W*)data)[i]=rev(x[i]);
+    F(i,4)((W*)data)[3-i]=rev(x[i]);
 }

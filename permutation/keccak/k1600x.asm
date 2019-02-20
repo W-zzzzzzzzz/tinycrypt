@@ -37,77 +37,66 @@
 ; -----------------------------------------------
     bits   64
   
-struc kws_t
-  bc1  resd 1 ; edi
-  bc2  resd 1 ; esi
-  bc3  resd 1 ; ebp
-  bc4  resd 1 ; esp
-  bc5  resd 1 ; ebx
-  lfsr resd 1 ; edx
-  ; ecx
-  ; eax
-  .size:
-endstruc
-  
+    %macro  pushx 1-*
+      %rep  %0
+        push    %1
+      %rotate 1
+      %endrep
+    %endmacro
+
+    %macro  popx 1-*
+
+      %rep %0
+      %rotate -1
+        pop     %1
+      %endrep
+
+    %endmacro
+    
     %ifndef BIN
-      global k1600_permutex
-      global _k1600_permutex
+      global k1600
     %endif
     
-; void k1600_permutex(void *state);    
-k1600_permutex:
-_k1600_permutex:
-    push   rsi
-    push   rdi
-    push   rbx
-    push   rbp
+; void k1600(void *state);    
+k1600:
+    pushx  rax, rbx, rcx, rdx, rsi, rdi, rbp
     
-    push   rcx
-    pop    rsi
-    call   k1600_l0
-    ; modulo 5    
-    dd     003020100h, 002010004h, 000000403h
-    ; rho pi
-    dd     0110b070ah, 010050312h, 004181508h 
-    dd     00d13170fh, 00e14020ch, 001060916h
-k1600_l0:
-    pop    rbx                  ; m + p
-    push   24
-    pop    rax
-    cdq
-    inc    rdx                  ; lfsr = 1    
-    sub    rsp, 5*8 
-    push   rsp
-    pop    rdi                  ; rdi = bc  
+    sub    rsp, 5*8
+    lea    rbx, [rel k1600_v]
+    push   rdi                  ; rsi = s
+    pop    rsi 
+    push   rsp                  ; rdi = b
+    pop    rdi
+    xor    eax, eax             ; n = 0
 k1600_l1:    
-    push   rax    
-    push   5 
+    push   rax                  ; save n
+    push   5                    ; ecx = 5
     pop    rcx    
-    push   rcx
-    push   rdi
-    push   rsi
+    push   rcx                  ; save 5
+    push   rdi                  ; save b
+    push   rsi                  ; save s
 theta_l0:
     ; Theta
-    lodsq                       ; t  = st[i     ];  
-    xor    rax, [rsi+ 5*8-8]    ; t ^= st[i +  5];
-    xor    rax, [rsi+10*8-8]    ; t ^= st[i + 10];
-    xor    rax, [rsi+15*8-8]    ; t ^= st[i + 15];
-    xor    rax, [rsi+20*8-8]    ; t ^= st[i + 20];
-    stosq                       ; bc[i] = t;
+    lodsq                       ; t  = s[i     ];  
+    xor    rax, [rsi+ 5*8-8]    ; t ^= s[i +  5];
+    xor    rax, [rsi+10*8-8]    ; t ^= s[i + 10];
+    xor    rax, [rsi+15*8-8]    ; t ^= s[i + 15];
+    xor    rax, [rsi+20*8-8]    ; t ^= s[i + 20];
+    stosq                       ; b[i] = t;
     loop   theta_l0        
-    pop    rsi
-    pop    rdi
-    pop    rcx    
-    xor    eax, eax    
+    pop    rsi                  ; restore s
+    pop    rdi                  ; restore b
+    pop    rcx                  ; rcx = 5
+    xor    eax, eax             ; j = 0
 theta_l1:
-    movzx  ebp, byte[rbx+rax+4] ; ebp = m[(i + 4)];
-    mov    rbp, [rdi+rbp*8]     ; t   = bc[m[(i + 4)]];    
-    movzx  edx, byte[rbx+rax+1] ; edx = m[(i + 1)];
-    mov    rdx, [rdi+rdx*8]     ; edx = bc[m[(i + 1)]];
-    rol    rdx, 1               ; t  ^= ROTL32(edx, 1);
+    movzx  ebp, byte[rbx+rax+4] ; t = b[m[(i + 4)]];
+    mov    rbp, [rdi+rbp*8]     ;     
+    movzx  edx, byte[rbx+rax+1] ; rdx = b[m[(i + 1)]];
+    mov    rdx, [rdi+rdx*8]     ; 
+    rol    rdx, 1               ; t ^= ROTL64(rdx, 1);
     xor    rbp, rdx
 theta_l2:
-    xor    [rsi+rax*8], rbp     ; st[j] ^= t;
+    xor    [rsi+rax*8], rbp     ; s[j] ^= t;
     add    al, 5                ; j+=5 
     cmp    al, 25               ; j<25
     jb     theta_l2    
@@ -116,12 +105,12 @@ theta_l2:
     ; *************************************
     ; Rho Pi
     ; *************************************
-    mov    rbp, [rsi+1*8]       ; t = st[1];
+    mov    rbp, [rsi+1*8]       ; t = s[1];
 rho_l0:
     lea    ecx, [rcx+rax-4]     ; r = r + i + 1;
-    rol    rbp, cl              ; t = ROTL32(t, r); 
+    rol    rbp, cl              ; t = ROTL64(t, r); 
     movzx  edx, byte[rbx+rax+7] ; edx = p[i];
-    xchg   [rsi+rdx*8], rbp     ; XCHG(st[p[i]], t);
+    xchg   [rsi+rdx*8], rbp     ; XCHG(s[p[i]], t);
     inc    eax                  ; i++
     cmp    al, 24+5             ; i<24
     jnz    rho_l0               ; 
@@ -130,19 +119,19 @@ rho_l0:
     ; *************************************
     xor    ecx, ecx             ; i = 0   
 chi_l0:    
-    push   rsi
-    push   rdi
-    ; memcpy(&bc, &st[i], 5*8);
-    lea    rsi, [rsi+rcx*8]     ; esi = &st[i];
+    push   rsi                  ; save s
+    push   rdi                  ; save b
+    ; memcpy(&b, &s[i], 5*8);
+    lea    rsi, [rsi+rcx*8]     ; esi = &s[i];
     mov    cl, 5
     rep    movsd
-    pop    rdi
-    pop    rsi
-    xor    eax, eax
+    pop    rdi                  ; restore b
+    pop    rsi                  ; restore s
+    xor    eax, eax             ; i = 0
 chi_l1:
-    movzx  ebp, byte[ebx+eax+1]
-    movzx  edx, byte[ebx+eax+2]
-    mov    rbp, [rdi+rbp*8]     ; t = ~bc[m[(i + 1)]] 
+    movzx  ebp, byte[rbx+rax+1]
+    movzx  edx, byte[rbx+rax+2]
+    mov    rbp, [rdi+rbp*8]     ; t = ~b[m[(i + 1)]] 
     not    rbp            
     and    rbp, [rdi+rdx*8]
     lea    edx, [rax+rcx]       ; edx = j + i    
@@ -153,32 +142,54 @@ chi_l1:
     add    cl, al               ; i+=5;
     cmp    cl, 25               ; i<25
     jb     chi_l0
+    
     ; Iota
-    ;mov    al, [esp+kws_t+lfsr+4]; al = t = *LFSR
-    mov    dl, 1                ; i = 1
-    xor    ebp, ebp
-iota_l0:    
-    test   al, 1                ; t & 1
-    je     iota_l1    
-    lea    ecx, [edx-1]         ; ecx = (i - 1)
-    cmp    cl, 64               ; skip if (ecx >= 32)
-    jae    iota_l1    
-    btc    rbp, rcx             ; c ^= 1ULL << (i - 1)
-iota_l1:    
-    add    al, al               ; t << 1
-    sbb    ah, ah               ; ah = (t < 0) ? 0x00 : 0xFF
-    and    ah, 0x71             ; ah = (ah == 0xFF) ? 0x71 : 0x00  
-    xor    al, ah  
-    add    dl, dl               ; i += i
-    jns    iota_l0              ; while (i != 128)
-    ;mov    [esp+kws_t+lfsr+4], al; save t
-    xor    [rsi], rbp           ; st[0] ^= rc(&lfsr);      
-    pop    rax
-    dec    eax
-    jnz    k1600_l1             ; rnds<22    
-    add    rsp, 5*8             ; release bc
+    xor    eax, eax             ; j = 0
+iota_L0:
+    push   r8
     pop    rbp
-    pop    rbx
-    pop    rdi
-    pop    rsi
+    shr    ebp, 7
+    imul   ebp, ebp, 113
+    inc    al
+    cmp    al, 7
+    jne    iota_L0
+         
+    pop    rax                  ; restore n
+    inc    al
+    cmp    al, 24               ; n<24
+    jne    k1600_l1
+    
+    add    rsp, 5*8             ; release bc
+    popx   rax, rbx, rcx, rdx, rsi, rdi, rbp
     ret
+
+    // F(j,7)
+    mov     j, 0                // j = 0
+    mov     d, 113
+L9:
+    // if((c=(c<<1)^((c>>7)*113))&2)
+    lsr     t, c, 7             // t = c >> 7
+    mul     t, t, d             // t = t * 113 
+    eor     c, t, c, lsl 1      // c = t ^ (c << 1)
+    and     c, c, 255           // c = c % 256 
+    tbz     c, 1, L10           // if (c & 2)
+    
+    //   *s^=1ULL<<((1<<j)-1);
+    mov     v, 1                // v = 1
+    lsl     u, v, j             // u = v << j 
+    sub     u, u, 1             // u = u - 1
+    lsl     v, v, u             // v = v << u
+    ldr     t, [s]              // t = s[0]
+    eor     t, t, v             // t ^= v
+    str     t, [s]              // s[0] = t
+L10:    
+    add     j, j, 1             // j = j + 1
+    cmp     j, 7                // j < 7
+    bne     L9
+    
+k1600_v:
+    ; modulo 5    
+    dd     003020100h, 002010004h, 000000403h
+    ; rho pi
+    dd     0110b070ah, 010050312h, 004181508h 
+    dd     00d13170fh, 00e14020ch, 001060916h

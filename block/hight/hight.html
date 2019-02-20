@@ -1,22 +1,15 @@
 <h3><strong>Introduction</strong></h3>
 
-<p><a href="https://iacr.org/archive/ches2006/04/04.pdf">HIGHT</a> which stands for <strong>HIGh security and light weigHT</strong> is a block cipher first proposed at the 2006 <a href="https://iacr.org/archive/ches2006/ches2006.html">Cryptographic Hardware and Embedded Systems</a> (CHES) conference held in Japan. HIGHT attracted a lot of attention upon its release because it only uses ARX operations (modular addition, bitwise rotation, and XOR) on 8-bit words. It was selected in 2010 by the <a href="http://www.tta.or.kr/English/">Telecommunications Technology Association</a> (TTA) of Korea to become part of the <a href="https://www.iso.org/standard/54531.html">ISO/IEC 18033-3</a> portfolio which also consists of the following 64-bit block ciphers: TDEA, MISTY1, CAST-128.</p>
-
-<p>Some points to note.</p>
+<p><a href="https://iacr.org/archive/ches2006/04/04.pdf">HIGHT</a> which stands for <strong>HIGh security and light weigHT</strong> is a 64-bit block cipher with support for 128-bit keys. It was first proposed at the 2006 <a href="https://iacr.org/archive/ches2006/ches2006.html">Cryptographic Hardware and Embedded Systems</a> (CHES) conference held in Japan. HIGHT attracted a lot of attention upon its release because it only uses add-rotate-xor (ARX) operations on 8-bit words. It was selected in 2010 by the <a href="http://www.tta.or.kr/English/">Telecommunications Technology Association</a> (TTA) of Korea to become part of the <a href="https://www.iso.org/standard/54531.html">ISO/IEC 18033-3</a> portfolio that also consists of the following 64-bit block ciphers: TDEA, MISTY1, CAST-128. Some points to note:</p>
 
 <strong><ul>
 	<li>64-bit input/output data block size</li>
-
 	<li>128-bit key length</li>
-
 	<li>32-rounds using 2**8 modular addition, rotation, and XOR (ARX)</li>
-
 	<li>No S-Box (non-linear operations using modular addition)</li>
- 
 	<li>Designed for low-resource device (data storage, power, etc.)</li>
 </ul></strong>
 
-<p>I normally don't implement hardware based ciphers, but thought i'd make exception for this one, as it initially appeared to be compact. Only encryption is presented, and it's not optimized for performance.</p>
 
 <h3><strong>Constant Generation</strong></h3>
 
@@ -80,7 +73,7 @@ uint8_t rc<span style='color:#808030;'>[</span><span style='color:#008c00;'>128<
 <span style='color:#004a43;'>#</span><span style='color:#004a43;'>endif</span>
 </pre>
 
-The assembly code is less than 128 bytes, which is used instead of precomputed array.
+<p>The assembly code is less than 128 bytes, which is used instead of a precomputed array.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#e34adc;'>gen_constx:</span>
     <span style='color:#800000;font-weight:bold;'>pushad</span>
@@ -132,7 +125,7 @@ The assembly code is less than 128 bytes, which is used instead of precomputed a
 
 <h3><strong>Key Schedule</strong></h3>
 
-The master key is expanded from 128-bits to 1024-bits. Each byte of the master key, indexed using an unexplained calculation, is added to 1 of the generated constants. 
+<p>The master key is expanded from 128-bits to 1024-bits. Each byte of the master key, indexed using an unexplained calculation, is added to 1 of the generated constants.</p>
  
 <pre style='color:#000000;background:#ffffff;'><span style='color:#800000;font-weight:bold;'>void</span> hight128_setkey<span style='color:#808030;'>(</span><span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>in<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>out<span style='color:#808030;'>)</span>
 <span style='color:#800080;'>{</span>
@@ -169,9 +162,7 @@ The master key is expanded from 128-bits to 1024-bits. Each byte of the master k
 <span style='color:#800080;'>}</span>
 </pre>
 
-There may be a way to implement generation of the subkeys in 1 loop.
-
-The calculation of idx currently requires 2 loops.
+<p>There may be a way to implement generation of the subkeys in 1 loop. The calculation of idx currently requires 2 loops.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#e34adc;'>hight128_setkeyx:</span>    
 <span style='color:#e34adc;'>_hight128_setkeyx:</span>
@@ -219,7 +210,7 @@ The calculation of idx currently requires 2 loops.
 
 <h3><strong>Round functions</strong></h3>
 
-2 Linear functions which provide diffusion. Although they're shown separately here, a different version inlines them in the main encryption loop. 
+<p>2 Linear functions which provide diffusion. Although they're shown separately here, a different version inlines them in the main encryption loop.</p>
 
 <pre style='color:#000000;background:#ffffff;'>uint8_t F0<span style='color:#808030;'>(</span>uint8_t x<span style='color:#808030;'>)</span> <span style='color:#800080;'>{</span>
     <span style='color:#800000;font-weight:bold;'>return</span> ROTL8<span style='color:#808030;'>(</span>x<span style='color:#808030;'>,</span> <span style='color:#008c00;'>1</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>^</span> ROTL8<span style='color:#808030;'>(</span>x<span style='color:#808030;'>,</span> <span style='color:#008c00;'>2</span><span style='color:#808030;'>)</span> <span style='color:#808030;'>^</span> ROTL8<span style='color:#808030;'>(</span>x<span style='color:#808030;'>,</span> <span style='color:#008c00;'>7</span><span style='color:#808030;'>)</span><span style='color:#800080;'>;</span>
@@ -232,7 +223,7 @@ uint8_t F1<span style='color:#808030;'>(</span>uint8_t x<span style='color:#8080
 
 <h3><strong>Encryption</strong></h3>
 
-The only nonlinear operations here are the modular addition. Perhaps it would have made more sense to use an s-box layer. A 4 x 4 bit-slice sbox would work well here.
+<p>The only nonlinear operations here are the modular addition. Perhaps it would have made more sense to use an s-box layer. A 4 x 4 bit-slice sbox would work well here.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#800000;font-weight:bold;'>void</span> hight128_encrypt<span style='color:#808030;'>(</span><span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>data<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>void</span> <span style='color:#808030;'>*</span>keys<span style='color:#808030;'>)</span>
 <span style='color:#800080;'>{</span>
@@ -265,11 +256,7 @@ The only nonlinear operations here are the modular addition. Perhaps it would ha
 <span style='color:#800080;'>}</span>
 </pre>
 
-The assembly code for this is slightly different from the C code, and wasn't enjoyable to implement ;)
-
-For each round, there are 2 loops, consisting of 1 addition and 1 XOR with the linear functions inlined.
-
-The 64-bit rotation uses ADD/ADC
+<p>The assembly code for this is slightly different from the C code, and wasn't enjoyable to implement ;) For each round, there are 2 loops, consisting of 1 addition and 1 XOR with the linear functions inlined. The 64-bit rotation uses ADD/ADC.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>; rotate cipher text 64-bits    </span>
 <span style='color:#e34adc;'>rotl64:</span> 
@@ -367,28 +354,10 @@ The 64-bit rotation uses ADD/ADC
     <span style='color:#800000;font-weight:bold;'>ret</span>
 </pre>
 
-I've no doubt the above code can be optimized further, but it would require removing the dependency on EDI in the main loop. 
-
-The load/save operations using EDI are not necessary except at the beginning and end of code. 
-
-If the plaintext was loaded into 2 32-bit registers, there's a possibility of removing the 64-bit rotation in the main loop by rotating registers and swapping bytes.
+<p>I've no doubt the above code can be optimized further, but it would require removing the dependency on EDI in the main loop. The load/save operations using EDI are not necessary except at the beginning and end of code.  If the plaintext was loaded into 2 32-bit registers, there's a possibility of removing the 64-bit rotation in the main loop by rotating registers and swapping bytes.</p>
 
 <h3><strong>Summary</strong></h3>
 
-HIGHT is a hardware cipher obviously intended for 8-bit CPUs. Because of the linear functions, it's difficult to see how one could optimize it for a 32-bit or 64-bit CPU.
-
-I've speculated that if the bytes of plaintext were rearranged, one could optimize it further for a 16-bit CPU, but it would still need 8-bit operations for the linear functions.
-
-The assembly code generated by MSVC is approx. 440 bytes, and the assembly is currently 283 bytes.
-
-There are some parts of this cipher I feel could have been better designed, which would have made it easier to implement in software. 
-
-Take for example the key schedule routine; the calculation of index to master key seems overcomplicated and inefficient. For the encryption, there's an additional rotation of the ciphertext which just seems redundant.
-
-After the encryption has been applied, rearranging the ciphertext isn't likely to affect security of the cipher layers, so why do it? Presumably, it's a permutation to strengthen ciphertext.
-
-As said already, the only nonlinear operations are modular addition, and there could be <a href="https://keccak.team/2017/not_arx.html">potential security problems with an ARX structure</a> yet to be revealed.
-
-A bit-slice S-box layer for each round of encryption might have mitigated against any future problems found in ARX. 
+<p>Because of the linear functions, it's difficult to see how one could optimize it for a 32-bit or 64-bit CPU. I've speculated that if the bytes of plaintext were rearranged, one could optimize it further for a 16-bit CPU, but it would still need 8-bit operations for the linear functions. The assembly code generated by MSVC is approx. 440 bytes and the assembly is currently 283 bytes.</p>
 
 <p><a href="https://github.com/odzhan/tinycrypt/tree/master/block/hight">Sources here.</a></p>

@@ -37,34 +37,30 @@
 ; -----------------------------------------------
     bits 64
     
-%ifndef BIN
-  global xsiphashx   
-  global _xsiphashx   
-%endif
-    
-; don't change these    
-%define cROUNDS 2
-%define dROUNDS 4
+    %ifndef BIN
+      global siphash  
+    %endif
+        
+    ; don't change these    
+    %define cROUNDS 2
+    %define dROUNDS 4
 
-%define v0 rbx    
-%define v1 rbp    
-%define v2 rdx    
-%define v3 rdi
+    %define v0 rbx    
+    %define v1 rbp    
+    %define v2 rdx    
+    %define v3 rdi
 
-_xsiphashx:
-xsiphashx:
-    push   rsi
-    push   rbx
-    push   rbp
-    push   rdi
-    push   rdx
-    pop    rsi     
+; int siphash(const uint8_t *in, const size_t inlen, const uint8_t *k,
+;            uint8_t *out, const size_t outlen)
+; system v abi RDI=in, RSI=inlen, RDX=k, RCX=out, R8=outlen, R9
+siphash:
+    push   rsi                ; save out
     ; initialize state
-    mov    v0, [r8]
-    push   v0
+    mov    v0, [rdx]          ; v0 = k[0]
+    mov    v1, [rdx+8]        ; v1 = k[1]
+    push   v0                 ; v2 = v0
     pop    v2
-    mov    v1, [r8+8]
-    push   v1
+    push   v1                 ; v3 = v1
     pop    v3
     mov    rax, 0x736f6d6570736575
     xor    v0, rax

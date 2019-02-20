@@ -38,21 +38,21 @@
 
     bits 32
 
-%ifndef BIN
-  global chas_setkeyx   
-  global _chas_setkeyx   
-  
-  global chas_macx   
-  global _chas_macx   
-%endif
-    
-%define k0 ebp
-%define k1 ebx
-%define k2 ecx
-%define k3 edx
-    
-chas_setkeyx:
-_chas_setkeyx:
+    %ifndef BIN
+      global chaskey_setkey   
+      global _chaskey_setkey   
+      
+      global chaskey_mac
+      global _chaskey_mac   
+    %endif
+        
+    %define k0 ebp
+    %define k1 ebx
+    %define k2 ecx
+    %define k3 edx
+        
+chaskey_setkey:
+_chaskey_setkey:
     pushad
     mov    edi, [esp+32+4]   ; edi = out
     mov    esi, [esp+32+8]   ; esi = in
@@ -105,47 +105,47 @@ sk_l0:
     popad
     ret
     
-%define v0 eax    
-%define v1 edx    
-%define v2 ebp    
-%define v3 ebx
+%define x0 eax    
+%define x1 edx    
+%define x2 ebp    
+%define x3 ebx
     
 ; ecx = 16    
-; edi = v
-chas_permute:
+; edi = x
+permute:
     pushad
     mov    cl, 12
     mov    esi, edi
     lodsd
-    xchg   eax, v3
+    xchg   eax, x3
     lodsd
-    xchg   eax, v1
+    xchg   eax, x1
     lodsd
-    xchg   eax, v2
+    xchg   eax, x2
     lodsd
-    xchg   eax, v3
+    xchg   eax, x3
 cp_l0:
-    add    v0, v1            ; v[0] += v[1];
-    rol    v1, 5             ; v[1] = ROTL(v[1], 5);
-    xor    v1, v0            ; v[1] ^= v[0];
-    rol    v0, 16            ; v[0] = ROTL(v[0], 16);
-    add    v2, v3            ; v[2] += v[3]; 
-    rol    v3, 8             ; v[3] = ROTL(v[3], 8); 
-    xor    v3, v2            ; v[3] ^= v[2]; 
-    add    v0, v3            ; v[0] += v[3];
-    rol    v3, 13            ; v[3] = ROTL(v[3], 13);
-    xor    v3, v0            ; v[3] ^= v[0];
-    add    v2, v1            ; v[2] += v[1];
-    rol    v1, 7             ; v[1] = ROTL(v[1],  7);
-    xor    v1, v2            ; v[1] ^= v[2];
-    rol    v2, 16            ; v[2] = ROTL(v[2], 16);
+    add    x0, x1 ; x[0] += x[1];
+    ror    x1, 27 ; x[1] = R(x[1],27) ^ x[0];
+    xor    x1, x0
+    add    x2, x3 ; x[2] += x[3];
+    ror    x3, 24 ; x[3] = R(x[3],24) ^ x[2];
+    xor    x3, x2
+    add    x2, x1 ; x[2] += x[1];
+    ror    x0, 16 ; x[0] = R(x[0],16) + x[3];
+    add    x0, x3
+    ror    x3, 19 ; x[3] = R(x[3],19) ^ x[0];
+    xor    x3, x0  
+    ror    x1, 25 ; x[1] = R(x[1],25) ^ x[2];
+    xor    x1, x2
+    ror    x2, 16 ; x[2] = R(x[2],16);
     loop   cp_l0
     stosd
-    xchg   eax, v1
+    xchg   eax, x1
     stosd
-    xchg   eax, v2
+    xchg   eax, x2
     stosd
-    xchg   eax, v3
+    xchg   eax, x3
     stosd
     popad   
     ret
@@ -166,8 +166,8 @@ cx_l1:
     ret    
     
 ; chaskey    
-chas_macx:
-_chas_macx:
+chaskey_mac:
+_chaskey_mac:
     pushad
     lea    esi, [esp+32+4]
     pushad                   ; allocate 32 bytes
@@ -181,7 +181,8 @@ _chas_macx:
     lodsd
     xchg   eax, esi          ; esi = key
 
-    ; memcpy(v, &key[0], 16);
+    ; copy 128-bit master key to local memory
+    ; F(16) v[i] = k[i];
     push   16
     pop    ecx
     push   edi               ; save v
@@ -192,43 +193,45 @@ _chas_macx:
     ; absorb message
 cm_l0:
     mov    cl, 16
-    ; len = (msglen < 16) ? msglen : 16;
+    ; r = (len > 16) ? 16 : len;
     cmp    edx, ecx
     cmovb  ecx, edx
     
-    ; chas_xor(&v, msg, len);
+    ; xor v with msg data
+    ; F(r) v[i] ^= p[i];
     call   chas_xor
     mov    cl, 16
     
-    ; if (msglen <= 16)
+    ; final block?
+    ; if (len <= 16) {
     cmp    edx, ecx
     jbe    cm_l2
     
-    call   chas_permute
+    call   permute
 
-    ; msglen -= 16
+    ; len -= 16
     sub    edx, ecx
-    ; msg += 16
+    ; p += 16
     add    esi, ecx
     
     jmp    cm_l0
 cm_l2:    
     pop    esi
-    ; if (msglen < 16)
-    je     cm_l3  
-    ; v.b[msglen] ^= 0x01;
-    xor    byte[edi+edx], 0x01
-    ; load key + 32
-    add    esi, ecx
-cm_l3:    
-    ; chas_xor(v, key, 16);
+    ; if (len < 16) {
+    je     cm_l3
+    ; v[len] ^= 1;
+    xor    byte[edi+edx], 1
+    ; k += (len == 16) ? 16 : 32;
+    add    esi, ecx 
+cm_l3:   
+    ; mix key
+    ; F(16) v[i] ^= k[i];
     call   chas_xor
-    ; chas_permute(v);
-    call   chas_permute
-    ; chas_xor(v, key, 16);
+    ; permute(v);
+    call   permute
+    ; F(16) v[i] ^= k[i];
     call   chas_xor
-    
-    ; memcpy(tag, v, 16);
+    ; F(16) t[i] = k[i];
     mov    esi, edi
     mov    edi, ebp
     rep    movsb

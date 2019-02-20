@@ -29,7 +29,7 @@
 
 #include "chaskey.h"
   
-void chas_setkey(void *out, void *in) 
+void chaskey_setkey(void *out, void *in) 
 {
   int      i;
   uint32_t *k=(uint32_t*)out;
@@ -76,7 +76,7 @@ void chas_xor(w128_t *out, const void *in, int len) {
   }
 }
 
-void chas_mac (uint8_t *tag, 
+void chaskey_mac (uint8_t *tag, 
     uint8_t *msg, uint32_t msglen, uint8_t *key) 
 {
   w128_t v;

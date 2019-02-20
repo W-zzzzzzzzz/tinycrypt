@@ -1,6 +1,6 @@
 <h3><strong>Introduction</strong></h3>
 
-<p><a href="http://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf">SHA-2 </a>(Secure Hash Algorithm) consists of 6 cryptographic hash functions designed by the National Security Agency (NSA) that were published in 2001 under royalty free patent. They are intended to be used for data integrity, message authentication and digital signatures. However, SHA-2 has been used for password algorithms like sha256crypt on Linux. To avoid confusion, what follows is a copmpact implementation. If you require a version optimized for speed, consider using a library such as <a href="https://www.openssl.org/">OpenSSL</a>.</p>
+<p><a href="http://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf">SHA-2 </a>(Secure Hash Algorithm) consists of 6 cryptographic hash functions designed by the National Security Agency (NSA) that were published in 2001 under royalty free patent. They are intended to be used for data integrity, message authentication and digital signatures. However, SHA-2 has also been used for password algorithms like sha256crypt on Linux. To avoid confusion, what follows is a compact implementation. If you require a version optimized for speed, consider using a library such as <a href="https://www.openssl.org/">OpenSSL</a>.</p>
 
 <h3><strong>Macros and data types</strong></h3>
 
@@ -27,7 +27,7 @@
 
 <h3><strong>Initialization</strong></h3>
 
-<pre style='color:#000000;background:#ffffff;'><span style='color:#800000; font-weight:bold; '>void</span> sha256_init<span style='color:#808030; '>(</span>sha256_ctx<span style='color:#808030; '>*</span>c<span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>    
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000; font-weight:bold; '>void</span> sha256_init<span style='color:#808030; '>(</span>sha256_ctx <span style='color:#808030; '>*</span>c<span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>    
     c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>s<span style='color:#808030; '>[</span><span style='color:#008c00; '>0</span><span style='color:#808030; '>]</span><span style='color:#808030; '>=</span><span style='color:#008000; '>0x6a09e667</span><span style='color:#800080; '>;</span>
     c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>s<span style='color:#808030; '>[</span><span style='color:#008c00; '>1</span><span style='color:#808030; '>]</span><span style='color:#808030; '>=</span><span style='color:#008000; '>0xbb67ae85</span><span style='color:#800080; '>;</span>
     c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>s<span style='color:#808030; '>[</span><span style='color:#008c00; '>2</span><span style='color:#808030; '>]</span><span style='color:#808030; '>=</span><span style='color:#008000; '>0x3c6ef372</span><span style='color:#800080; '>;</span>
@@ -42,7 +42,7 @@
 
 <h3><strong>Adding data</strong></h3>
 
-<pre style='color:#000000;background:#ffffff;'><span style='color:#800000; font-weight:bold; '>void</span> sha256_update<span style='color:#808030; '>(</span>sha256_ctx<span style='color:#808030; '>*</span>c<span style='color:#808030; '>,</span><span style='color:#800000; font-weight:bold; '>const</span> <span style='color:#800000; font-weight:bold; '>void</span><span style='color:#808030; '>*</span>in<span style='color:#808030; '>,</span>W len<span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000; font-weight:bold; '>void</span> sha256_update<span style='color:#808030; '>(</span>sha256_ctx <span style='color:#808030; '>*</span>c<span style='color:#808030; '>,</span><span style='color:#800000; font-weight:bold; '>const</span> <span style='color:#800000; font-weight:bold; '>void </span><span style='color:#808030; '>*</span>in<span style='color:#808030; '>,</span>W len<span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
     B <span style='color:#808030; '>*</span>p<span style='color:#808030; '>=</span><span style='color:#808030; '>(</span>B<span style='color:#808030; '>*</span><span style='color:#808030; '>)</span>in<span style='color:#800080; '>;</span>
     W i<span style='color:#808030; '>,</span> idx<span style='color:#800080; '>;</span>
     
@@ -61,7 +61,7 @@
 
 <h3><strong>Finalization</strong></h3>
 
-<pre style='color:#000000;background:#ffffff;'><span style='color:#800000; font-weight:bold; '>void</span> sha256_final<span style='color:#808030; '>(</span><span style='color:#800000; font-weight:bold; '>void</span><span style='color:#808030; '>*</span>out<span style='color:#808030; '>,</span>sha256_ctx<span style='color:#808030; '>*</span>c<span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000; font-weight:bold; '>void</span> sha256_final<span style='color:#808030; '>(</span><span style='color:#800000; font-weight:bold; '>void </span><span style='color:#808030; '>*</span>out<span style='color:#808030; '>,</span>sha256_ctx <span style='color:#808030; '>*</span>c<span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
     W i<span style='color:#808030; '>,</span>len<span style='color:#808030; '>,</span><span style='color:#808030; '>*</span>p<span style='color:#808030; '>=</span><span style='color:#808030; '>(</span>W<span style='color:#808030; '>*</span><span style='color:#808030; '>)</span>out<span style='color:#800080; '>;</span>
     
     i <span style='color:#808030; '>=</span> len <span style='color:#808030; '>=</span> c<span style='color:#808030; '>-</span><span style='color:#808030; '>></span>len <span style='color:#808030; '>&amp;</span> <span style='color:#008c00; '>63</span><span style='color:#800080; '>;</span>
