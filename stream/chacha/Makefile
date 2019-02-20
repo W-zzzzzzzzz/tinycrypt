@@ -1,6 +1,5 @@
-msvc:
-		cl /nologo /O2 /Ot /DTEST test.c cc20.c
-gnu:
-		gcc -DTEST -Wall -O2 test.c cc20.c -otest	 
-clang:
-		clang -DTEST -Wall -O2 test.c cc20.c -otest	    
+test:
+	gcc -Wall test.c chacha20.c -Os -otest
+	gcc -Wall test.c chacha20.c -Os -DGX -otest2
+clean:
+	rm -rf test test2 *.o

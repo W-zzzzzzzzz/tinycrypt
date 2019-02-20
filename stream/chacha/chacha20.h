@@ -27,14 +27,14 @@
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
 
-#ifndef SALSA20_H
-#define SALSA20_H
+#ifndef CHACHA20_H
+#define CHACHA20_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define R(v,n)(((v)<<(n))|((v)>>(32-(n))))
+#define R(v,n)(((v)>>(n))|((v)<<(32-(n))))
 #define F(n)for(i=0;i<n;i++)
 #define X(a,b)(t)=(a),(a)=(b),(b)=(t)
 
@@ -42,17 +42,17 @@ typedef unsigned char B;
 typedef unsigned int W;
 typedef unsigned long long Q;
 
-typedef union _salsa_ctx_t {
+typedef union _chacha_ctx_t {
     B b[64];
     W w[16];
     Q q[8];
-} salsa_ctx;
+} chacha_ctx;
 
-void salsa20_core(void *input, void *output);
+void chacha20_core(void *input, void *output);
 
-void salsa20_setkey(salsa_ctx *ctx, void *key, void *nonce);
-void salsa20_encrypt(salsa_ctx *ctx, void *data, W len);
-void salsa20_keystream(salsa_ctx *ctx, void *out, W len);
+void chacha20_setkey(chacha_ctx *ctx, void *key, void *nonce);
+void chacha20_encrypt(chacha_ctx *ctx, void *data, W len);
+void chacha20_keystream(chacha_ctx *ctx, void *out, W len);
 
 #ifdef __cplusplus
 }
