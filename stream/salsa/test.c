@@ -1,80 +1,81 @@
 
-// test unit for salsa20-256 with 64-bit nonce
-// odzhan
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdio.h>
 
-#include "s20.h"
+#include "salsa20.h"
 
-char tv_key[]="0F62B5085BAE0154A7FA4DA0F34699EC"
-              "3F92E5388BDE3184D72A7DD02376C91C";
+// 256-bit key
+uint8_t tv_key[32] = {
+  0xf0, 0xb2, 0x48, 0x1d, 0x6b, 0x24, 0xd0, 0x18,
+  0x03, 0x6a, 0x9e, 0x3d, 0x03, 0xc9, 0x7b, 0x1d,
+  0x9e, 0x4b, 0x46, 0x6b, 0x01, 0x7d, 0xde, 0x25,
+  0xcb, 0x9c, 0x6a, 0x00, 0xfa, 0xda, 0xac, 0x11 };
 
-char tv_iv[] ="288FF65DC42B92F9";
+// 64-bit nonce
+uint8_t tv_nonce[8] = {
+  0x1b, 0xec, 0x52, 0xf7, 0xfc, 0xcc, 0x95, 0x24 };
+  
+// 512-bit output after 2048 iterations of permutation function
+uint8_t tv_perm[64] = {
+  0x46, 0xa6, 0x46, 0x2d, 0x09, 0xa1, 0x04, 0xdb, 
+  0x41, 0x39, 0x82, 0xf9, 0x39, 0x06, 0x18, 0x71, 
+  0xb9, 0x3a, 0xe1, 0x2d, 0xf4, 0x6c, 0x81, 0x5a, 
+  0x67, 0x70, 0x5d, 0x56, 0x27, 0x00, 0xb9, 0xbf, 
+  0x09, 0x02, 0x00, 0x64, 0xcc, 0x73, 0xa1, 0xf8, 
+  0x8c, 0x62, 0xea, 0x3c, 0x2f, 0x2c, 0xb9, 0xea, 
+  0x3c, 0x4b, 0xe7, 0x56, 0x72, 0x5a, 0xf7, 0x2c, 
+  0x48, 0xd8, 0x6c, 0xdd, 0xde, 0xdf, 0xea, 0x7e };
 
-char tv_res[]="5E5E71F90199340304ABB22A37B6625B"
-              "F883FB89CE3B21F54A10B81066EF87DA"
-              "30B77699AA7379DA595C77DD59542DA2"
-              "08E5954F89E40EB7AA80A84A6176663F";
+// 512-bit stream after 2048 blocks of keystream
+uint8_t tv_stream[64] = {
+  0xec, 0xe9, 0x86, 0x69, 0xa8, 0x83, 0xf1, 0x9e, 
+  0x43, 0xa5, 0x0b, 0x35, 0x44, 0x1e, 0x71, 0x7d, 
+  0xfd, 0x6e, 0xaa, 0xa1, 0xe2, 0xe3, 0x01, 0x45, 
+  0x3a, 0xa0, 0x9a, 0xb9, 0x48, 0xa4, 0x24, 0x78, 
+  0x56, 0x00, 0x25, 0x0e, 0xd1, 0x91, 0x87, 0xde, 
+  0xe4, 0x81, 0x54, 0x52, 0xec, 0x8e, 0xb3, 0x3f, 
+  0xc1, 0x11, 0x9d, 0x00, 0x86, 0x95, 0x10, 0xb1, 
+  0xeb, 0x32, 0x49, 0x30, 0x05, 0xe6, 0x87, 0xfe };
+
+void bin2hex(const char *s, void *bin, int len) {
+    int  i;
+    char c;
+    uint8_t *b=bin;
     
-int equ(uint8_t x[], uint8_t y[], int len) {
-    return memcmp(x, y, len)==0;
-}
-
-uint32_t hex2bin (void *bin, char hex[]) {
-    uint32_t len, i;
-    uint32_t x;
-    uint8_t *p=(uint8_t*)bin;
-    
-    len = strlen (hex);
-    
-    if ((len & 1) != 0) {
-      return 0; 
-    }
-    
-    for (i=0; i<len; i++) {
-      if (isxdigit((int)hex[i]) == 0) {
-        return 0; 
-      }
-    }
-    
-    for (i=0; i<len / 2; i++) {
-      sscanf (&hex[i * 2], "%2x", &x);
-      p[i] = (uint8_t)x;
-    } 
-    return len / 2;
-} 
-
-void bin2hex(void *in, int len) {
-    int i;
-    uint8_t *p=(uint8_t*)in;
+    printf ("\n%s=", s);
     
     for (i=0; i<len; i++) {
       if ((i & 7)==0) putchar('\n');
-      printf ("%02x, ", p[i]);
+      if (i==len-1) c='\n'; else c=',';
+      printf ("0x%02x%c ", b[i], c);
     }
-    putchar('\n');
 }
 
-int main(void)
-{
-    s20_ctx c;
-    uint8_t strm[64], res[64], key[32], iv[16];
+int main(void) {
+    uint8_t   state[64], stream[64];
+    salsa_ctx ctx;
+    int       i, equ;
     
-    memset(strm, 0, sizeof(strm));
+    // test the permutation function first
+    for(i=0;i<64;i++) state[i]=(i+1);
     
-    hex2bin(key, tv_key);
-    hex2bin(iv, tv_iv);
-    hex2bin(res, tv_res);
+    for(i=0;i<2048;i++) {
+      salsa20_core((uint32_t*)state, (uint32_t*)stream);
+    }
+    equ = (memcmp(stream, tv_perm, 64)==0);
     
-    s20_setkey(&c, key, iv);
-    s20_encrypt(sizeof(strm), strm, &c);
+    printf("salsa20 core test : %s\n", equ ? "OK" : "FAILED");
+
+    salsa20_setkey(&ctx, tv_key, tv_nonce);
     
-    printf ("\nSALSA20 test - %s", 
-      equ(strm, res, 64) ? "OK" : "failed");
-        
-    bin2hex(strm, 64);
-    bin2hex(res, 64);
+    for(i=0;i<2048;i++) {
+      salsa20_keystream(&ctx, stream, 64);
+    }
+
+    equ = (memcmp(stream, tv_stream, 64)==0);
+    printf("salsa20 keystream test : %s\n", equ ? "OK" : "FAILED");
     return 0;
 }
