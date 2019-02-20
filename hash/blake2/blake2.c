@@ -77,7 +77,7 @@ int blake2_init(blake2_ctx*,W,const void*,W);
 void blake2_update(blake2_ctx*,const void*,W);
 void blake2_final(void*,blake2_ctx*);
 
-    W v[8]=
+    W v_idx[8]=
     { 0xC840, 0xD951, 0xEA62, 0xFB73,
       0xFA50, 0xCB61, 0xD872, 0xE943 };
       
@@ -89,20 +89,27 @@ void blake2_final(void*,blake2_ctx*);
       0x5a417d2c803b9ef6, 0x0dc3e9bf5167482a,
       0xfedcba9876543210, 0x357b20c16df984ae };
       
-void G(W *s, W *m) {
-    W i, j, a, b, c, d, r, t;
+void blake2_compress(blake2_ctx *ctx, W last) {
+    W i, j, a, b, c, d, r, t, s[16];
     Q z, *p=sigma;
-    
+      
+    F(8)s[i]=ctx->s[i], s[i+8]=iv[i];
+  #ifdef S
+    s[12]^=((W*)&ctx->len)[0];s[13]^=((W*)&ctx->len)[1];
+  #else
+    s[12]^=ctx->len;
+  #endif
+    s[14]^=-last;
     for(i=0;i<ROUNDS;) {
       z=*p++;
       while(z) {
-        d=v[i++%8];
+        d=v_idx[i++%8];
         a=(d&15);b=(d>>4&15);
         c=(d>>8&15);d>>=12;
         r=ROTATION;
         for(j=0;j<4;j++) {
           if(!(j&1)) {
-            s[a]+=m[z&15];
+            s[a]+=ctx->x.w[z&15];
             z>>=4;
           }
           s[a]+=s[b];
@@ -112,20 +119,7 @@ void G(W *s, W *m) {
         }
       }
     }
-}
-
-void blake2_compress(blake2_ctx *c, W last) {
-    W i, v[16];
-      
-    F(8)v[i]=c->s[i], v[i+8]=iv[i];
-  #ifdef S
-    v[12]^=((W*)&c->len)[0];v[13]^=((W*)&c->len)[1];
-  #else
-    v[12]^=c->len;
-  #endif
-    v[14]^=-last;
-    G(v,c->x.w);
-    F(8)c->s[i]^=v[i]^v[i+8];
+    F(8)ctx->s[i]^=s[i]^s[i+8];
 }
 
 int blake2_init (blake2_ctx *c,W outlen,const void *key,W keylen) {
