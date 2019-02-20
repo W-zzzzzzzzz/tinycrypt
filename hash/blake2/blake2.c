@@ -102,7 +102,7 @@ void blake2_compress(blake2_ctx *ctx, W last) {
     s[14]^=-last;
     for(i=0;i<ROUNDS;) {
       z=*p++;
-      while(z) {
+      do {
         d=v_idx[i++%8];
         a=(d&15);b=(d>>4&15);
         c=(d>>8&15);d>>=12;
@@ -117,7 +117,7 @@ void blake2_compress(blake2_ctx *ctx, W last) {
           X(a,c),X(b,d);
           r>>=8;
         }
-      }
+      } while(z!=0);
     }
     F(8)ctx->s[i]^=s[i]^s[i+8];
 }
@@ -125,7 +125,7 @@ void blake2_compress(blake2_ctx *ctx, W last) {
 int blake2_init (blake2_ctx *c,W outlen,const void *key,W keylen) {
     W i;
     
-    if(outlen == 0 || outlen > BLOCKLEN || keylen > BLOCKLEN) return -1;
+    if(outlen == 0 || outlen > OUTLEN || keylen > KEYLEN) return -1;
     
     // set the initial values
     F(8)c->s[i]=iv[i];

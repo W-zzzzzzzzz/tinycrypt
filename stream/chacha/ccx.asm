@@ -30,7 +30,7 @@
 ; -----------------------------------------------
 ; ChaCha20 stream cipher in x86 assembly
 ;
-; size: 179 bytes
+; size: 187 bytes
 ;
 ; global calls use cdecl convention
 ;
@@ -67,8 +67,15 @@ _chacha:
     stosd
     mov    eax, 0x6B206574
     stosd
-    ; copy 256-bit key, counter and nonce
-    mov    cl, 32+4+12
+    ; copy 256-bit key
+    mov    cl, 32
+    rep    movsb
+    ; set 32-bit counter
+    push   1
+    pop    eax
+    stosd
+    ; copy 96-bit nonce
+    mov    cl, 12
     rep    movsb
     popad
     ret 

@@ -1,6 +1,6 @@
 
 
-// ChaCha20 test unit in C
+// ChaCha test unit in C
 // Odzhan
 
 #include <stdint.h>
@@ -8,21 +8,28 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "cc20.h"
+typedef struct {
+  uint32_t iv[4];    // 128-bit iv
+  uint32_t key[8];   // 256-bit key
+  uint32_t ctr;      // 32-bit counter
+  uint32_t nonce[3]; // 96-bit nonce
+} chacha_ctx;
+    
+void chacha(uint32_t len, void *input, void *state);
 
 // 2.4.2.  Example and Test Vector for the ChaCha20 Cipher
-uint8_t key[]=
+uint8_t tv_key[]=
 { 0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
   0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,
   0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
   0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f };
       
-uint8_t nonce[]=
+uint8_t tv_nonce[]=
 { 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x4a,
   0x00,0x00,0x00,0x00 };
 
 // Plaintext Sunscreen:
-uint8_t input[]=
+uint8_t tv_pt[]=
 { 0x4c,0x61,0x64,0x69,0x65,0x73,0x20,0x61,
   0x6e,0x64,0x20,0x47,0x65,0x6e,0x74,0x6c,
   0x65,0x6d,0x65,0x6e,0x20,0x6f,0x66,0x20,
@@ -39,7 +46,7 @@ uint8_t input[]=
   0x75,0x6c,0x64,0x20,0x62,0x65,0x20,0x69,
   0x74,0x2e };
   
-uint8_t output[]=
+uint8_t tv_ct[]=
 { 0x6e,0x2e,0x35,0x9a,0x25,0x68,0xf9,0x80,
   0x41,0xba,0x07,0x28,0xdd,0x0d,0x69,0x81,
   0xe9,0x7e,0x7a,0xec,0x1d,0x43,0x60,0xc2,
@@ -56,92 +63,39 @@ uint8_t output[]=
   0xb4,0x0b,0x8e,0xed,0xf2,0x78,0x5e,0x42,
   0x87,0x4d }; 
   
-/*
-// 256-bit key
-uint8_t key[32]=
-{ 0xc4, 0x6e, 0xc1, 0xb1, 0x8c, 0xe8, 0xa8, 0x78,
-  0x72, 0x5a, 0x37, 0xe7, 0x80, 0xdf, 0xb7, 0x35,
-  0x1f, 0x68, 0xed, 0x2e, 0x19, 0x4c, 0x79, 0xfb,
-  0xc6, 0xae, 0xbe, 0xe1, 0xa6, 0x67, 0x97, 0x5d };
-  
-// 64-bit nonce
-uint8_t nonce[8]=
-{ 0x1a, 0xda, 0x31, 0xd5, 0xcf, 0x68, 0x82, 0x21 };
-
-// 512-bit input
-uint8_t input[64]={ 0 };
-
-// 512-bit output
-uint8_t output[64]=
-{ 0xf6, 0x3a, 0x89, 0xb7, 0x5c, 0x22, 0x71, 0xf9,
-  0x36, 0x88, 0x16, 0x54, 0x2b, 0xa5, 0x2f, 0x06,
-  0xed, 0x49, 0x24, 0x17, 0x92, 0x30, 0x2b, 0x00,
-  0xb5, 0xe8, 0xf8, 0x0a, 0xe9, 0xa4, 0x73, 0xaf,
-  0xc2, 0x5b, 0x21, 0x8f, 0x51, 0x9a, 0xf0, 0xfd,
-  0xd4, 0x06, 0x36, 0x2e, 0x8d, 0x69, 0xde, 0x7f,
-  0x54, 0xc6, 0x04, 0xa6, 0xe0, 0x0f, 0x35, 0x3f,
-  0x11, 0x0f, 0x77, 0x1b, 0xdc, 0xa8, 0xab, 0x92 };
-*/
-void dump_bytes (char *s, uint8_t b[], int len)
-{
-  int i;
-  char c;
-  
-  printf ("\n%s=", s);
-  for (i=0; i<len; i++) {
-    if ((i & 7)==0) putchar('\n');
-    if (i==len-1) c='\n'; else c=',';
-    printf ("0x%02x%c ", b[i], c);
-  }
+void bin2hex(const char *s, uint8_t b[], int len) {
+    int  i;
+    char c;
+    
+    printf ("\n%s=", s);
+    for (i=0; i<len; i++) {
+      if ((i & 7)==0) putchar('\n');
+      if (i==len-1) c='\n'; else c=',';
+      printf ("0x%02x%c ", b[i], c);
+    }
 }
 int main (void) {
-  cc20_ctx ctx;
-  uint8_t    pt[64]={0};
-  uint8_t    r, i;
-  w512_t     s, k;
-  w512_t     *m;
-  
-  memcpy(pt, input, 64);
-  memcpy(k.b, key, 32); // init key
-  memcpy(&k.b[32], nonce, 12); // init nonce
-  
-  // setup 256-bit key
-  cc20_setkey (&ctx, key, nonce);
-  //xchacha20 (0, &k, &s);
-
-  printf ("\ncounter = %08x %08x\n", 
-    s.w[13], s.w[12]);
+    uint8_t    data[256], params[32+12];
+    int        equ, pt_len=sizeof(tv_pt);
+    chacha_ctx state;
     
-  for (i=0; i<10; i+= 2) {
-    printf ("state[%02i - %02i] = 0x%08x 0x%08x\n", 
-      i, i+1, s.w[i], s.w[i+1]);
-  }
-  
-  printf ("\nencrypting block\n");  
-  cc20_encrypt (64, input, &ctx);
-  //xchacha20(64, input, &s);
-
-  printf ("\ncounter = %08x %08x\n", 
-    s.w[13], s.w[12]);
+    // setup parameters
+    memcpy(&params[0],  tv_key,   32);
+    memcpy(&params[32], tv_nonce, 12);
     
-  for (i=0; i<10; i+= 2) {
-    printf ("state[%02i - %02i] = 0x%08x 0x%08x\n", 
-      i, i+1, s.w[i], s.w[i+1]);
-  }
-  
-  r=memcmp (input, output, 64)==0;
-  printf ("\nEncryption test %s", r ? "passed":"failed");
-  
-  dump_bytes ("ciphertext", input, 64);
-  
-  // do 20 rounds of decryption
-  cc20_setkey (&ctx, key, nonce);
-  cc20_encrypt (64, input, &ctx);
-  
-  r=memcmp (input, pt, 64)==0;
-  printf ("\nDecryption test %s", r ? "passed":"failed");
-  
-  dump_bytes ("plaintext", input, 64);
-  
-  return 0;
+    // copy plaintext to local buffer
+    memcpy(data, tv_pt, pt_len);
+    
+    // initialize state with 256-bit key and 96-bit nonce
+    chacha(0, params, &state);
+    // encrypt plaintext
+    chacha(pt_len, data, &state);
+    
+    bin2hex("plaintext",  tv_pt, pt_len);
+    bin2hex("result", data, pt_len);
+    bin2hex("expected", tv_ct, pt_len);
+    // check results
+    equ = (memcmp(data, tv_ct, pt_len)==0);
+    printf("\nchacha test : %s.\n", equ ? "OK" : "FAILED");
+    return 0;
 }

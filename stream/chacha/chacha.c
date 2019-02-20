@@ -32,13 +32,15 @@
 #define X(a,b)(t)=(a),(a)=(b),(b)=(t)
 typedef unsigned int W;
 
-void P(W*s,W*x){
+void permute(W *s, W *x) {
     W a,b,c,d,i,t,r;
     W v[8]={0xC840,0xD951,0xEA62,0xFB73,
             0xFA50,0xCB61,0xD872,0xE943};
             
+    // load state into local buffer
     F(16)x[i]=s[i];
     
+    // for 80 rounds
     F(80) {
       d=v[i%8];
       a=(d&15);b=(d>>4&15);
@@ -47,25 +49,38 @@ void P(W*s,W*x){
       for(r=0x19181410;r;r>>=8)
         x[a]+=x[b],
         x[d]=R(x[d]^x[a],(r&255)),
+        // swap
         X(a,c),X(b,d);
     }
+    // add state to local buffer
     F(16)x[i]+=s[i];
+    // increase counter
     s[12]++;
 }
-void chacha(W l,void*in,void*state){
+void chacha(W l, void *in, void *state) {
     unsigned char c[64],*p=in;
     W i,r,*s=state,*k=in;
 
+    // if we have data to encrypt/decrypt
     if(l) {
       while(l) {
-        P(s,(W*)c);
+        // permute state
+        permute(s,(W*)c);
         r=(l>64)?64:l;
+        // xor plaintext with ciphertext
         F(r)*p++^=c[i];
+        // decrease length
         l-=r;
       }
+    // initialize state
     } else {
       s[0]=0x61707865;s[1]=0x3320646E;
       s[2]=0x79622D32;s[3]=0x6B206574;
-      F(12)s[i+4]=k[i];
+      // copy 256-bit key
+      F(8)s[i+4]=k[i];
+      // set counter
+      s[12] = 1;
+      // set 96-bit nonce
+      F(3)s[i+13]=k[i+8];
     }
 }
