@@ -30,26 +30,22 @@
 #ifndef SM4_H
 #define SM4_H
 
-#include "../../macros.h"
+#define R(v,n)(((v)>>(n))|((v)<<(32-(n))))
+#define F(a,b)for(a=0;a<b;a++)
+typedef unsigned char B;
+typedef unsigned int W;
 
-#define SM4_ROUNDS 32
-
-#define SM4_ENCRYPT 0
-#define SM4_DECRYPT 1
+#define rev __builtin_bswap32
   
 typedef struct sm4_ctx_t {
-    uint32_t rk[SM4_ROUNDS];
+  W rk[32];
 } sm4_ctx;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void sm4_setkey(sm4_ctx*,const void*, int);
-void sm4_setkeyx(sm4_ctx*,const void*, int);
-
-void sm4_encrypt(sm4_ctx*,void*);
-void sm4_encryptx(sm4_ctx*,void*);
+void sm4(void *mk, void *data);
 
 #ifdef __cplusplus  
 }

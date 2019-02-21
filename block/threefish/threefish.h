@@ -30,26 +30,21 @@
 #ifndef THREEFISH_H
 #define THREEFISH_H
 
-#define THREEFISH_ENCRYPT 0
-#define THREEFISH_DECRYPT 1
-
-#include "../../macros.h"   
-   
+#define R(v,n)(((v)<<(n))|((v)>>(64-(n))))
+#define F(a,b)for(a=0;a<b;a++)
+typedef unsigned long long W;
+typedef unsigned char B;
+  
 // for 256-bit keys
-typedef struct{
-  uint64_t k[5];
-  uint64_t t[3];
-} threefish_ctx_t;
+typedef struct threefish_ctx_t {
+  W key[4], tweak[2];
+} threefish_ctx;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-  void threefish_setkey (threefish_ctx_t*, const void*, const void*);
-  void threefish_setkeyx (threefish_ctx_t*, const void*, const void*);
-  void threefish_encrypt (const threefish_ctx_t*, void*, uint32_t);
-
-  void threefish(void *key, void *tweak, void *data);
+void threefish(void *mk, void *data);
   
 #ifdef __cplusplus
 }

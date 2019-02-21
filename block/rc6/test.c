@@ -3,8 +3,10 @@
 // odzhan
 
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdlib.h>
 
 #include "rc6.h"
 

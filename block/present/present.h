@@ -29,24 +29,22 @@
 
 #ifndef PRESENT_H
 #define PRESENT_H
-  
-#include "../../macros.h"
 
-#define PRESENT_RNDS 32
-  
+#define R(v,n)(((v)>>(n))|((v)<<(64-(n))))
+#define F(a,b)for(a=0;a<b;a++)
+typedef unsigned long long W;
+typedef unsigned char B;
+#define rev __builtin_bswap64
+
 typedef struct _present_ctx_t {
-    uint64_t key[PRESENT_RNDS];
+  W key[32];
 } present_ctx;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-  void present128_setkey(present_ctx*, void*);
-  void present128_setkeyx(present_ctx*, void*);
-
-  void present128_encrypt(present_ctx*, void*);
-  void present128_encryptx(present_ctx*, void*);
+void present(void*mk, void*data);
     
 #ifdef __cplusplus
 }

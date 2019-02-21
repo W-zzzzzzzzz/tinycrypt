@@ -27,10 +27,7 @@
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
 
-#define R(v,n)(((v)>>(n))|((v)<<(64-(n))))
-#define F(a,b)for(a=0;a<b;a++)
-typedef unsigned long long W;
-typedef unsigned char B;
+#include "present.h"
 
 B S(B x) {
     B sbox[16] =
@@ -39,10 +36,8 @@ B S(B x) {
     return (sbox[(x&0xF0)>>4]<<4)|sbox[(x&0x0F)];
 }
 
-#define rev __builtin_bswap64
-
 void present(void*mk,void*data) {
-    W i=0,j,r,p,t,t2,k0,k1,*k=(W*)mk,*x=(W*)data;
+    W i=0,j,r,p,t,k0,k1,*k=(W*)mk,*x=(W*)data;
     
     // load 64-bit plaintext, 128-bit master key
     k0=rev(k[0]); k1=rev(k[1]);t=rev(x[0]);

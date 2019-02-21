@@ -27,59 +27,20 @@
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
 
-#include "sha2.h"
+#include "sha256.h"
 
-#ifdef DYNAMIC
+#define CH(x,y,z)(((x)&(y))^(~(x)&(z)))
+#define MAJ(x,y,z)(((x)&(y))^((x)&(z))^((y)&(z)))
 
-#include <math.h>
-#pragma intrinsic(fabs,pow,sqrt)
+#define EP0(x)(R(x,2)^R(x,13)^R(x,22))
+#define EP1(x)(R(x,6)^R(x,11)^R(x,25))
+#define SIG0(x)(R(x,7)^R(x,18)^((x)>>3))
+#define SIG1(x)(R(x,17)^R(x,19)^((x)>>10))
 
-uint16_t p[64] =
-{  2,   3,   5,   7,  11,  13,  17,  19, 
-  23,  29,  31,  37,  41,  43,  47,  53,
-  59,  61,  67,  71,  73,  79,  83,  89, 
-  97, 101, 103, 107, 109, 113, 127, 131,
- 137, 139, 149, 151, 157, 163, 167, 173, 
- 179, 181, 191, 193, 197, 199, 211, 223,
- 227, 229, 233, 239, 241, 251, 257, 263, 
- 269, 271, 277, 281, 283, 293, 307, 311 };
-
-// square root of integer, return fractional part as integer
-uint32_t sqrt2int (uint32_t x) {
-    uint32_t r;
-    r = (uint32_t)(fabs(sqrt((double)p[x]))*pow(2,32));
-    return r;
-}
-
-// cube root of integer, return fractional part as integer
-uint32_t cbr2int (uint32_t x) {
-    uint32_t r;
-    r = (uint32_t)(fabs(pow((double)p[x],1.0/3.0))*pow(2,32));
-    return r;
-}
-
-#endif
-
-#define CH(x, y, z) (((x) & (y)) ^ (~(x) & (z)))
-#define MAJ(x, y, z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
-
-#define EP0(x) (ROTR32(x,2) ^ ROTR32(x,13) ^ ROTR32(x,22))
-#define EP1(x) (ROTR32(x,6) ^ ROTR32(x,11) ^ ROTR32(x,25))
-
-#define SIG0(x) (ROTR32(x, 7) ^ ROTR32(x,18) ^ ((x) >>  3))
-#define SIG1(x) (ROTR32(x,17) ^ ROTR32(x,19) ^ ((x) >> 10))
-
-/************************************************
-*
-* update state with block of data
-*
-************************************************/
-void SHA256_Transform (SHA256_CTX *c) 
-{
-    uint32_t t1, t2, i, j;
-    uint32_t w[64], s[8];
-#ifndef DYNAMIC
-    uint32_t k[64]=
+void sha256_compress(sha256_ctx*c) {
+    W t1,t2,i,w[64],x[8];
+    
+    W k[64]=
     { 0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 
       0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
       0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 
@@ -95,133 +56,69 @@ void SHA256_Transform (SHA256_CTX *c)
       0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 
       0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
       0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 
-      0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2 };
-#endif  
-    // load data in big endian format
-    for (i=0; i<16; i++) {
-      w[i] = SWAP32(c->buf.w[i]);
-    }
-
-    // expand data into 512-bit buffer
-    for (i=16; i<64; i++) {
-      w[i] = SIG1(w[i-2]) + w[i-7] + SIG0(w[i-15]) + w[i-16];
-    }
+      0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2 }; 
     
-    // load state into local buffer
-    for (i=0; i<8; i++) {
-      s[i] = c->s.w[i];
-    }
+    // load input in big endian byte order
+    F(16)w[i] = rev32(c->x.w[i]);
     
-    // for 64 rounds
-    for (i=0; i<64; i++)
-    {
-      t1 = s[7] + EP1(s[4]) + CH(s[4], s[5], s[6]) + w[i];
-      #ifdef DYNAMIC
-      t1 += cbr2int (i);
-      #else
-      t1 += k[i];
-      #endif
-      t2 = EP0(s[0]) + MAJ(s[0], s[1], s[2]);
-      s[7]  = t1 + t2;
-      s[3] += t1;
-      // rotate "right" 32-bits
-      t1=s[0]; // load a
-      for (j=1; j<8; j++) {
-        t2=s[j];
-        s[j]=t1;
-        t1=t2;
-      }
-      s[0]=t1;
-    }
+    // expand input
+    for(i=16;i<64;i++)
+      w[i] = SIG1(w[i-2])+w[i-7]+SIG0(w[i-15])+w[i-16];
     
-    // save state
-    for (i=0; i<8; i++) {
-      c->s.w[i] += s[i];
+    // load state
+    F(8)x[i] = c->s[i];
+    
+    // permute
+    F(64) {
+      t1 = x[7] + EP1(x[4]) + CH(x[4],x[5],x[6]) + w[i] + k[i];
+      t2 = EP0(x[0]) + MAJ(x[0],x[1],x[2]);
+      x[7] = x[6],x[6] = x[5],x[5] = x[4],x[4] = x[3] + t1;
+      x[3] = x[2],x[2] = x[1],x[1] = x[0], x[0] = t1 + t2;
     }
+    // update state
+    F(8)c->s[i] += x[i];
 }
 
-/************************************************
-*
-* initialize context
-*
-************************************************/
-void SHA256_Init (SHA256_CTX *c) {
-    
-    #ifdef DYNAMIC
-    int i;
-    for (i=0; i<SHA256_LBLOCK; i++) {
-      c->s.w[i] = sqrt2int(i);
-    }
-    #else
-    c->s.w[0] = 0x6a09e667;
-    c->s.w[1] = 0xbb67ae85;
-    c->s.w[2] = 0x3c6ef372;
-    c->s.w[3] = 0xa54ff53a;
-    c->s.w[4] = 0x510e527f;
-    c->s.w[5] = 0x9b05688c;
-    c->s.w[6] = 0x1f83d9ab;
-    c->s.w[7] = 0x5be0cd19;
-    #endif
-    c->len = 0;
+void sha256_init(sha256_ctx *c) {    
+    c->s[0]=0x6a09e667;
+    c->s[1]=0xbb67ae85;
+    c->s[2]=0x3c6ef372;
+    c->s[3]=0xa54ff53a;
+    c->s[4]=0x510e527f;
+    c->s[5]=0x9b05688c;
+    c->s[6]=0x1f83d9ab;
+    c->s[7]=0x5be0cd19;
+    c->len =0;
 }
 
-/************************************************
-*
-* update state with input
-*
-************************************************/
-void SHA256_Update (SHA256_CTX *c, void *in, uint32_t len) {
-    uint8_t  *p = (uint8_t*)in;
-    uint32_t r, idx;
+void sha256_update(sha256_ctx *c,const void *in,W len) {
+    B *p=(B*)in;
+    W i, idx;
     
-    // get buffer index
-    idx = c->len & (SHA256_CBLOCK - 1);
-    
-    // update length
+    idx = c->len & 63;
     c->len += len;
     
-    while (len) {
-      r = MIN(len, SHA256_CBLOCK - idx);
-      memcpy (&c->buf.b[idx], p, r);
-      if ((idx + r) < SHA256_CBLOCK) break;
-      
-      SHA256_Transform (c);
-      len -= r;
-      idx = 0;
-      p += r;
+    for (i=0;i<len;i++) {
+      c->x.b[idx]=p[i]; idx++;
+      if(idx==64) {
+        sha256_compress(c);
+        idx=0;
+      }
     }
 }
 
-/************************************************
-*
-* finalize.
-*
-************************************************/
-void SHA256_Final (void* dgst, SHA256_CTX *c)
-{
-    int i;
+void sha256_final(void *out,sha256_ctx *c) {
+    W i,len,*p=(W*)out;
     
-    // see what length we have ere..
-    uint32_t len=c->len & (SHA256_CBLOCK - 1);
-    // fill remaining with zeros
-    memset (&c->buf.b[len], 0, SHA256_CBLOCK - len);
-    // add the end bit
-    c->buf.b[len] = 0x80;
-    // if exceeding 56 bytes, transform it
-    if (len >= 56) {
-      SHA256_Transform (c);
-      // clear buffer
-      memset (c->buf.b, 0, SHA256_CBLOCK);
-    }
-    // add total bits
-    c->buf.q[7] = SWAP64((uint64_t)c->len * 8);
-    // compress
-    SHA256_Transform(c);
+    i = len = c->len & 63;
+    while(i < 64) c->x.b[i++]=0;
+    c->x.b[len]=0x80;
     
-    // swap byte order
-    for (i=0; i<SHA256_LBLOCK; i++) {
-      c->s.w[i] = SWAP32(c->s.w[i]);
+    if(len >= 56) {
+      sha256_compress(c);
+      F(16)c->x.w[i]=0;
     }
-    // copy digest to buffer
-    memcpy (dgst, c->s.b, SHA256_DIGEST_LENGTH);
+    c->x.q[7]=rev64(c->len*8);
+    sha256_compress(c);
+    F(8)p[i]=rev32(c->s[i]);
 }

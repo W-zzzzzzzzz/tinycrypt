@@ -7,6 +7,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "threefish.h"
+
 uint64_t three_256_00_key[]    = { 0L, 0L, 0L, 0L };
 uint64_t three_256_00_input[]  = { 0L, 0L, 0L, 0L };
 uint64_t three_256_00_tweak[]  = { 0L, 0L };
@@ -51,16 +53,16 @@ void print_bytes(char *s, void *p, int len)
 void threefish(void*,void*);
 
 int main(void) {
-  int i;
-  union { uint8_t b[64]; uint64_t q[8]; } mk;
-  uint8_t data[32];
+  int           i;
+  threefish_ctx ctx;
+  uint8_t       data[32];
   
   for (i=0; i<2; i++) {
-    memcpy(&mk.b[0],  tv[i].key,   32);
-    memcpy(&mk.b[32], tv[i].tweak, 16);
+    memcpy(&ctx.key,  tv[i].key,   32);
+    memcpy(&ctx.tweak,tv[i].tweak, 16);
     memcpy(data,      tv[i].input, 32);
   
-    threefish(&mk, data);
+    threefish(&ctx, data);
 
     if (memcmp(data, tv[i].result, 32)==0) {
       printf ("Threefish encryption OK\n");

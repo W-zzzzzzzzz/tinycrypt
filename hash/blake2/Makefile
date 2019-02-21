@@ -1,9 +1,5 @@
-msvc:
-		cl /nologo /O2 /DTEST b2s_test.c b2s.c 
-		cl /nologo /O2 /DTEST b2b_test.c b2b.c 
-gnu:
-		gcc -DTEST -Wall -O2 b2s_test.c b2s.c -ob2s_test	 
-		gcc -DTEST -Wall -O2 b2b_test.c b2b.c -ob2b_test	 
-clang:
-		clang -DTEST -Wall -O2 b2s_test.c b2s.c -ob2s_test	 
-		clang -DTEST -Wall -O2 b2b_test.c b2b.c -ob2b_test    
+test:
+	gcc -Wall -Os test.c blake2.c -oblake2b
+	gcc -Wall -Os -DS test.c blake2.c -oblake2s
+clean:
+	rm -rf *.o test blake2s blake2b
