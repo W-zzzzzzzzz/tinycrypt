@@ -29,113 +29,59 @@
 
 #include "sha3.h"
 
-// round constant function
-// Primitive polynomial over GF(2): x^8+x^6+x^5+x^4+1
-uint64_t rc (uint8_t *LFSR)
-{
-  uint64_t c;
-  uint32_t i, t;
+void P(void*p) {
+    W n,i,j,r,x,y,t,Y,b[5],*s=p;
+    B c=1;
 
-  c = 0;
-  t = *LFSR;
-  
-  for (i=1; i<128; i += i) 
-  {
-    if (t & 1) {
-      c ^= (uint64_t)1ULL << (i - 1);
+    F(n,24){
+      F(i,5){b[i]=0;F(j,5)b[i]^=s[i+j*5];}
+      F(i,5){
+        t=b[(i+4)%5]^R(b[(i+1)%5],63);
+        F(j,5)s[i+j*5]^=t;}
+      t=s[1],y=r=0,x=1;
+      F(j,24)
+        r+=j+1,Y=(x*2)+(y*3),x=y,y=Y%5,
+        Y=s[x+y*5],s[x+y*5]=R(t, -r),t=Y;
+      F(j,5){
+        F(i,5)b[i]=s[i+j*5];
+        F(i,5)
+          s[i+j*5]=b[i]^( b[(i+2)%5] &~ b[(i+1)%5]);}
+      F(j,7)
+        if((c=(c<<1)^((c>>7)*113))&2)
+          *s^=1ULL<<((1<<j)-1);
     }
-    t = (t & 0x80) ? (t << 1) ^ 0x71 : t << 1;
-  }
-  *LFSR = (uint8_t)t;
-  return c;
 }
 
-void SHA3_Transform (SHA3_CTX *c)
-{
-  uint64_t i, j, rnd, r;
-  uint64_t t, bc[5];
-  uint8_t  lfsr=1;
-  uint64_t *s = (uint64_t*)&c->s.q[0];
+void sha3_init(sha3_ctx*c, int len) {
+    W i;
+    
+    F(i,25)c->s.q[i]=0;
+    
+    c->h = len;
+    c->r = 200-(2*len);
+    c->i = 0;
+}
+
+void sha3_update(sha3_ctx*c, const void*in, W len) {
+    W i;
+    B *p=(B*)in;
   
-const uint8_t keccakf_piln[24] = 
-{ 10, 7,  11, 17, 18, 3, 5,  16, 8,  21, 24, 4, 
-  15, 23, 19, 13, 12, 2, 20, 14, 22, 9,  6,  1  };
-  
-  for (rnd=0; rnd<24; rnd++) 
-  {
-    // Theta
-    for (i=0; i<5; i++) {     
-      bc[i] = s[i] 
-            ^ s[i +  5] 
-            ^ s[i + 10] 
-            ^ s[i + 15] 
-            ^ s[i + 20];
-    }
-    for (i=0; i<5; i++) {
-      t = bc[(i + 4) % 5] ^ ROTR64(bc[(i + 1) % 5], 63);
-      for (j=0; j<25; j+=5) {
-        s[j + i] ^= t;
+    F(i,len) {
+      c->s.b[c->i++] ^= *p++;    
+      if(c->i == c->r) {
+        P(&c->s); 
+        c->i=0;
       }
     }
-
-    // Rho Pi
-    t = s[1];
-    for (i=0, r=0; i<24; i++) {
-      r += i + 1;
-      j = keccakf_piln[i];
-      bc[0] = s[j];
-      s[j] = ROTR64(t, (64 - r) & 63);
-      t = bc[0];
-    }
-
-    // Chi
-    for (j=0; j<25; j+=5) {
-      for (i=0; i<5; i++) {
-        bc[i] = s[j + i];
-      }
-      for (i=0; i<5; i++) {
-        s[j + i] ^= (~bc[(i + 1) % 5]) & bc[(i + 2) % 5];
-      }
-    }
-    // Iota
-    s[0] ^= rc(&lfsr);
-  }
 }
 
-// mdlen isn't checked, it presumes caller provides 28,32,48 or 64
-void SHA3_Init (SHA3_CTX *c, int mdlen)
-{
-  memset(c, 0, sizeof(SHA3_CTX));
-  
-  c->olen = mdlen;                // output length
-  c->blen = (25*8) - (2 * mdlen); // bit rate
-  c->idx  = 0;
-}
-
-void SHA3_Update (SHA3_CTX* c, void *in, uint32_t inlen)
-{
-  uint32_t i;
-  uint8_t  *p=(uint8_t*)in;
-  
-  // update buffer and state
-  for (i=0; i<inlen; i++) {
-    // absorb byte into state
-    c->s.b[c->idx++] ^= *p++;    
-    if (c->idx == c->blen) {
-      SHA3_Transform (c);
-      c->idx = 0;
-    }
-  }
-}
-
-void SHA3_Final (void* out, SHA3_CTX* c)
-{
-  // absorb 3 bits, Keccak uses 1
-  c->s.b[c->idx] ^= 6;
-  // absorb end bit
-  c->s.b[c->blen-1] ^= 0x80;
-  // update context
-  SHA3_Transform (c);
-  // copy digest to buffer
-  memcpy(out, c->s.b, c->olen);
+void sha3_final(void*out, sha3_ctx*c) {
+    B   *p=(B*)out;
+    int i;
+    
+    c->s.b[c->i]^=6;
+    c->s.b[c->r-1]^=0x80;
+    
+    P(&c->s);
+    F(i,c->h)p[i]=c->s.b[i];
 }

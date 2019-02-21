@@ -1,4 +1,4 @@
-msvc:
-		cl /nologo /O2 /DTEST test.c sha1.c
-all:
-		gcc -DTEST -Wall -O2 test.c sha1.c -otest		
+test:
+	gcc -Wall test.c sha1.c -otest
+clean:
+	rm -rf *.o test

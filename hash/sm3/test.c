@@ -1,15 +1,11 @@
 
-// test unit for SM3
-// odzhan
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
 #include <string.h>
 
 #include "sm3.h"
 
-uint8_t vectors[64][32]={
+B tv[64][32]={
 { 0x1a, 0xb2, 0x1d, 0x83, 0x55, 0xcf, 0xa1, 0x7f, 0x8e, 0x61, 0x19, 0x48, 0x31, 0xe8, 0x1a, 0x8f, 
   0x22, 0xbe, 0xc8, 0xc7, 0x28, 0xfe, 0xfb, 0x74, 0x7e, 0xd0, 0x35, 0xeb, 0x50, 0x82, 0xaa, 0x2b  },
 { 0x2d, 0xae, 0xf6, 0x0e, 0x7a, 0x0b, 0x8f, 0x5e, 0x02, 0x4c, 0x81, 0xcd, 0x2a, 0xb3, 0x10, 0x9f, 
@@ -139,27 +135,25 @@ uint8_t vectors[64][32]={
 { 0x52, 0x41, 0xdc, 0x10, 0xcb, 0x3c, 0x70, 0x0e, 0x46, 0x44, 0x69, 0x43, 0xd2, 0x7b, 0x97, 0x1f, 
   0xef, 0xa7, 0xe8, 0x81, 0x15, 0xf8, 0x66, 0xd6, 0xf8, 0x3d, 0x50, 0x2f, 0xf1, 0xbc, 0x06, 0xc2  }};
  
-int main(int argc, char *argv[])
-{
-  SM3_CTX ctx;
-  int     i, fail;
-  uint8_t out[32]={0};  
-  uint8_t msg[64];
+int main(void) {
+    sm3_ctx c;
+    int     i,fail;
+    B       h[32], m[64];
 
-  for (fail=0, i=0; i<64; i++) {
-    memset(msg, 0, sizeof(msg));
-    msg[i] = i;
+    for (fail=0, i=0; i<64; i++) {
+      memset(m,0,sizeof(m));
+      m[i]=i;
+      
+      sm3_init(&c);
+      sm3_update(&c, m, i);
+      sm3_final(h, &c);
     
-    SM3_Init(&ctx);
-    SM3_Update(&ctx, msg, i);
-    SM3_Final(out, &ctx);
-  
-    if (memcmp(out, vectors[i], 32)) {
-      printf ("Hash for test vector %i failed\n", i+1);
-      fail++;
-    }      
-  }
-  if (!fail) printf ("All SM3 tests passed\n");  
-
-  return 0;
+      if(memcmp(h, tv[i], 32)) {
+        printf ("Hash for test vector %i failed\n", i+1);
+        fail++;
+      }      
+    }
+    if(!fail) printf ("All SM3 tests passed\n");  
+    return 0;
 }
+

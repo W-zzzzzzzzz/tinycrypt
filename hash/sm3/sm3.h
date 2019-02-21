@@ -30,40 +30,34 @@
 #ifndef SM3_H
 #define SM3_H
 
-#include "../../macros.h"
-   
-#define SM3_CBLOCK        64
-#define SM3_DIGEST_LENGTH 32
-#define SM3_LBLOCK        SM3_DIGEST_LENGTH/4
+#define R(v,n)(((v)<<(n))|((v)>>(32-(n))))
+#define F(n)for(i=0;i<n;i++)
 
-#pragma pack(push, 1)
-typedef struct _SM3_CTX {
-  uint64_t len;
-  union {
-    uint8_t  b[SM3_DIGEST_LENGTH];
-    uint32_t w[SM3_DIGEST_LENGTH/4];
-    uint64_t q[SM3_DIGEST_LENGTH/8];
-  } s;
-  union {
-    uint8_t  b[SM3_CBLOCK];
-    uint32_t w[SM3_CBLOCK/4];
-    uint64_t q[SM3_CBLOCK/8];
-  } buf;
-} SM3_CTX;
-#pragma pack(pop)
+#define rev32(x) __builtin_bswap32(x)
+#define rev64(x) __builtin_bswap64(x)
+
+typedef unsigned long long Q;
+typedef unsigned int W;
+typedef unsigned char B;
+
+typedef struct _sm3_ctx {
+    W s[8];
+    union {
+      B b[64];
+      W w[16];
+      Q q[8];
+    }x;
+    Q len;
+}sm3_ctx;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-  void SM3_Init(SM3_CTX*);
-  void SM3_Update(SM3_CTX*, void*, uint32_t);
-  void SM3_Final(void*, SM3_CTX*);
+void sm3_init(sm3_ctx *c);
+void sm3_update(sm3_ctx *c, const void *in, W len);
+void sm3_final(void *out,sm3_ctx *c);
 
-  void SM3_Initx(SM3_CTX*);
-  void SM3_Updatex(SM3_CTX*, void*, uint32_t);
-  void SM3_Finalx(void*, SM3_CTX*);
-  
 #ifdef __cplusplus
 }
 #endif
