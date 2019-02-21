@@ -1,7 +1,7 @@
 test:
-		yasm -felf32 k200x.asm -ok200x.o
-		yasm -felf32 k800x.asm -ok800x.o
-		gcc -m32 -Os -Wall test.c k200x.o k800x.o -otest		
-
+	gcc -Wall -Os -DK200 test.c keccak.c -ok200
+	gcc -Wall -Os -DK400 test.c keccak.c -ok400
+	gcc -Wall -Os -DK800 test.c keccak.c -ok800
+	gcc -Wall -Os test.c keccak.c -ok1600
 clean:
-	rm *.o test
+	rm *.o k200 k400 k800 k1600

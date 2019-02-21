@@ -30,16 +30,36 @@
 #ifndef KECCAK_H
 #define KECCAK_H
 
-#include "../include/macros.h"
-   
+#if defined(K200)
+  // keccak-f[200, 18]
+  #define ROUNDS  18
+  #define WORDLEN  8
+  typedef unsigned char W;
+#elif defined(K400)
+  // keccak-f[400, 20]
+  #define ROUNDS  20
+  #define WORDLEN 16
+  typedef unsigned short W;
+#elif defined(K800)
+  // keccak-f[800, 22]
+  #define ROUNDS  22
+  #define WORDLEN 32
+  typedef unsigned int W;
+#else
+  // keccak-f[1600, 24]
+  #define ROUNDS  24
+  #define WORDLEN 64
+  typedef unsigned long long W;
+#endif
+
+#define R(v,n)(((v)<<(n))|((v)>>(WORDLEN-(n))))
+#define F(a,b)for(a=0;a<b;a++)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-  void k200(void*);
-  void k400(void*);
-  void k800(void*);
-  void k1600(void*);
+  void keccak(void*);
   
 #ifdef __cplusplus
 }
