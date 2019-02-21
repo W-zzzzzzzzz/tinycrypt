@@ -1,5 +1,5 @@
 /**
-  Copyright © 2015 Odzhan. All Rights Reserved.
+  Copyright © 2015, 2018 Odzhan. All Rights Reserved.
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are
@@ -29,73 +29,28 @@
   
 #include "rc5.h"
 
-void rc5_setkey (RC5_CTX *key, void *input)
-{  
-    uint32_t i, j, k, A, B, L[4], *kptr=(uint32_t*)input; 
-    
-    // initialize L with key
-    for (i=0; i<4; i++) {
-      L[i] = kptr[i];
-    }
-    
-    A = RC5_P;
-    
-    // initialize S with constants
-    for (i=0; i<RC5_KR; i++) {
-      key->x[i] = A;
-      A += RC5_Q;
-    }
-    
-    A = B = i = j = k = 0;
-    
-    // mix with key
-    for (; k < RC5_KR*3; k++)
-    { 
-      A = key->x[i] = ROTL32(U32V(key->x[i] + A+B), 3);  
-      B = L[j]      = ROTL32(U32V(L[j] + A+B), A+B);
-      
-      i++;
-      i %= RC5_KR;
-      
-      j++;
-      j %= RC5_KEYLEN/4;
-    } 
-}
+#define RC5_R 12
+#define RC5_K (2*(RC5_R+1))
 
-void rc5_crypt (RC5_CTX *key, void* input, void* output, int enc)
-{
-    rc5_blk  *in, *out;
-    uint32_t *k=(uint32_t*)key->x;
-    uint32_t A, B, T, i;
-    
-    in  = input;
-    out = output;
-    
-    A = in->v32[0]; B = in->v32[1];
-    
-    if (enc==RC5_ENCRYPT) {
-      A += *k; k++;
-      B += *k; k++;
-    } else {
-      k += RC5_KR - 1;
-    }
-    
-    for (i=0; i<RC5_KR-2; i++)
-    {
-      if (enc==RC5_ENCRYPT) {
-        A = ROTL32(A ^ B, B) + *k; k++;
-      } else {
-        B = ROTR32(B - *k, A) ^ A; k--;
-      }
-      // swap
-      T = B;
-      B = A;
-      A = T;
-    }
-    if (enc==RC5_DECRYPT) {
-      B -= *k; k--;
-      A -= *k; k--;
-    }
-    out->v32[0] = A; out->v32[1] = B;
-}
+void rc5(void *mk, void *data) {
+    W A=0xB7E15163,B,i,*k,X,S[RC5_K],L[4],*x=data,*K=mk;
 
+    // copy 128-bit key to local buffer
+    F(i,4)L[i]=K[i];
+    
+    // initialize S
+    F(i,RC5_K)S[i]=A,A+=0x9E3779B9;
+    A=B=0; k=S;
+    
+    // create subkeys
+    F(i,RC5_K*3)
+      A=S[i%RC5_K]=R(S[i%RC5_K]+(A+B),3),
+      B=L[i%4]=R(L[i%4]+(A+B),(A+B));
+    
+    // add first two subkeys to 64-bits of plaintext
+    A=x[0]+*k++;B=x[1]+*k++;
+    // do 12 rounds on each 32-bit word
+    F(i,RC5_K-2)X=R(A^B,B&255)+*k++,A=B,B=X;
+    // store ciphertext
+    x[0]=A; x[1]=B;
+}

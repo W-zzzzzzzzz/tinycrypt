@@ -34,61 +34,62 @@
 ;
 ; size: 120 bytes for single call
 ;
-; xrc5_cryptx(void *key, void *data)
-;
 ; global calls use cdecl convention
 ;
 ; -----------------------------------------------
 
   bits 32
   
-%ifndef BIN
-  global xrc5_cryptx
-  global _xrc5_cryptx
-%endif
+  %ifndef BIN
+    global rc5
+    global _rc5
+  %endif
 
-%define RC5_ROUNDS  12    ; 20 to strengthen against weakness
-
-%define RC5_KR      (2*(RC5_ROUNDS+1))
-
-; rc5_cryptx(void *key, void *data) 
-_xrc5_encryptx:
-xrc5_encryptx:
+  %define RC5_R 12            ; 20 to increase strength of cipher
+  %define RC5_K (2*(RC5_R+1)) ; how many sub keys required
+  
+; rc5(void *mk, void *data) 
+_rc5:
+rc5:
     pushad
-    mov    esi, [esp+32+4]     ; edi = key / L
-    mov    ebx, [esp+32+8]     ; esi = data
-    xor    ecx, ecx            ; ecx = 0
-    mov    cl, RC5_KR*4+16     ; allocate space for key and sub keys
-    sub    esp, ecx            ; esp = S
+    mov    esi, [esp+32+4]    ; esi = mk
+    mov    ebx, [esp+32+8]    ; ebx = data
+    xor    ecx, ecx           ; ecx = 0
+    mov    cl, RC5_K*4+16     ; L[4], S[26]
+    sub    esp, ecx           ; esp = S
     ; copy 128-bit key to local buffer
-    mov    edi, esp            ; edi = L
-    mov    cl, 16
-    rep    movsb
-    ; initialize S / sub keys 
+    ; F(i,4)L[i]=K[i];
+    mov    edi, esp           ; edi = L[4]
+    mov    cl, 4
+    rep    movsd
+    ; initialize S
+    ; F(i,RC5_K)S[i]=A,A+=0x9E3779B9;
     push   edi                 ; save S
-    mov    eax, 0xB7E15163     ; eax = RC6_P
-    mov    cl, RC5_KR    
-init_subkeys:
+    mov    eax, 0xB7E15163     ; eax = P
+    mov    cl, RC5_K    
+r5_L0:
     stosd                      ; S[i] = A
-    add    eax, 0x9E3779B9     ; A += RC6_Q
-    loop   init_subkeys
+    add    eax, 0x9E3779B9     ; A += Q
+    loop   r5_L0
     pop    edi                 ; restore S
+    ; A = B = 0; k=S;
     mov    esi, ebx            ; esi = data
     mul    ecx                 ; eax = 0, edx = 0
     xor    ebx, ebx            ; ebx = 0
-set_idx:    
-    xor    ebp, ebp            ; i % RC6_KR    
-init_key_loop:
-    cmp    ebp, RC5_KR
-    je     set_idx    
+    ; F(i,RC5_K*3)
+r5_L1:    
+    xor    ebp, ebp            ; i % 26    
+r5_L2:
+    cmp    ebp, RC5_K
+    je     r5_L1    
 
-    ; A = S[i%RC6_KR] = ROTL32(S[i%RC5_KR] + A+B, 3); 
+    ; A=S[i%RC5_K]=R(S[i%RC5_K]+(A+B),3) 
     add    eax, ebx            ; A += B
-    add    eax, [edi+ebp*4]    ; A += S[i%RC5_KR]
-    rol    eax, 3              ; A  = ROTL32(A, 3)
-    mov    [edi+ebp*4], eax    ; S[i%RC6_KR] = A
+    add    eax, [edi+ebp*4]    ; A += S[i%26]
+    rol    eax, 3              ; A  = R(A, 3)
+    mov    [edi+ebp*4], eax    ; S[i%26] = A
     
-    ; B = L[i%4] = ROTL32(L[i%4] + A+B, A+B);
+    ; B=L[i% 4]=R(L[i%4]+(A+B),(A+B))
     add    ebx, eax            ; B += A
     mov    ecx, ebx            ; save A+B in ecx
     push   edx                 ; save i
@@ -99,33 +100,36 @@ init_key_loop:
     pop    edx                 ; restore i    
     inc    ebp
     inc    edx                 ; i++
-    cmp    dl, RC5_KR*3        ; i<RC6_KR*3
-    jnz    init_key_loop    
+    cmp    dl, RC5_K*3
+    jnz    r5_L2    
     
+    ; A=x[0]+*k++;B=x[1]+*k++;
     push   esi                 ; save ptr to data    
-    lodsd                      ; eax = x->w[0]
-    add    eax, [edi]          ; A  += *k; k++;
+    lodsd                      ; A = x[0] + *k++;
+    add    eax, [edi]
     scasd
-    xchg   eax, ebx            ; XCHG(A, B);
-    lodsd                      ; eax = x->w[1]
-    mov    dl, RC5_KR - 1   
-    jmp    mix_key
-enc_loop:
-    ; A = ROTL32(A ^ B, B) + *k*; k++;
+    xchg   eax, ebx            ; X(A, B);
+    lodsd                      ; A = x[1]
+    mov    dl, RC5_K - 1   
+    jmp    r5_L4
+r5_L3:
+    ; F(i,RC5_K-2)X=R(A^B,B&255)+*k++,A=B,B=X;
     xor   eax, ebx             ; A ^= B 
     mov   ecx, ebx             ; ecx = B 
-    rol   eax, cl              ; A = ROTL32(A ^ B, B)
-mix_key:     
+    rol   eax, cl              ; A = R(A ^ B, B)
+r5_L4:     
     add   eax, [edi]           ; A += *k; k++;
     scasd
-    xchg  eax, ebx             ; XCHG(A, B);
+    xchg  eax, ebx             ; X(A, B);
     dec   edx
-    jnz   enc_loop    
+    jnz   r5_L3    
     
     pop   esp                  ; restore ptr to data    
     xchg  esp, edi
-    stosd                      ; x->w[0] = A
+    ; store ciphertext
+    ; x[0]=A; x[1]=B;
+    stosd                      ; x[0] = A
     xchg  eax, ebx
-    stosd                      ; x->w[1] = B         
+    stosd                      ; x[1] = B         
     popad
     ret

@@ -30,7 +30,7 @@
 #ifndef SPECK_H
 #define SPECK_H
 
-#include "../include/macros.h"
+#include "../../macros.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -30,39 +30,19 @@
 #ifndef RC5_H
 #define RC5_H
 
-#include "../../macros.h"
+#define R(v,n)(((v)<<(n))|((v)>>(32-(n))))
+#define F(a,b)for(a=0;a<b;a++)
+typedef unsigned int W;
 
-#define RC5_ENCRYPT 1
-#define RC5_DECRYPT 0
-
-#define RC5_BLK_LEN 8
 #define RC5_ROUNDS  12
-#define RC5_KEYLEN  16
-
 #define RC5_KR      (2*(RC5_ROUNDS+1))
-#define RC5_P       0xB7E15163
-#define RC5_Q       0x9E3779B9
-
-#pragma pack(push, 1)
-typedef struct _RC5_CTX {
-  uint32_t x[RC5_KR];
-} RC5_CTX;
-
-typedef union _rc5_blk {
-  uint8_t v8[RC5_BLK_LEN];
-  uint32_t v32[RC5_BLK_LEN/4];
-  uint64_t v64[RC5_BLK_LEN/8];
-} rc5_blk;
-#pragma pack(pop)
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-  void rc5_setkey (RC5_CTX*, void*);
-  void rc5_setkeyx (RC5_CTX*, void*);
-  
-  void rc5_crypt (RC5_CTX*, void*, void*, int);
-  void rc5_cryptx (RC5_CTX*, void*, void*, int);
+
+void rc5(void*mk, void*data);
+
 #ifdef __cplusplus
 }
 #endif
