@@ -32,7 +32,7 @@
 
 #include "../../macros.h"
 
-typedef struct hc_ctx_t {
+typedef struct _hc_ctx_t {
   uint32_t ctr;
   union {
     uint32_t T[2048];
@@ -47,11 +47,8 @@ typedef struct hc_ctx_t {
 extern "C" {
 #endif
 
-void hc256_setkeyx(hc_ctx*, void*);
-void hc256_cryptx(hc_ctx*, void*, uint32_t);
-
-void hc256_setkey(hc_ctx*, void*);
-void hc256_crypt(hc_ctx*, void*, uint32_t);
+void hc256_setkey(hc_ctx *ctx, void *key);
+void hc256_encrypt(hc_ctx *ctx, void *data, uint32_t len);
 
 #ifdef __cplusplus
 }

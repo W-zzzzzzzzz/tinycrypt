@@ -75,7 +75,7 @@ int main(void)
       if (i==2) key.key[0] = 0x55;
       
       hc256_setkey(&c, &key);
-      hc256_crypt(&c, strm, 32);
+      hc256_encrypt(&c, strm, 32);
     
       printf ("\nHC256 test #%i - %s", (i+1), 
         equ(strm, ct_tbl[i], 32) ? "OK" : "failed");

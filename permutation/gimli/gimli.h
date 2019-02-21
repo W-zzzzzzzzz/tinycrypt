@@ -37,8 +37,6 @@ extern "C" {
 #endif
 
   void gimli(void *state);
-  void gimlix(void *state);
-
   void gimli_hash(void*,uint32_t,void*,uint32_t);
                 
 #ifdef __cplusplus

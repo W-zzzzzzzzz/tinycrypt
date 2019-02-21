@@ -30,24 +30,27 @@
 #include "hc.h"
 
 // key stream generation function
-uint32_t hc256_generate(hc_ctx* c)
-{
+uint32_t hc256_generate(hc_ctx* c) {
     uint32_t r, i, i3, i10, i12, i1023;
     uint32_t *x0, *x1;
     uint32_t w0, w1, t;
     
-    t=c->ctr;
+    // load counter
+    t = c->ctr;
     
+    // update counter % 2048
     c->ctr = (c->ctr+1) & 0x7ff;
     
-    x0=c->P;
-    x1=c->Q;
+    x0 = c->P;
+    x1 = c->Q;
     
+    // switch from P to Q every 1024 iterations
     if (t > 0x3ff) {
-      x0=c->Q;
-      x1=c->P;
+      x0 = c->Q;
+      x1 = c->P;
     }
-
+    
+    // calculate offsets
     i     = t          & 0x3ff;
     i3    = (i - 3)    & 0x3ff;
     i10   = (i - 10)   & 0x3ff;
@@ -59,62 +62,55 @@ uint32_t hc256_generate(hc_ctx* c)
     
     i12 = (i - 12) & 0x3ff;
     
-    w0=x0[i];
-    w1=x0[i12];
+    w0 = x0[i];
+    w1 = x0[i12];
 
     for (r=0, t=0; t<4; t++) {
       r += x1[w1 & 255];
       w1 >>= 8;
       x1 += 1024/4;
     }
-    r ^= w0;
-    
-    return r;
+    return r ^ w0;
 }
 
 #define SIG0(x)(ROTR32((x),  7) ^ ROTR32((x), 18) ^ ((x) >>  3))
 #define SIG1(x)(ROTR32((x), 17) ^ ROTR32((x), 19) ^ ((x) >> 10))
 
 // both key and iv must be 32 bytes each / 256-bits!
-void hc256_setkey(hc_ctx *c, void *kiv)
-{
-    uint32_t W[4096], i;
+void hc256_setkey(hc_ctx *c, void *key_iv) {
+    uint32_t W[4096], i, *x=(uint32_t*)key_iv;
     
     // 1. set counter
     c->ctr = 0;
     
     // 2. copy 512-bit key and iv to local workspace
-    memcpy (W, kiv, 64);
+    for(i=0;i<16;i++) W[i] = x[i];
 
     // 3. expand buffer using SHA-256 macros
     for (i=16; i<4096; i++) {
-      W[i] = SIG1(W[i- 2]) + W[i- 7] + 
-             SIG0(W[i-15]) + W[i-16] + i; 
+      W[i] = SIG1(W[i-2])+W[i-7]+SIG0(W[i-15])+W[i-16]+i; 
     }
     
     // 6. set the P and Q tables
-    memcpy (&c->T[0], &W[512], 2048*4);
+    for(i=0;i<2048;i++) c->T[i] = W[i+512];
     
     // 5. run cipher 4096 iterations before generating output
-    for (i=0; i<4096; i++) {
-      hc256_generate(c);
-    }
+    for (i=0; i<4096; i++) hc256_generate(c);
 }
 
 // encrypt/decrypt data in place
-void hc256_crypt(hc_ctx *c, void *in, uint32_t inlen)
-{
-  uint32_t i, j, w;
-  uint8_t *p=(uint8_t*)in;
-  
-  // encrypt all bytes
-  for (i=0; i<inlen;) {
-    w = hc256_generate(c);
-    // encrypt 4 bytes or until i equals inlen
-    for (j=0; j<4 && i < inlen; j++) {
-      p[i++] ^= (w & 255);
-      w >>= 8;
+void hc256_encrypt(hc_ctx *c, void *data, uint32_t len) {
+    uint32_t i, j, w;
+    uint8_t  *x=(uint8_t*)data;
+    
+    // encrypt/decrypt all bytes
+    for (i=0; i<len;) {
+      w = hc256_generate(c);
+      // encrypt 4 bytes or until i equals len
+      for (j=0; j<4 && i < len; j++) {
+        x[i] ^= (w & 255); i++;
+        w >>= 8;
+      }
     }
-  }
 }
 
