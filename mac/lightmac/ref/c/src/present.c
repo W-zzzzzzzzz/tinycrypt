@@ -19,10 +19,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdint.h>
-#ifndef _MSC_VER
-  #include <inttypes.h>
-  #include <getopt.h>
-#endif
+#include <inttypes.h>
+#include <getopt.h>
 #include <string.h>
 
 #include "boxes.inc"		//S-Boxes and P-Boxes

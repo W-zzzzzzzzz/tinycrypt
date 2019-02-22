@@ -56,7 +56,7 @@ void chacha20_core(void *input, void *output) {
 void chacha20_setkey(chacha_ctx *c, void *key, void *nonce) {
     W   *k=(W*)key, *n=(W*)nonce;
     int i;
-    
+    // store "expand 32-byte k"
     c->w[0]=0x61707865; c->w[1]=0x3320646E;
     c->w[2]=0x79622D32; c->w[3]=0x6B206574;
     // copy 256-bit key

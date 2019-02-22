@@ -30,7 +30,7 @@
 #include "salsa20.h"
 
 void salsa20_core(void *input, void *output) {
-    W a,b,c,d,i,*s=(W*)input, *x=(W*)output;
+    W a,b,c,d,i,r,t,*s=(W*)input, *x=(W*)output;
     W v[8]={0xC840, 0x1D95, 0x62EA, 0xB73F,     // column index
             0x3210, 0x4765, 0x98BA, 0xEDCF };   // diagonal index
             
@@ -55,7 +55,7 @@ void salsa20_core(void *input, void *output) {
 void salsa20_setkey(salsa_ctx *c, void *key, void *nonce) {
     W   *k=(W*)key, *n=(W*)nonce;
     int i;
-    
+    // 32-bit integers are: "expand 32-byte k"
     c->w[ 0] = 0x61707865;
     // copy 1st half of 256-bit key 
     F(4) c->w[i+1] = k[i];
@@ -83,9 +83,9 @@ void salsa20_encrypt(salsa_ctx *ctx, void *in, W len) {
         salsa20_core(ctx, c);
         // increase counter
         ctx->q[4]++;
-        // encrypt 64 bytes or whatever is remaining
+        // encrypt/decrypt 64 bytes or whatever is remaining
         r = (len > 64) ? 64 : len;
-        // xor plaintext with ciphertext
+        // xor buffer with stream
         F(r)p[i] ^= c[i];
         // decrease length, advance buffer
         len -= r;

@@ -15,7 +15,7 @@ void basicTests(const uint8_t* message, unsigned long long messageLength, const 
   tag(message,messageLength,output,key);
   if(verify(message,messageLength,output,key) != 1) {
     printf("%s: Test 1 failed: verification failed.\n", testName);
-  } else printf("%s: OK\n", testName);
+  }
 
   /**
    * Test 2: Check to see if verification fails when the wrong tag is passed.
@@ -23,7 +23,7 @@ void basicTests(const uint8_t* message, unsigned long long messageLength, const 
   output[0] += 1;
   if(verify(message,messageLength,output,key) != 0) {
     printf("%s: Test 2 failed: verification succeeded\n", testName);
-  } 
+  }
 }
 
 int main(void) {

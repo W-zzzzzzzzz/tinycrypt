@@ -16,9 +16,9 @@
  * Fixing the parameters involves implementing BCEncrypt, and defining
  * the following macros in a "parameters.h" file:
  * COUNTER_LENGTH -- the length of the counters in bytes
- * TAG_LENGTH     -- the tag length in bytes
- * BLOCK_LENGTH   -- the block cipher block length in bytes
- * BC_KEY_LENGTH  -- the block cipher key length in bytes
+ * TAG_LENGTH -- the tag length in bytes
+ * BLOCK_LENGTH -- the block cipher block length in bytes
+ * BC_KEY_LENGTH -- the block cipher key length in bytes
 
  * The following equations translate between the symbols of the design
  * document (https://eprint.iacr.org/2016/190) and the parameters
@@ -46,9 +46,8 @@
  * of the COUNTER_LENGTH. The following function gives the length in
  * bytes.
  **/
-static unsigned long long maxMessageLength() {
-  return (log2(BLOCK_LENGTH - COUNTER_LENGTH) + COUNTER_LENGTH * 8) 
-      >= 64 ? ULLONG_MAX : (BLOCK_LENGTH - COUNTER_LENGTH) * (1ULL << (COUNTER_LENGTH * 8));
+static inline unsigned long long maxMessageLength() {
+  return (log2(BLOCK_LENGTH-COUNTER_LENGTH)+COUNTER_LENGTH*8) >= 64 ? ULLONG_MAX : (BLOCK_LENGTH-COUNTER_LENGTH)*(1ULL << (COUNTER_LENGTH*8));
 }
 
 /**

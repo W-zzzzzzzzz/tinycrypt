@@ -5,8 +5,7 @@
 #include <stdint.h>
 
 static inline void uint64ToUint8Array(uint64_t input, uint8_t output[8]) {
-  int i;
-  for(i = 7; i >= 0; i--) {
+  for(int i = 7; i >= 0; i--) {
     output[i] = (uint8_t) input;
     input >>= 8;
   }
@@ -25,8 +24,7 @@ static inline uint64_t uint8ArrayToUint64(const uint8_t input[8]) {
 }
 
 static inline void stringToUint8Array(char* input, int length, uint8_t *output) {
-  int i;
-  for (i = 0; i < length/2; i++) {
+  for(int i = 0; i < length/2; i++) {
     sscanf(input, "%2hhx", output);
     input += 2;
     output++;
@@ -34,8 +32,7 @@ static inline void stringToUint8Array(char* input, int length, uint8_t *output) 
 }
 
 static inline void uint8ArrayToString(const uint8_t *input, int length, char *output){
-  int i;
-  for(i = 0; i < length; i++) {
+  for(int i = 0; i < length; i++) {
     sprintf(output, "%02x", input[i]);
     output += 2;
   }

@@ -8,8 +8,7 @@
 #include "lightmac.h"
 
 void encodeCounter(unsigned long long counter, uint8_t* output) {
-  int i;
-  for(i = COUNTER_LENGTH-1; i>=0; i--) {
+  for(int i = COUNTER_LENGTH-1; i>=0; i--) {
     output[i] = counter;
     counter >>= 8;
   }
@@ -33,13 +32,13 @@ void tag(const uint8_t* message, unsigned long long messageLength, uint8_t* outp
   
   // We stop the moment we are left with a message of length less than
   // BLOCK_LENGTH-COUNTER_LENGTH, after which padding occurs.
-  while(messageLength >= (BLOCK_LENGTH - COUNTER_LENGTH)) {
+  while(messageLength >= BLOCK_LENGTH-COUNTER_LENGTH) {
 
     encodeCounter(counter, blockInput);
 
     // Appending BLOCK_LENGTH-COUNTER_LENGTH bytes of the message to
     // the counter to form a byte string of length BLOCK_LENGTH.
-    for(i = 0; i < (BLOCK_LENGTH - COUNTER_LENGTH); i++) {
+    for(i = 0; i < BLOCK_LENGTH-COUNTER_LENGTH; i++) {
       blockInput[i+COUNTER_LENGTH] = message[i];
     }
 
@@ -50,8 +49,8 @@ void tag(const uint8_t* message, unsigned long long messageLength, uint8_t* outp
     for(i = 0; i < BLOCK_LENGTH; i++) {
       value[i] ^= blockOutput[i];
     }
-    messageLength -= (BLOCK_LENGTH - COUNTER_LENGTH);
-    message       += (BLOCK_LENGTH - COUNTER_LENGTH);
+    messageLength -= BLOCK_LENGTH-COUNTER_LENGTH;
+    message += BLOCK_LENGTH-COUNTER_LENGTH;
     counter++;
   }
 
@@ -77,18 +76,15 @@ void tag(const uint8_t* message, unsigned long long messageLength, uint8_t* outp
   // Using the second part of the key for the final block cipher call.
   key += BC_KEY_LENGTH;
   BCEncrypt(value, blockOutput, key);
-  
+
   // Truncation is performed to the most significant bits. We assume big endian encoding.
   for(i = 0; i < TAG_LENGTH; i++) {
     output[i] = blockOutput[i];
   }
 }
 
-int verify(const uint8_t* message, 
-    unsigned long long messageLength, 
-    const uint8_t* candidateTag, 
-    const uint8_t* key) 
-{      
+
+int verify(const uint8_t* message, unsigned long long messageLength, const uint8_t* candidateTag, const uint8_t* key) {
   uint8_t tempTag[TAG_LENGTH];
   int i;
 

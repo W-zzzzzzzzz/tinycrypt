@@ -40,20 +40,20 @@ void poly1305_add(
     int inlen, 
     uint8_t last)
 {
-  uint32_t c, i, x = 0;
-  uint8_t *p = (uint8_t*)in;
+    uint32_t c, i, x = 0;
+    uint8_t *p = (uint8_t*)in;
 
-  // add in to out
-  for (i=0; i<17; i++) {
-    c = *p;
-    c = (i == inlen) ? last : c;
-    c = (i  > inlen) ? 0    : c;
-    p = (i  < inlen) ? p+1  : p;
-    
-    x += out[i] + c; 
-    out[i] = x & 255; 
-    x >>= 8; 
-  }
+    // add in to out
+    for (i=0; i<17; i++) {
+      c = *p;
+      c = (i == inlen) ? last : c;
+      c = (i  > inlen) ? 0    : c;
+      p = (i  < inlen) ? p+1  : p;
+      
+      x += out[i] + c; 
+      out[i] = x & 255; 
+      x >>= 8; 
+    }
 }
 
 /**********************************************
@@ -67,40 +67,40 @@ void poly1305_mulmod(
     uint32_t acc[17],
     const uint32_t r[17])
 {
-  uint32_t hr[17];
-  uint32_t i, j, u;
+    uint32_t hr[17];
+    uint32_t i, j, u;
 
-  memcpy ((uint8_t*)hr, (uint8_t*)acc, 17*4);
-  
-  // multiply
-  for (i=0; i<17; i++) {
-    u = 0;
-    for (j=0; j<=i; j++) {
-      u += hr[j] * r[i - j];
+    memcpy ((uint8_t*)hr, (uint8_t*)acc, 17*4);
+    
+    // multiply
+    for (i=0; i<17; i++) {
+      u = 0;
+      for (j=0; j<=i; j++) {
+        u += hr[j] * r[i - j];
+      }
+      for (; j<17; j++) {
+        u += hr[j] * r[i + (17 - j)] * 320;
+      }
+      acc[i] = u;
     }
-    for (; j<17; j++) {
-      u += hr[j] * r[i + (17 - j)] * 320;
-    }
-    acc[i] = u;
-  }
-  
-  for (u=0, j=0; j<2; j++)
-  {
-    for (i=0; i<16; i++) 
-    { 
-      u += acc[i];
-      acc[i] = u & 255; 
-      u >>= 8; 
-    }
-    if (!j) 
+    
+    for (u=0, j=0; j<2; j++)
     {
-      u += acc[16];
-      acc[16] = u & 3;
-      u = (u >> 2) * 5;
+      for (i=0; i<16; i++) 
+      { 
+        u += acc[i];
+        acc[i] = u & 255; 
+        u >>= 8; 
+      }
+      if (!j) 
+      {
+        u += acc[16];
+        acc[16] = u & 3;
+        u = (u >> 2) * 5;
+      }
     }
+    acc[16] += u;
   }
-  acc[16] += u;
-}
 
 /**********************************************
  *
@@ -113,61 +113,61 @@ void poly1305_mac (
     uint32_t inlen, 
     const uint8_t *k)
 {
-  uint32_t i, len, neg;
-  uint32_t r[17], acc[17];
-  uint8_t  minusp[16]={5};
-  
-  // copy r
-  for (i=0; i<16; i++) {
-    r[i] = k[i];
-  }
-  // clamp r
-  r[ 3] &= 15;
-  r[ 7] &= 15;
-  r[11] &= 15;
-  r[15] &= 15;
-  
-  r[ 4] &= 252;
-  r[ 8] &= 252;
-  r[12] &= 252;
-  r[16]  = 0;
-
-  // zero initialize accumulator
-  memset ((uint8_t*)acc, 0, 17*4);
-
-  for (;;) 
-  {
-    // if zero length, break
-    if (inlen==0) break;
+    uint32_t i, len, neg;
+    uint32_t r[17], acc[17];
+    uint8_t  minusp[16]={5};
     
-    // process 16 bytes or remaining
-    len = inlen < 16 ? inlen : 16;
+    // copy r
+    for (i=0; i<16; i++) {
+      r[i] = k[i];
+    }
+    // clamp r
+    r[ 3] &= 15;
+    r[ 7] &= 15;
+    r[11] &= 15;
+    r[15] &= 15;
     
-    // add bytes to acc
-    poly1305_add (acc, in, len, 1);
+    r[ 4] &= 252;
+    r[ 8] &= 252;
+    r[12] &= 252;
+    r[16]  = 0;
 
-    // multiply accumulator by r mod p
-    poly1305_mulmod (acc, r);
+    // zero initialize accumulator
+    memset ((uint8_t*)acc, 0, 17*4);
 
-    // update length and buffer position
-    in    += len;
-    inlen -= len;
-  }
+    for (;;) 
+    {
+      // if zero length, break
+      if (inlen==0) break;
+      
+      // process 16 bytes or remaining
+      len = inlen < 16 ? inlen : 16;
+      
+      // add bytes to acc
+      poly1305_add (acc, in, len, 1);
 
-  memcpy (r, acc, sizeof(r));
+      // multiply accumulator by r mod p
+      poly1305_mulmod (acc, r);
 
-  poly1305_add (acc, minusp, 16, 252);
-  neg = -(acc[16] >> 7);
-  
-  for (i=0; i<17; i++) {
-    acc[i] ^= neg & (r[i] ^ acc[i]);
-  }
-  
-  // add s
-  poly1305_add (acc, &k[16], 16, 0);
-  
-  // return tag
-  for (i=0; i<16; i++) {
-    out[i] = acc[i];
-  }
+      // update length and buffer position
+      in    += len;
+      inlen -= len;
+    }
+
+    memcpy (r, acc, sizeof(r));
+
+    poly1305_add (acc, minusp, 16, 252);
+    neg = -(acc[16] >> 7);
+    
+    for (i=0; i<17; i++) {
+      acc[i] ^= neg & (r[i] ^ acc[i]);
+    }
+    
+    // add s
+    poly1305_add (acc, &k[16], 16, 0);
+    
+    // return tag
+    for (i=0; i<16; i++) {
+      out[i] = acc[i];
+    }
 }

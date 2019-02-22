@@ -46,6 +46,15 @@ int main(void)
   uint8_t res[8]=
     { 0x0e, 0x9d, 0x28, 0x68, 0x5e, 0x67, 0x1d, 0xd6 };  // 64-bit ciphertext 
   
+  uint8_t buf2[8]=
+    {0x9C,0xEF,0xB2,0x4C,0x4E,0x51,0x37,0x3D};
+    
+  uint8_t key2[16]=
+    { 0x2B,0xD6,0x45,0x9F,0x82,0xC5,0xB3,0x00,0x95,0x2C,0x49,0x10,0x48,0x81,0xFF,0x48};
+    
+  uint8_t res2[8]=
+    { 0xEA,0x02,0x47,0x14,0xAD,0x5C,0x4D,0x84 };
+    
   int     i, equ;
   
   present(key, buf);
@@ -53,7 +62,13 @@ int main(void)
   
   equ = (memcmp(buf, res, 8)==0);
   printf("PRESENT encryption %s\n", equ ? "OK" : "FAILED");
+
+  present(key2, buf2);
+  print_bytes("result", buf2, 8);
   
+  equ = (memcmp(buf2, res2, 8)==0);
+  printf("PRESENT encryption %s\n", equ ? "OK" : "FAILED");
+    
   for (i=0; i<2; i++) {
     // if using alternative test vectors, remember to change these!
     memset(key, -i, sizeof(key));  
