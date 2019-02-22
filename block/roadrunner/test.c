@@ -1,6 +1,6 @@
 
 
-// test unit for roadrunner
+// test unit for RoadRunneR-64/128
 // odzhan
 
 #include <stdio.h>
@@ -23,15 +23,12 @@ uint8_t cipher[8] =
 void roadrunner(void *mk, void *data);
 
 int main(void) {
-  uint8_t data[8];
-  int     equ;
-  
-  memcpy(data, plain, 8);
-  
-  roadrunner(key, data);
-  
-  equ = (memcmp(data, cipher, 8)==0);
-  
-  printf("RoadRunneR test : %s\n", equ ? "OK" : "FAILED");
-  return 0;
+    uint8_t data[8];
+    int     equ;
+    
+    memcpy(data, plain, 8);
+    roadrunner(key, data);
+    equ = (memcmp(data, cipher, 8)==0);
+    printf("RoadRunneR test : %s\n", equ ? "OK" : "FAILED");
+    return 0;
 }

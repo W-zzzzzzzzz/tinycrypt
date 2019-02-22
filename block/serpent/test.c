@@ -35,7 +35,6 @@ int main (void) {
     memcpy(data, plain, 16);
     serpent(key, data);
     equ = (memcmp(data, cipher, 16)==0);
-    
     printf("Serpent test : %s\n", equ ? "OK" : "FAILED");
     return 0;
 }

@@ -38,15 +38,15 @@ void lea128(void *mk, void *data) {
 
     // apply 24 rounds
     for(r=0;r<24;r++) {
+      // create next 128-bit subkey
       t=c[r%4];
       c[r%4]=R(t,28);
-      // encrypt plaintext
       k[0]=R(k[0]+t,31);
       k[1]=R(k[1]+R(t,31),29);
       k[2]=R(k[2]+R(t,30),26);
       k[3]=R(k[3]+R(t,29),21);      
       t=x[0];
-      // create next subkey
+      // encrypt 128-bit plaintext
       x[0]=R((x[0]^k[0])+(x[1]^k[1]),23);
       x[1]=R((x[1]^k[2])+(x[2]^k[1]),5);
       x[2]=R((x[2]^k[3])+(x[3]^k[1]),3);

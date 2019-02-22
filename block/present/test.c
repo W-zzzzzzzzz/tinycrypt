@@ -35,30 +35,29 @@ uint8_t key2[16]=
 uint8_t res2[8]=
   { 0xEA,0x02,0x47,0x14,0xAD,0x5C,0x4D,0x84 };
     
-int main(void)
-{
-  int i, equ;
-  
-  present(key, buf);
-  equ = (memcmp(buf, res, 8)==0);
-  printf("PRESENT-64/128 test 1 : %s\n", 
-    equ ? "OK" : "FAILED");
-
-  present(key2, buf2);
-  equ = (memcmp(buf2, res2, 8)==0);
-  printf("PRESENT-64/128 test 2 : %s\n", 
-    equ ? "OK" : "FAILED");
+int main(void) {
+    int i, equ;
     
-  for (i=0; i<2; i++) {
-    memset(key, -i, sizeof(key));  
-    memset(buf, -i, sizeof(buf));
-  
     present(key, buf);
+    equ = (memcmp(buf, res, 8)==0);
+    printf("PRESENT-64/128 test 1 : %s\n", 
+      equ ? "OK" : "FAILED");
+
+    present(key2, buf2);
+    equ = (memcmp(buf2, res2, 8)==0);
+    printf("PRESENT-64/128 test 2 : %s\n", 
+      equ ? "OK" : "FAILED");
+      
+    for (i=0; i<2; i++) {
+      memset(key, -i, sizeof(key));  
+      memset(buf, -i, sizeof(buf));
     
-    equ = memcmp (buf, tv[i], 8)==0;
-    
-    printf ("PRESENT-64/128 test %i : %s\n", 
-      (i+3), equ ? "OK" : "FAILED");
-  }
-  return 0;
+      present(key, buf);
+      
+      equ = memcmp (buf, tv[i], 8)==0;
+      
+      printf ("PRESENT-64/128 test %i : %s\n", 
+        (i+3), equ ? "OK" : "FAILED");
+    }
+    return 0;
 }

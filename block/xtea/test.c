@@ -61,11 +61,7 @@ int main(void)
     memcpy(buf, &xtea_test_pt[i][0], 8);
     memcpy(key, &xtea_test_key[i][0], 16);
     
-    #ifdef ASM
-      xtea_encryptx(key, buf);
-    #else
-      xtea_encrypt(key, buf);
-    #endif
+    xtea(key, buf);
     
     bin2hex("c:", buf, 8);
     

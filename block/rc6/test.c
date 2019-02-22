@@ -8,78 +8,32 @@
 #include <ctype.h>
 #include <stdlib.h>
 
-#include "rc6.h"
+// 256-bit master key
+uint8_t key[32]=
+{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 
+ 0x01, 0x12, 0x23, 0x34, 0x45, 0x56, 0x67, 0x78, 
+ 0x89, 0x9a, 0xab, 0xbc, 0xcd, 0xde, 0xef, 0xf0,
+ 0x10, 0x32, 0x54, 0x76, 0x98, 0xba, 0xdc, 0xfe };
 
-// 256-bit keys
+// 128-bit plain text
+uint8_t plain[16]=
+{0x02, 0x13, 0x24, 0x35, 0x46, 0x57, 0x68, 0x79,
+ 0x8a, 0x9b, 0xac, 0xbd, 0xce, 0xdf, 0xe0, 0xf1 };
 
-char *test_keys[] = 
-{ "00000000000000000000000000000000"
-  "00000000000000000000000000000000",
-  "0123456789abcdef0112233445566778"
-  "899aabbccddeeff01032547698badcfe" };
+// 128-bit cipher text
+uint8_t cipher[16]=
+{0xc8, 0x24, 0x18, 0x16, 0xf0, 0xd7, 0xe4, 0x89, 
+ 0x20, 0xad, 0x16, 0xa1, 0x67, 0x4e, 0x5d, 0x48};
 
-char *test_plaintexts[] =
-{ "00000000000000000000000000000000",
-  "02132435465768798a9bacbdcedfe0f1" };
+void rc6(void *mk, void *data);
 
-char *test_ciphertexts[] =
-{ "8f5fbd0510d15fa893fa3fda6e857ec2",
-  "c8241816f0d7e48920ad16a1674e5d48"};
-
-size_t hex2bin (void *bin, char hex[]) {
-  size_t len, i;
-  int x;
-  uint8_t *p=(uint8_t*)bin;
-  
-  len = strlen (hex);
-  
-  if ((len & 1) != 0) {
-    return 0; 
-  }
-  
-  for (i=0; i<len; i++) {
-    if (isxdigit((int)hex[i]) == 0) {
-      return 0; 
-    }
-  }
-  
-  for (i=0; i<len / 2; i++) {
-    sscanf (&hex[i * 2], "%2x", &x);
-    p[i] = (uint8_t)x;
-  } 
-  return len / 2;
-} 
-
-void bin2hex(char *s, void *p, int len) {
-  int i;
-  printf("%s : ", s);
-  for (i=0; i<len; i++) {
-    printf ("%02x ", ((uint8_t*)p)[i]);
-  }
-  printf("\n\n");
-}
-void rc6(void*mk,void*p);
-
-int main (void)
-{
-  int     i;
-  uint8_t pt1[16], ct1[16], ct2[16], key[32];
-  
-  for (i=0; i<sizeof (test_keys)/sizeof(char*); i++)
-  {    
-    hex2bin (key, test_keys[i]);
-    hex2bin (ct1, test_ciphertexts[i]);
-    hex2bin (pt1, test_plaintexts[i]);
+int main (void) {
+    uint8_t data[16];
+    int     equ;
     
-    memcpy(ct2, pt1, sizeof(ct2)); 
-    rc6(key, ct2);
-    
-    if (memcmp (ct1, ct2, sizeof(ct1))==0) {
-      printf ("\nRC6 encryption passed #%i\n", (i+1));
-    } else {
-      printf ("\nRC6 failed test #%i\n", (i+1));
-    }
-    bin2hex("c:", ct2, sizeof(ct2));
-  }
-  return 0;
+    memcpy(data, plain, 16);
+    rc6(key, data);
+    equ = (memcmp(data, cipher, 16)==0);
+    printf("RC6 test : %s\n", equ ? "OK" : "FAILED");
+    return 0;
 }

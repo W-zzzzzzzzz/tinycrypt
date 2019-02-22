@@ -1,4 +1,6 @@
 
+// test unit for SM4 block cipher
+// odzhan
 
 #include <stdio.h>
 #include <stdint.h>
@@ -27,9 +29,7 @@ int main(void) {
     
     memcpy(data, plain, 16);
     sm4(key, data);
-    
     equ = (memcmp(cipher, data, 16)==0);
-    
     printf ("SM4 test : %s\n", equ ? "OK" : "FAILED");    
     return 0;
 }
