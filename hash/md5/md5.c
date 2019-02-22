@@ -34,7 +34,7 @@
 #define HH(x,y,z)((x)^(y)^(z))
 #define II(x,y,z)((y)^((x)|(~z)))
 
-void md5_compress(md5_ctx*ctx) {
+void md5_compress(md5_ctx *ctx) {
     W a, b, c, d, i, t, s;
     B rotf[]={7,12,17,22};
     B rotg[]={5, 9,14,20};
@@ -94,7 +94,7 @@ void md5_compress(md5_ctx*ctx) {
     ctx->s[3] += d;
 }
 
-void md5_init(md5_ctx*c) {
+void md5_init(md5_ctx *c) {
     c->s[0]=0x67452301;
     c->s[1]=0xefcdab89;
     c->s[2]=0x98badcfe;
@@ -102,35 +102,48 @@ void md5_init(md5_ctx*c) {
     c->len =0;
 }
 
-void md5_update(md5_ctx*c,const void*in,W len) {
+void md5_update(md5_ctx *c, const void *in, W len) {
     B *p=(B*)in;
     W i, idx;
     
+    // get buffer index
     idx = c->len & 63;
+    // update total length
     c->len += len;
     
     for (i=0;i<len;i++) {
+      // add byte to buffer
       c->x.b[idx]=p[i]; idx++;
-      if(idx==64) {
+      // buffer filled?
+      if(idx == 64) {
+        // compress it
         md5_compress(c);
         idx=0;
       }
     }
 }
 
-void md5_final(void*h,md5_ctx*c) {
-    W i,len,*p=h;
+void md5_final(void *out, md5_ctx *c) {
+    W i,len,*p=(W*)out;
     
+    // get buffer index
     i = len = c->len & 63;
-    while(i<64) c->x.b[i++]=0;
+    // zero remainder of buffer
+    while(i < 64) c->x.b[i++]=0;
+    // add 1 bit
     c->x.b[len]=0x80;
-    
-    if(len>=56) {
+    // if index exceeds area for total bits
+    if(len >= 56) {
+      // compress it
       md5_compress(c);
+      // zero initialize buffer
       F(16)c->x.w[i]=0;
     }
+    // add total bits
     c->x.q[7]=c->len*8;
+    // compress
     md5_compress(c);
+    // return hash
     F(4)p[i]=c->s[i];
 }
 

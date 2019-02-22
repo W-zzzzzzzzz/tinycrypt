@@ -33,7 +33,7 @@
 #define GG(x,y,z)(((x)& (y))|((z)&((x)|(y))))
 #define HH(x,y,z)((x)^(y)^(z))
 
-void sha1_compress(sha1_ctx*c) {
+void sha1_compress(sha1_ctx *c) {
     W t,i,w[80],x[5];
 
     // load 64-bytes in big endian byte order
@@ -77,29 +77,44 @@ void sha1_update(sha1_ctx *c,const void *in,W len) {
     B *p=(B*)in;
     W i, idx;
     
+    // index = len % 64
     idx = c->len & 63;
+    // update total length
     c->len += len;
     
     for (i=0;i<len;i++) {
+      // add byte to buffer
       c->x.b[idx]=p[i]; idx++;
+      // buffer filled?
       if(idx==64) {
+        // compress it
         sha1_compress(c);
         idx=0;
       }
     }
 }
 
-void sha1_final(void *h,sha1_ctx *c) {
-    W i,len,*p=h;
+void sha1_final(void *out, sha1_ctx *c) {
+    W i,len,*p=(W*)out;
     
+    // get index
     i = len = c->len & 63;
-    while(i<64) c->x.b[i++]=0;
+    // zero remainder of buffer
+    while(i < 64) c->x.b[i++]=0;
+    // add 1 bit
     c->x.b[len]=0x80;
-    if(len>=56) {
+    
+    // exceeds or equals area for total bits?
+    if(len >= 56) {
+      // compress it
       sha1_compress(c);
+      // zero buffer
       F(16)c->x.w[i]=0;
     }
+    // add total length in bits
     c->x.q[7]=rev64(c->len*8);
+    // compress it
     sha1_compress(c);
-    F(5)p[i]=rev32(c->s[i]);
+    // return hash
+    F(8)p[i]=rev32(c->s[i]);
 }

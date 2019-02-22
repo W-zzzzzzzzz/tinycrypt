@@ -41,7 +41,7 @@ void bin2hex(void*, int);
 typedef unsigned long long W;
 
 void speck128(void*in,void*mk,void*out){
-  W i,t,k[4],*r=(W*)out,*h=(W*)in;
+  W i,t,k[4],*r=(W*)out;
 
   memcpy(r,in,16);
   memcpy(k,mk,32);

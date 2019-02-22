@@ -29,7 +29,7 @@
 
 #include "sha3.h"
 
-void P(void*p) {
+void sha3_compress(void *p) {
     W n,i,j,r,x,y,t,Y,b[5],*s=p;
     B c=1;
 
@@ -52,36 +52,45 @@ void P(void*p) {
     }
 }
 
-void sha3_init(sha3_ctx*c, int len) {
+void sha3_init(sha3_ctx *c, int len) {
     W i;
     
+    // zero initialize state
     F(i,25)c->s.q[i]=0;
     
-    c->h = len;
-    c->r = 200-(2*len);
-    c->i = 0;
+    c->h = len;            // set output length
+    c->r = 200-(2*len);    // set the rate
+    c->i = 0;              // set the buffer index
 }
 
-void sha3_update(sha3_ctx*c, const void*in, W len) {
+void sha3_update(sha3_ctx *c, const void *in, W len) {
     W i;
     B *p=(B*)in;
   
     F(i,len) {
-      c->s.b[c->i++] ^= *p++;    
+      // absorb byte into state
+      c->s.b[c->i++] ^= p[i];
+      // buffer filled?    
       if(c->i == c->r) {
-        P(&c->s); 
+        // compress it
+        sha3_compress(&c->s);
+        // reset index 
         c->i=0;
       }
     }
 }
 
-void sha3_final(void*out, sha3_ctx*c) {
+void sha3_final(void *out, sha3_ctx *c) {
     B   *p=(B*)out;
     int i;
     
+    // add domain parameter
     c->s.b[c->i]^=6;
+    // add 1 bit
     c->s.b[c->r-1]^=0x80;
     
-    P(&c->s);
+    // compress it
+    sha3_compress(&c->s);
+    // return hash
     F(i,c->h)p[i]=c->s.b[i];
 }

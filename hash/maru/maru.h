@@ -30,10 +30,10 @@
 #ifndef MARU_H
 #define MARU_H
 
-#include <string.h>
 #include <stdint.h>
+#include <string.h>
 
-#include "macros.h"
+#include "../../portable.h"
 
 #define MARU_KEY_LEN  32 // 256-bit input
 #define MARU_BLK_LEN  16 // 128-bit cipher key

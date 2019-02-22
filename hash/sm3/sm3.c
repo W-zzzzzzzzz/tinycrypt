@@ -84,31 +84,45 @@ void sm3_update(sm3_ctx *c, const void *in, W len) {
     B *p=(B*)in;
     W i, idx;
     
+    // index = len % 64
     idx = c->len & 63;
+    // update total length
     c->len += len;
     
     for (i=0;i<len;i++) {
+      // add byte to buffer
       c->x.b[idx]=p[i]; idx++;
+      // buffer filled?
       if(idx==64) {
+        // compress it
         sm3_compress(c);
         idx=0;
       }
     }
 }
 
-void sm3_final(void *out,sm3_ctx *c) {
+void sm3_final(void *out, sm3_ctx *c) {
     W i,len,*p=(W*)out;
     
+    // get index
     i = len = c->len & 63;
+    // zero remainder of buffer
     while(i < 64) c->x.b[i++]=0;
+    // add 1 bit
     c->x.b[len]=0x80;
     
+    // exceeds or equals area for total bits?
     if(len >= 56) {
+      // compress it
       sm3_compress(c);
+      // zero buffer
       F(16)c->x.w[i]=0;
     }
+    // add total length in bits
     c->x.q[7]=rev64(c->len*8);
+    // compress it
     sm3_compress(c);
+    // return hash
     F(8)p[i]=rev32(c->s[i]);
 }
 

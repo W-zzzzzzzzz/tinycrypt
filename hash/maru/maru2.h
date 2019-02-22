@@ -30,12 +30,10 @@
 #ifndef MARU2_H
 #define MARU2_H
 
-#include <string.h>
 #include <stdint.h>
-#include <ctype.h>
-#include <stdio.h>
+#include <string.h>
 
-#include "macros.h"
+#include "../../portable.h"
 
 #define MARU2_KEY_LEN  64 // 512-bit input (not the key for block cipher)
 

@@ -33,7 +33,7 @@
 #define GG(x,y,z)(((x)& (y))|((z)&((x)|(y))))
 #define HH(x,y,z)((x)^(y)^(z))
 
-void md4_compress(md4_ctx*c) {
+void md4_compress(md4_ctx *c) {
     W i,t,s[4]; 
     B r[16]={3,7,11,19,3,5,9,13,3,9,11,15};
     B g[16]={0,4,8,12,1,5,9,13,2,6,10,14,3,7,11,15};
@@ -60,7 +60,7 @@ void md4_compress(md4_ctx*c) {
     F(4)c->s[i]+=s[i];
 }
 
-void md4_init(md4_ctx*c) {
+void md4_init(md4_ctx *c) {
     c->s[0]=0x67452301;
     c->s[1]=0xefcdab89;
     c->s[2]=0x98badcfe;
@@ -68,34 +68,48 @@ void md4_init(md4_ctx*c) {
     c->len =0;
 }
 
-void md4_update(md4_ctx*c,const void*in,W len) {
+void md4_update(md4_ctx *c, const void *in, W len) {
     B *p=(B*)in;
     W i, idx;
     
+    // get buffer index
     idx = c->len & 63;
+    // update total length
     c->len += len;
     
     for (i=0;i<len;i++) {
+      // add byte to buffer
       c->x.b[idx]=p[i]; idx++;
-      if(idx==64) {
+      // buffer filled?
+      if(idx == 64) {
+        // compress it
         md4_compress(c);
         idx=0;
       }
     }
 }
 
-void md4_final(void*h,md4_ctx*c) {
-    W i,len,*p=(W*)h;
+void md4_final(void *out, md4_ctx *c) {
+    W i,len,*p=(W*)out;
     
+    // get buffer index
     i = len = c->len & 63;
-    while(i<64) c->x.b[i++]=0;
+    // zero remainder of buffer
+    while(i < 64) c->x.b[i++]=0;
+    // add 1 bit
     c->x.b[len]=0x80;
-    if(len>=56) {
+    // if index exceeds area for total bits
+    if(len >= 56) {
+      // compress it
       md4_compress(c);
+      // zero initialize buffer
       F(16)c->x.w[i]=0;
     }
+    // add total bits
     c->x.q[7]=c->len*8;
+    // compress
     md4_compress(c);
+    // return hash
     F(4)p[i]=c->s[i];
 }
 
