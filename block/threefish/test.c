@@ -5,68 +5,38 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-#include <stdlib.h>
+                     
+uint64_t key[4] = 
+{ 0x1716151413121110L, 0x1F1E1D1C1B1A1918L,
+  0x2726252423222120L, 0x2F2E2D2C2B2A2928L};
 
-#include "threefish.h"
+uint64_t plain[4] = 
+{ 0xF8F9FAFBFCFDFEFFL, 0xF0F1F2F3F4F5F6F7L,
+  0xE8E9EAEBECEDEEEFL, 0xE0E1E2E3E4E5E6E7L};
 
-uint64_t three_256_00_key[]    = { 0L, 0L, 0L, 0L };
-uint64_t three_256_00_input[]  = { 0L, 0L, 0L, 0L };
-uint64_t three_256_00_tweak[]  = { 0L, 0L };
-uint64_t three_256_00_result[] = { 0x94EEEA8B1F2ADA84L, 0xADF103313EAE6670L,
-                                   0x952419A1F4B16D53L, 0xD83F13E63C9F6B11L };
-                                   
-                                   
-uint64_t three_256_01_key[] = { 0x1716151413121110L, 0x1F1E1D1C1B1A1918L,
-                                0x2726252423222120L, 0x2F2E2D2C2B2A2928L};
-
-uint64_t three_256_01_input[] = { 0xF8F9FAFBFCFDFEFFL, 0xF0F1F2F3F4F5F6F7L,
-                                  0xE8E9EAEBECEDEEEFL, 0xE0E1E2E3E4E5E6E7L};
-
-uint64_t three_256_01_result[] = 
+uint64_t cipher[4] = 
 { 0xDF8FEA0EFF91D0E0ULL,  0xD50AD82EE69281C9ULL,
   0x76F48D58085D869DULL,  0xDF975E95B5567065ULL };
 
-uint64_t three_256_01_tweak[] = 
+uint64_t tweak[] = 
 { 0x0706050403020100L, 0x0F0E0D0C0B0A0908L };
-                          
-typedef struct _threefish_tv {
-  uint64_t *key;
-  uint64_t *input;
-  uint64_t *tweak;
-  uint64_t *result;
-}tf_tv;
-  
-tf_tv tv[2]=
-{{three_256_00_key, three_256_00_input, three_256_00_tweak, three_256_00_result},
- {three_256_01_key, three_256_01_input, three_256_01_tweak, three_256_01_result}};  
  
-void print_bytes(char *s, void *p, int len)
-{
-  int i;
-  printf ("\n%s = ", s);
-  for (i=0; i<len; i++) {
-    if ((i & 31)==0) putchar('\n');
-    printf ("%02x ", ((uint8_t*)p)[i]);
-  }
-}
- 
-void threefish(void*,void*);
+void threefish(void *mkt, void *data);
 
 int main(void) {
-  int           i;
-  threefish_ctx ctx;
-  uint8_t       data[32];
-  
-  for (i=0; i<2; i++) {
-    memcpy(&ctx.key,  tv[i].key,   32);
-    memcpy(&ctx.tweak,tv[i].tweak, 16);
-    memcpy(data,      tv[i].input, 32);
-  
-    threefish(&ctx, data);
+    uint8_t data[32], key_tweak[48];
+    int     equ;
+    
+    // copy 256-bit key
+    memcpy(key_tweak, key, 32);
+    // copy 128-bit tweak
+    memcpy(&key_tweak[32], tweak, 16);
+    // copy 256-bit plaintext
+    memcpy(data, plain, 32);
+    // encrypt plaintext
+    threefish(key_tweak, data);
 
-    if (memcmp(data, tv[i].result, 32)==0) {
-      printf ("Threefish encryption OK\n");
-    } else printf("Threefish encryption failed\n");
-  }
-  return 0;
+    equ = (memcmp(data, cipher, 32)==0);
+    printf("Threefish test : %s\n", equ ? "OK" : "FAILED");
+    return 0;
 }

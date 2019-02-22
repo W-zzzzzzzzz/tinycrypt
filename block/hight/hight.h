@@ -37,18 +37,12 @@
 
 #include "../../macros.h"
 
-#ifdef _MSC_VER
-#define memset(x,y,z) __stosb(x,y,z);
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
   void hight128_setkey(void*, void*);
-  void hight128_setkeyx(void*, void*);
   void hight128_encrypt(void*, void*);
-  void hight128_encryptx(void*, void*);
   void hight128_decrypt(void*, void*);
 
 #ifdef __cplusplus

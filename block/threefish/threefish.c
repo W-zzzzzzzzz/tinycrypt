@@ -29,15 +29,16 @@
 
 #include "threefish.h"
 
-void threefish(void*mk, void*data) {
+void threefish(void *mk, void *data) {
     W c[10],i,j,r,*x=(W*)data,t;
     
     // AES encryption of the plaintext 240 (in decimal) 
-    // under the all-zero 256-bit key
+    // using a 256-bit all-zero key
     t=0x1BD11BDAA9FC1A22ULL;
     
-    // initialize key and tweak
-    F(i,4)t^=c[i]=((W*)mk)[i]; 
+    // initialize 256-bit key
+    F(i,4)t^=c[i]=((W*)mk)[i];
+    // initialize 128-bit tweak 
     c[4]=t;
     c[5]=((W*)mk)[4];c[6]=((W*)mk)[5];
     c[7]=c[5]^c[6];

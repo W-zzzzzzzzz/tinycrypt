@@ -1,6 +1,5 @@
 test:
-	as smx.s -osmx.o
-	gcc -Wall -Os test.c smx.o -otest
+	gcc -Wall -Os test.c simeck.c -otest
 clean:
-	rm *.o test
+	rm -rf *.o test
 

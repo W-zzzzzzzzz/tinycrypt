@@ -3,8 +3,10 @@
 // odzhan
 
 #include <stdio.h>
+#include <string.h>
+#include <stdint.h>
 
-#include "chaskey.h"
+void chaskey(void *mk, void *data);
 
 uint8_t plain[16]=
 { 0xb8, 0x23, 0x28, 0x26,
@@ -24,21 +26,15 @@ uint8_t cipher[16] =
 	0xab, 0xf8, 0x77, 0x2f, 
 	0xdf, 0xed, 0xde, 0x07 };
 
-int main(voi)
-{
-  uint8_t t[16];
-  int e, d;
-  
-  memcpy(t, plain, 16);
-  
-  chas_encrypt(CHASKEY_ENCRYPT, key, t);
-  e = memcmp(t, cipher, 16)==0;
-  
-  chas_encrypt(CHASKEY_DECRYPT, key, t);
-  d = memcmp(t, plain, 16)==0;
-  
-  printf("\nEncryption: %s\nDecryption: %s\n", 
-      e ? "OK" : "FAILED",
-      d ? "OK" : "FAILED");
-  return 0;
+int main(void) {
+    uint8_t data[16];
+    int     equ;
+    
+    memcpy(data, plain, 16);
+    chaskey(key, data);
+    
+    equ = (memcmp(data, cipher, 16)==0);
+    
+    printf("CHASKEY test : %s\n", equ ? "OK" : "FAILED");
+    return 0;
 }

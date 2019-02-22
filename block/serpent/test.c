@@ -9,95 +9,33 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "serpent.h"
-
-char *plain[]=
-{ "3DA46FFA6F4D6F30CD258333E5A61369" };
-
-char *keys[]=
-{"000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F" 
-};
-
-char *cipher[]=
-{ "00112233445566778899AABBCCDDEEFF"};
-
-size_t hex2bin (void *bin, char hex[]) {
-  size_t len, i;
-  int x;
-  uint8_t *p=(uint8_t*)bin;
+// 256-bit master key
+uint8_t key[32]=
+{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 
+ 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,  
+ 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,  
+ 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f };
+ 
+// 128-bit plain text
+uint8_t plain[16]=
+{0x3d, 0xa4, 0x6f, 0xfa, 0x6f, 0x4d, 0x6f, 0x30,  
+ 0xcd, 0x25, 0x83, 0x33, 0xe5, 0xa6, 0x13, 0x69 };
   
-  len = strlen (hex);
-  
-  if ((len & 1) != 0) {
-    return 0; 
-  }
-  
-  for (i=0; i<len; i++) {
-    if (isxdigit((int)hex[i]) == 0) {
-      return 0; 
-    }
-  }
-  
-  for (i=0; i<len / 2; i++) {
-    sscanf (&hex[i * 2], "%2x", &x);
-    p[i] = (uint8_t)x;
-  } 
-  return len / 2;
-} 
+// 128-bit cipher text
+uint8_t cipher[16]=
+{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,  
+ 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff };
 
-void dump_hex (char *s, uint8_t bin[], int len)
-{
-  int i;
-  printf ("\n%s=", s);
-  for (i=0; i<len; i++) {
-    printf ("%02x", bin[i]);
-  }
-}
+void serpent(void *mk, void *data);
 
-void serpent(void*,void*);
-
-int main (void)
-{
-  uint8_t ct1[32], pt1[32], key[64];
-  int plen, clen, i, j;
-  serpent_key skey;
-  serpent_blk ct2;
-  uint32_t *p;
-  
-  printf ("\nserpent-256 test\n");
-  
-  for (i=0; i<sizeof(keys)/sizeof(char*); i++) {
-    clen=hex2bin (ct1, cipher[i]);
-    plen=hex2bin (pt1, plain[i]);
-    hex2bin (key, keys[i]);
-  
-    // set key
-    memset (&skey, 0, sizeof (skey));
-    p=(uint32_t*)&skey.x[0][0];
+int main (void) {
+    uint8_t data[32];
+    int     equ;
     
-    // encrypt
-    memcpy (ct2.b, pt1, SERPENT_BLK_LEN);
+    memcpy(data, plain, 16);
+    serpent(key, data);
+    equ = (memcmp(data, cipher, 16)==0);
     
-    printf ("\n\n");
-    dump_hex ("plaintext", ct2.b, 16);
-    
-    serpent(key,&ct2);
-  
-    dump_hex ("ciphertext", ct2.b, 16);
-    
-    if (memcmp (ct1, ct2.b, clen) == 0) {
-      printf ("\nEncryption OK");
-      //serpent_encrypt (ct2.b, &skey, SERPENT_DECRYPT);
-      if (memcmp (pt1, ct2.b, plen) == 0) {
-        printf ("\nDecryption OK");
-        dump_hex ("plaintext", ct2.b, 16);
-      } else {
-        printf ("\nDecryption failed");
-      }
-    } else {
-      printf ("\nEncryption failed");
-    }
-  }
-  putchar('\n');
-  return 0;
+    printf("Serpent test : %s\n", equ ? "OK" : "FAILED");
+    return 0;
 }

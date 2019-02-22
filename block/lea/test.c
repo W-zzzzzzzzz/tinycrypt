@@ -3,8 +3,10 @@
 // odzhan
 
 #include <stdio.h>
+#include <stdint.h>
+#include <string.h>
 
-#include "lea.h"
+void lea128(void *mk, void *data);
 
 uint8_t key[16] = 
 {0x0f, 0x1e, 0x2d, 0x3c, 0x4b, 0x5a, 0x69, 0x78, 
@@ -20,24 +22,15 @@ uint8_t cipher[16] =
  
 int main(void)
 {
-  uint8_t  buf[16];
-  int      equ, i;
-  uint32_t subkeys[LEA128_RNDS*4];
+  uint8_t  data[16];
+  int      equ;
   
-  memcpy (buf, plain, 16);
+  memcpy (data, plain, 16);
+  lea128(key, data);
   
-  #ifndef SINGLE
-    lea128_setkey(key, subkeys);
-    lea128_encrypt(subkeys, buf);
-  #else  
-    lea128_encrypt_single(key, buf);
-  #endif  
+  equ = (memcmp(data, cipher, 16)==0);
   
-  for (i=0; i<16; i++) printf ("%02x ", buf[i]);
-  equ = memcmp (buf, cipher, 16) == 0;
-  
-  printf ("\nEncryption test %s\n", 
-      equ ? "OK" : "FAILED");
+  printf("LEA-128 test : %s\n", equ ? "OK" : "FAILED");
       
   return 0;
 }

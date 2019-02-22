@@ -1,8 +1,9 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
-#include "simeck.h"
+void simeck(void *mk, void *data);
 
 int main(void){
     uint32_t key[]={0x03020100,0x0b0a0908,0x13121110,0x1b1a1918};
@@ -12,8 +13,7 @@ int main(void){
 
     simeck(key,txt);
     
-    printf("Simeck64/128 %08x %08x\n", txt[1], txt[0]);
     equ=(memcmp(res,txt,8)==0);
-    printf("SIMECK Test %s\n", equ ? "OK" : "FAILED");
+    printf("SIMECK test : %s\n", equ ? "OK" : "FAILED");
     return 0;
 }

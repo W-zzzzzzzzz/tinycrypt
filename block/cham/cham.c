@@ -31,13 +31,15 @@
 #define F(n)for(i=0;i<n;i++)
 typedef unsigned int W;
 
-void cham(void*mk,void*p){
-    W rk[8],*w=p,*k=mk,i,t;
+void cham(void *mk, void *data) {
+    W rk[8],*w=data,*k=mk,i,t;
 
+    // create subkeys
     F(4)
       t=k[i]^R(k[i],31),
       rk[i]=t^R(k[i],24),
       rk[(i+4)^1]=t^R(k[i],21);
+    // apply 80 rounds of encryption
     F(80)
       t=w[3],w[0]^=i,w[3]=rk[i&7],
       w[3]=w[0]+(w[3]^R(w[1],(i&1)?24:31)),

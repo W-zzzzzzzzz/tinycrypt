@@ -30,21 +30,24 @@
 #define R(v,n)(((v)>>(n))|((v)<<(32-(n))))
 typedef unsigned int W;
 
-void lea128(void*mk,void*p) {
-    W r,t,*x=p,*k=mk;
+void lea128(void *mk, void *data) {
+    W r,t,*x=data,*k=mk;
     W c[4]=
       {0xc3efe9db,0x88c4d604,
        0xe789f229,0xc6f98763};
 
-    for(r=0;r<24;r++){
+    // apply 24 rounds
+    for(r=0;r<24;r++) {
       t=c[r%4];
       c[r%4]=R(t,28);
-      *k=R(*k+t,31);
+      // encrypt plaintext
+      k[0]=R(k[0]+t,31);
       k[1]=R(k[1]+R(t,31),29);
       k[2]=R(k[2]+R(t,30),26);
       k[3]=R(k[3]+R(t,29),21);      
-      t=*x;
-      *x=R((*x^*k)+(x[1]^k[1]),23);
+      t=x[0];
+      // create next subkey
+      x[0]=R((x[0]^k[0])+(x[1]^k[1]),23);
       x[1]=R((x[1]^k[2])+(x[2]^k[1]),5);
       x[2]=R((x[2]^k[3])+(x[3]^k[1]),3);
       x[3]=t;

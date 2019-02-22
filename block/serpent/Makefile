@@ -1,4 +1,4 @@
-msvc:
-		cl /nologo /O2 /Ot /DTEST test.c serpent.c
-all:
-		gcc -DTEST -Wall -O2 test.c serpent.c -otest	 
+test:
+	gcc -Wall test.c serpent.c -otest
+clean:
+	rm -rf *.o test

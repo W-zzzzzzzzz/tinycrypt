@@ -32,16 +32,22 @@
 typedef unsigned int W;
 
 // SPECK-64/128
-void speck64(void*mk,void*p){
-  W k[4],*x=p,i,t;
+void speck64(void *mk, void *data){
+  W k[4],*x=data,i,t;
   
+  // copy 128-bit master key to local memory
   F(4)k[i]=((W*)mk)[i];
   
+  // apply 27 rounds
   F(27)
-    *x=(R(*x,8)+x[1])^*k,
-    x[1]=R(x[1],29)^*x,
+    // encrypt plaintext
+    // linear/nonlinear layers, add key
+    x[0]=(R(x[0],8)+x[1])^k[0],
+    x[1]=R(x[1],29)^x[0],
     t=k[3],
-    k[3]=(R(k[1],8)+*k)^i,
-    *k=R(*k,29)^k[3],
+    // create next subkey
+    // linear/nonlinear layers, add round counter
+    k[3]=(R(k[1],8)+k[0])^i,
+    k[0]=R(k[0],29)^k[3],
     k[1]=k[2],k[2]=t;
 }

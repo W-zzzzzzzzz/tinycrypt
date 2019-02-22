@@ -30,19 +30,24 @@
 #define R(v,n)(((v)<<(n))|((v)>>(32-(n))))
 #define X(a,b)(t)=(a),(a)=(b),(b)=(t)
 
-void simeck(void*mk,void*p){
-  unsigned int t,k0,k1,k2,k3,l,r,*k=mk,*x=p;
+void simeck(void *mk, void *data) {
+  unsigned int t,k0,k1,k2,k3,l,r,*k=mk,*x=data;
   unsigned long long s=0x938BCA3083F;
 
-  k0=k[0];k1=k[1];k2=k[2];k3=k[3]; 
+  // load 128-bit master key
+  k0=k[0];k1=k[1];k2=k[2];k3=k[3];
+  // load 64-bit plaintext 
   r=x[0];l=x[1];
 
   do{
+    // encrypt plaintext
     r^=R(l,1)^(R(l,5)&l)^k0;
     X(l,r);
     t=(s&1)-4;
+    // create next subkey
     k0^=R(k1,1)^(R(k1,5)&k1)^t;    
     X(k0,k1);X(k1,k2);X(k2,k3);
-  } while(s>>=1);
+  } while(s >>= 1);
+  // store 64-bit ciphertext
   x[0]=r; x[1]=l;
 }

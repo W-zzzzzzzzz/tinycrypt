@@ -34,18 +34,22 @@ void sha3_compress(void *p) {
     B c=1;
 
     F(n,24){
+      // Theta
       F(i,5){b[i]=0;F(j,5)b[i]^=s[i+j*5];}
       F(i,5){
         t=b[(i+4)%5]^R(b[(i+1)%5],63);
         F(j,5)s[i+j*5]^=t;}
       t=s[1],y=r=0,x=1;
+      // Rho and Pi
       F(j,24)
         r+=j+1,Y=(x*2)+(y*3),x=y,y=Y%5,
         Y=s[x+y*5],s[x+y*5]=R(t, -r),t=Y;
+      // Chi
       F(j,5){
         F(i,5)b[i]=s[i+j*5];
         F(i,5)
           s[i+j*5]=b[i]^( b[(i+2)%5] &~ b[(i+1)%5]);}
+      // Iota
       F(j,7)
         if((c=(c<<1)^((c>>7)*113))&2)
           *s^=1ULL<<((1<<j)-1);
@@ -72,7 +76,7 @@ void sha3_update(sha3_ctx *c, const void *in, W len) {
       c->s.b[c->i++] ^= p[i];
       // buffer filled?    
       if(c->i == c->r) {
-        // compress it
+        // permute
         sha3_compress(&c->s);
         // reset index 
         c->i=0;
@@ -88,8 +92,7 @@ void sha3_final(void *out, sha3_ctx *c) {
     c->s.b[c->i]^=6;
     // add 1 bit
     c->s.b[c->r-1]^=0x80;
-    
-    // compress it
+    // permute
     sha3_compress(&c->s);
     // return hash
     F(i,c->h)p[i]=c->s.b[i];

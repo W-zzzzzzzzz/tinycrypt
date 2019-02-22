@@ -2,41 +2,34 @@
 // test unit for CHAM 128/128 cipher
 // odzhan
 
-#include "cham.h"
-
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
-void print_bytes(char *s, void *p, int len) {
-  int i;
-  printf("%s : ", s);
-  for (i=0; i<len; i++) {
-    printf ("%02x ", ((uint8_t*)p)[i]);
-  }
-  printf("\n\n");
-}
+// 128-bit key
+uint8_t key[16]=
+{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 
+ 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f};
+
+// 128-bit plain text
+uint8_t plain[16]=
+{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 
+ 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff};
+
+// 128-bit cipher text
+uint8_t cipher[16]=
+{0x34, 0x60, 0x74, 0xc3, 0xc5, 0x00, 0x57, 0xb5, 
+ 0x32, 0xec, 0x64, 0x8d, 0xf7, 0x32, 0x93, 0x48};
 
 void cham(void*,void*);
 
-int main(void)
-{
-  uint32_t key[4]   = {0x03020100, 0x07060504, 0x0b0a0908, 0x0f0e0d0c};
-  uint32_t plain[4] = {0x33221100, 0x77665544, 0xbbaa9988, 0xffeeddcc};
-  uint32_t cipher[4]= {0xc3746034, 0xb55700c5, 0x8d64ec32, 0x489332f7};  
-  
-  uint32_t result[4];
-  int      equ;
-  
-  printf("\nCHAM128/128 Test\n\n");
-  
-  memcpy(result, plain, 16);
-  cham(key, result);
-  
-  equ = memcmp(result, cipher, 16)==0;
-  printf("Encryption %s\n", equ ? "OK" : "FAILED");
-  
-  print_bytes("Plaintext", plain, 16);
-  print_bytes("Ciphertext", cipher, 16);
-  print_bytes("Result", result, 16);
-  return 0;
+int main(void) {
+    int     equ;
+    uint8_t data[16];
+    
+    memcpy(data, plain, 16);
+    cham(key, data);
+    equ = (memcmp(cipher, data, 8)==0);
+    printf("CHAM-128/128 test : %s\n", equ ? "OK" : "FAILED");
+    return 0;
 } 

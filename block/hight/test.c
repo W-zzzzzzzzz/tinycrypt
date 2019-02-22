@@ -31,11 +31,11 @@ int main(void)
   
   memcpy(buf, plain, 8);
   
-  hight128_setkeyx(key, subkeys);
-  hight128_encryptx(buf, subkeys);
+  hight128_setkey(key, subkeys);
+  hight128_encrypt(buf, subkeys);
   
   equ = memcmp(buf, cipher, 8)==0;
   
-  printf("Encryption %s\n", equ ? "OK" : "FAILED");
+  printf("HIGHT test : %s\n", equ ? "OK" : "FAILED");
   return 0;
 }

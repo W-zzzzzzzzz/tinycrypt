@@ -1,85 +1,64 @@
 
 
-// test unit for speck
+// test unit for speck-64/128 and speck-128/256
 // odzhan
 
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
-#include "speck.h"
-
-void print_bytes(char *s, void *p, int len) {
-  int i;
-  printf("%s : ", s);
-  for (i=0; i<len; i++) {
-    printf ("%02x ", ((uint8_t*)p)[i]);
-  }
-  putchar('\n');
-}
-
-// SPECK64/128 test vectors
+// test vectors for SPECK-64/128
 //
-// p = 0x3b7265747475432d 
-uint8_t plain64[]=
-{ 0x74, 0x65, 0x72, 0x3b,
-  0x2d, 0x43, 0x75, 0x74 };
-
-// c = 0x8c6fa548454e028b  
-uint8_t cipher64[]=
-{ 0x48, 0xa5, 0x6f, 0x8c, 
-  0x8b, 0x02, 0x4e, 0x45 };
-
-// key = 0x03020100, 0x0b0a0908, 0x13121110, 0x1b1a1918   
-uint8_t key64[]=
+// 128-bit key
+uint8_t key64[16]=
 { 0x00, 0x01, 0x02, 0x03,
   0x08, 0x09, 0x0a, 0x0b,
   0x10, 0x11, 0x12, 0x13,
   0x18, 0x19, 0x1a, 0x1b };
+  
+// 64-bit plain text
+uint8_t plain64[8]=
+{ 0x74, 0x65, 0x72, 0x3b,
+  0x2d, 0x43, 0x75, 0x74 };
 
-// SPECK128/256 test vectors
-//
-uint8_t key128[]=
+// 64-bit cipher text  
+uint8_t cipher64[8]=
+{ 0x48, 0xa5, 0x6f, 0x8c, 
+  0x8b, 0x02, 0x4e, 0x45 };
+
+// test vectors for SPECK-128/256
+// 256-bit key
+uint8_t key128[32]=
 { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
   0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
   0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
   0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f };
 
-uint8_t plain128[]=
+// 128-bit plain text
+uint8_t plain128[16]=
 { 0x70, 0x6f, 0x6f, 0x6e, 0x65, 0x72, 0x2e, 0x20,
-  0x49, 0x6e, 0x20, 0x74, 0x68, 0x6f, 0x73, 0x65};
+  0x49, 0x6e, 0x20, 0x74, 0x68, 0x6f, 0x73, 0x65 };
 
-uint64_t cipher128[2] = {0x4eeeb48d9c188f43, 0x4109010405c0f53e};
-
-int main (void)
-{
-  uint64_t buf[4];
-  int      equ;
+// 128-bit cipher text
+uint8_t cipher128[16]=
+{ 0x43, 0x8f, 0x18, 0x9c, 0x8d, 0xb4, 0xee, 0x4e,
+  0x3e, 0xf5, 0xc0, 0x05, 0x04, 0x01, 0x09, 0x41 };
   
-  // copy plain text to local buffer
-  memcpy (buf, plain64, sizeof(plain64));
+void speck64(void *mk, void *data);
+void speck128(void *mk, void *data);
 
-  speck64(key64, buf);
+int main(void) {
+    uint8_t data[32];
+    int     equ;
     
-  equ = memcmp(cipher64, buf, sizeof(cipher64))==0;
-    
-  printf ("\nSPECK64/128 encryption %s\n", equ ? "OK" : "FAILED");
-  print_bytes("CT result  ", buf, sizeof(plain64));
-  print_bytes("CT expected", cipher64, sizeof(cipher64));
-  print_bytes("K ", key64,    sizeof(key64));
-  print_bytes("PT", plain64,  sizeof(plain64));
-  
-  // copy plain text to local buffer
-  memcpy (buf, plain128, sizeof(plain128));
+    memcpy(data, plain64, 8);
+    speck64(key64, data);
+    equ = (memcmp(data, cipher64, 8)==0);
+    printf("SPECK-64/128 test : %s\n", equ ? "OK" : "FAILED");
 
-  speck128(key128, buf);
-    
-  equ = memcmp(cipher128, buf, sizeof(cipher128))==0;
-    
-  printf ("\nSPECK128/256 encryption %s\n", equ ? "OK" : "FAILED");
-  print_bytes("CT result  ", buf, sizeof(plain128));
-  print_bytes("CT expected", cipher128, sizeof(cipher128));
-  print_bytes("K ", key128,    sizeof(key128));
-  print_bytes("PT", plain128,  sizeof(plain128));
-
-  return 0;
+    memcpy(data, plain128, 16);
+    speck128(key128, data);
+    equ = (memcmp(data, cipher128, 16)==0);
+    printf("SPECK-128/256 test : %s\n", equ ? "OK" : "FAILED");
+        
 }

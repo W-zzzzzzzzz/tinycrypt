@@ -1,4 +1,4 @@
-msvc:
-		cl /nologo /O2 /Ot /DTEST test.c lea128.c
-all:
-		gcc -DTEST -Wall -O2 test.c lea128.c -otest	 
+test:
+	gcc -Wall test.c lea.c -otest
+clean:
+	rm -rf *.o test

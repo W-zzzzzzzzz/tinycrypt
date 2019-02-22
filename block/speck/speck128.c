@@ -31,15 +31,21 @@
 #define F(n)for(i=0;i<n;i++)
 typedef unsigned long long W;
 
-void speck128(void*mk,void*p){
-  W k[4],*x=p,i,t;
+void speck128(void *mk, void *data) {
+  W k[4],*x=data,i,t;
 
+  // copy 256-bit master key to local memory
   F(4)k[i]=((W*)mk)[i];
   
+  // apply 34 rounds
   F(34)
-    x[1]=(R(x[1],8)+*x)^*k,
-    *x=R(*x,61)^x[1],t=k[3],
-    k[3]=(R(k[1],8)+*k)^i,
-    *k=R(*k,61)^k[3],
+    // encrypt plaintext
+    // linear/nonlinear layers, add key
+    x[1]=(R(x[1],8)+x[0])^k[0],
+    x[0]=R(x[0],61)^x[1],t=k[3],
+    // create next subkey
+    // linear/nonlinear layers, add round counter
+    k[3]=(R(k[1],8)+k[0])^i,
+    k[0]=R(k[0],61)^k[3],
     k[1]=k[2],k[2]=t;
 }

@@ -61,6 +61,7 @@ void sm4(void *mk, void *data) {
     // encrypt plaintext
     F(i,32) {
       // calculate round constant
+      c=0;
       F(j,4)c<<=8,c|=((((i*4)+(j))*7)&255);
       for(s=1;(int)s>=0;s--) {
         p=&x[s*4];
