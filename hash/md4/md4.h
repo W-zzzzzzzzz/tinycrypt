@@ -26,41 +26,35 @@
   STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
-  
+
 #ifndef MD4_H
 #define MD4_H
 
-#define MD4_CBLOCK        64
-#define MD4_DIGEST_LENGTH 16
-#define MD4_LBLOCK        MD4_DIGEST_LENGTH/4
+#define R(v,n)(((v)<<(n))|((v)>>(32-(n))))
+#define F(n)for(i=0;i<n;i++)
 
-#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
+typedef unsigned long long Q;
+typedef unsigned int W;
+typedef unsigned char B;
 
-#include "../../macros.h"
-
-#pragma pack(push, 1)
-typedef struct _MD4_CTX {
-  union {
-    uint8_t  b[MD4_DIGEST_LENGTH];
-    uint32_t w[MD4_DIGEST_LENGTH/4];
-  } s;
-  union {
-    uint8_t  b[MD4_CBLOCK];
-    uint32_t w[MD4_CBLOCK/4];
-    uint64_t q[MD4_CBLOCK/8];
-  } buf;
-  uint64_t len;
-} MD4_CTX;
-#pragma pack(pop)
+typedef struct _md4_ctx {
+    W s[4];
+    union {
+      B b[64];
+      W w[16];
+      Q q[8];
+    }x;
+    Q len;
+}md4_ctx;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-  void MD4_Init (MD4_CTX*);
-  void MD4_Update (MD4_CTX*, void*, uint32_t);
-  void MD4_Final (void*, MD4_CTX*);
-  
+void md4_init(md4_ctx *ctx);
+void md4_update(md4_ctx *ctx, const void *data, W len);
+void md4_final(void *out, md4_ctx *ctx);
+
 #ifdef __cplusplus
 }
 #endif

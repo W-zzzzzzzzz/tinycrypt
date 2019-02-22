@@ -1,5 +1,5 @@
 /**
-  Copyright © 2017 Odzhan. All Rights Reserved.
+  Copyright Â© 2015 Odzhan. All Rights Reserved.
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are
@@ -26,39 +26,43 @@
   STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
+  
+#ifndef MD4_H
+#define MD4_H
 
-#include "threefish.h"
+#define MD4_CBLOCK        64
+#define MD4_DIGEST_LENGTH 16
+#define MD4_LBLOCK        MD4_DIGEST_LENGTH/4
 
-void threefish(void*mk, void*data) {
-    W c[10],i,j,r,*x=(W*)data,t;
-    
-    // AES encryption of the plaintext 240 (in decimal) 
-    // under the all-zero 256-bit key
-    t=0x1BD11BDAA9FC1A22ULL;
-    
-    // initialize key and tweak
-    F(i,4)t^=c[i]=((W*)mk)[i]; 
-    c[4]=t;
-    c[5]=((W*)mk)[4];c[6]=((W*)mk)[5];
-    c[7]=c[5]^c[6];
-    // load rotation values
-    c[8]=0x203a2e190517340eULL;
-    c[9]=0x20160c2125283910ULL;
-    
-    // apply 72 rounds
-    for(i=0;;i++) {
-      // add key every 4 rounds
-      if((i&3)==0) {
-        t=0;F(j,4)x[j]+=c[((i/4)+j)%5]+t,
-        t=(j<2)?c[(((i/4)+j)%3)+5]:i/4;
-      }
-      if(i==72)break;
-      // mixing function
-      for(j=0;j<4;j+=2)
-        r=((B*)c)[64+((i%8)+(j<<2))],x[j]+=x[j+1],
-        x[j+1]=R(x[j+1],r),x[j+1]^=x[j];
-      // permute
-      t=x[1],x[1]=x[3],x[3]=t;
-    }
+#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
+
+#include "../../macros.h"
+
+#pragma pack(push, 1)
+typedef struct _MD4_CTX {
+  union {
+    uint8_t  b[MD4_DIGEST_LENGTH];
+    uint32_t w[MD4_DIGEST_LENGTH/4];
+  } s;
+  union {
+    uint8_t  b[MD4_CBLOCK];
+    uint32_t w[MD4_CBLOCK/4];
+    uint64_t q[MD4_CBLOCK/8];
+  } buf;
+  uint64_t len;
+} MD4_CTX;
+#pragma pack(pop)
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+  void MD4_Init (MD4_CTX*);
+  void MD4_Update (MD4_CTX*, void*, uint32_t);
+  void MD4_Final (void*, MD4_CTX*);
+  
+#ifdef __cplusplus
 }
+#endif
 
+#endif

@@ -1,144 +1,94 @@
 
 
-// MD5 in C test unit
-// Odzhan
+// test code written by Markku-Juhani O. Saarinen
+
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "md5.h"
 
-#include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <time.h>
+void md5(void *out, const void *in, size_t inlen)
+{
+    md5_ctx ctx;
 
-char *text[] =
-{ "",
-  "a",
-  "abc",
-  "message digest",
-  "abcdefghijklmnopqrstuvwxyz",
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-  "12345678901234567890123456789012345678901234567890123456789012345678901234567890"
-};
+    md5_init(&ctx);
+    md5_update(&ctx, in, inlen);
+    md5_final(out, &ctx);
+}
 
-char *md5_dgst[] =
-{ "d41d8cd98f00b204e9800998ecf8427e",
-  "0cc175b9c0f1b6a831c399e269772661",
-  "900150983cd24fb0d6963f7d28e17f72",
-  "f96b697d7cb7938d525a2f31aaf161d0",
-  "c3fcd3d76192e4007dfb496cca67e13b",
-  "d174ab98d277d9f5a5611c2c9f419d9f",
-  "57edf4a22be3c955ac49da2e2107b67a"
-};
+// Deterministic sequences (Fibonacci generator).
 
-size_t hex2bin (void *bin, char hex[]) {
-  size_t len, i;
-  int x;
-  uint8_t *p=(uint8_t*)bin;
-  
-  len = strlen (hex);
-  
-  if ((len & 1) != 0) {
-    return 0; 
-  }
-  
-  for (i=0; i<len; i++) {
-    if (isxdigit((int)hex[i]) == 0) {
-      return 0; 
+static void selftest_seq(uint8_t *out, size_t len, uint32_t seed)
+{
+    size_t i;
+    uint32_t t, a , b;
+
+    a = 0xDEAD4BAD * seed;              // prime
+    b = 1;
+
+    for (i = 0; i < len; i++) {         // fill the buf
+        t = a + b;
+        a = b;
+        b = t;
+        out[i] = (t >> 24) & 0xFF;
     }
-  }
-  
-  for (i=0; i<len / 2; i++) {
-    sscanf (&hex[i * 2], "%2x", &x);
-    p[i] = (uint8_t)x;
-  } 
-  return len / 2;
-} 
-
-/************************************************
-*
-* finalize.
-*
-************************************************/
-void MD5_HMAC (void *text, size_t text_len, 
-  void *key, size_t key_len, void *dgst)
-{
-  MD5_CTX ctx;
-  uint8_t k_ipad[65], k_opad[65], tk[MD5_DIGEST_LENGTH];
-  size_t  i;
-  uint8_t *k=(uint8_t*)key;
-
-  if (key_len > 64) {
-    MD5_Init (&ctx);
-    MD5_Update (&ctx, key, key_len);
-    MD5_Final (tk, &ctx);
-
-    key = tk;
-    key_len = MD5_DIGEST_LENGTH;
-  }
-
-  memset (k_ipad, 0x36, sizeof (k_ipad));
-  memset (k_opad, 0x5c, sizeof (k_opad));
-
-  /** XOR key with ipad and opad values */
-  for (i=0; i<key_len; i++) {
-    k_ipad[i] ^= k[i];
-    k_opad[i] ^= k[i];
-  }
-  /**
-  * perform inner 
-  */
-  MD5_Init (&ctx);                   /* init context for 1st pass */
-  MD5_Update (&ctx, k_ipad, 64);     /* start with inner pad */
-  MD5_Update (&ctx, text, text_len); /* then text of datagram */
-  MD5_Final (dgst, &ctx);            /* finish up 1st pass */
-  /**
-  * perform outer
-  */
-  MD5_Init (&ctx);                       /* init context for 2nd pass */
-  MD5_Update (&ctx, k_opad, 64);         /* start with outer pad */
-  MD5_Update (&ctx, dgst, MD5_DIGEST_LENGTH); /* then results of 1st hash */
-  MD5_Final (dgst, &ctx);                /* finish up 2nd pass */
 }
 
-void MD5 (void *in, size_t len, void *out)
+int md5_selftest(void)
 {
-  MD5_CTX ctx;
-  
-  MD5_Init (&ctx);
-  MD5_Update (&ctx, in, len);
-  MD5_Final (out, &ctx);
-}
+    // Grand hash of hash results.
+    const uint8_t md5_res[16] = {
+       0x80, 0x05, 0x62, 0x3b, 0x10, 0xb8, 0xa5, 0x75, 
+       0x5e, 0xab, 0xa8, 0x97, 0xd1, 0xa9, 0x1e, 0x2b };
+    // Parameter sets.
+    const size_t s2_in_len[6] = { 0,  3,  64, 65, 255, 1024 };
 
-int run_tests (void)
-{
-  uint8_t dgst[MD5_DIGEST_LENGTH], tv[MD5_DIGEST_LENGTH];
-  int i, fails=0;
-  MD5_CTX ctx;
-  
-  for (i=0; i<sizeof(text)/sizeof(char*); i++)
-  {
-    MD5_Init (&ctx);
-    MD5_Update (&ctx, text[i], strlen(text[i]));
-    MD5_Final (dgst, &ctx);
-    
-    hex2bin (tv, md5_dgst[i]);
-    
-    if (memcmp (dgst, tv, MD5_DIGEST_LENGTH) != 0) {
-      printf ("\nFailed for string: %s", text[i]);
-      ++fails;
+    size_t i, j, inlen;
+    uint8_t in[1024], md[16];
+    md5_ctx ctx;
+
+    // 256-bit hash for testing.
+    md5_init(&ctx);
+
+    for (j = 0; j < 6; j++) {
+        inlen = s2_in_len[j];
+
+        selftest_seq(in, inlen, inlen);
+        md5(md, in, inlen);
+        md5_update(&ctx, md,16);
     }
-  }
-  return fails;
+
+    // Compute and compare the hash of hashes.
+    md5_final(md, &ctx);
+    
+    for (i = 0; i < 16; i++) {
+      if (md[i] != md5_res[i])
+        return -1;
+    }
+
+    return 0;
 }
 
-int main (int argc, char *argv[])
+int main(int argc, char **argv)
 {
-  if (!run_tests()) {
-    printf ("  [ self-test OK!\n");
-  }
+    int     i;
+    md5_ctx c;
+    uint8_t dgst[16];
+    
+    if (argc>1) {
+      md5_init(&c);
+      md5_update(&c, argv[1], strlen(argv[1]));
+      md5_final(dgst, &c);
+      
+      for(i=0;i<16;i++) {
+        printf("%02x", dgst[i]);
+      }
+      putchar('\n');
+    }
+    printf("md5_selftest() = %s\n",
+         md5_selftest() ? "FAIL" : "OK");
 
-  return 0;
+    return 0;
 }

@@ -29,135 +29,73 @@
 
 #include "md4.h"
 
-#define F(x, y, z) ((z) ^ ((x) & ((y) ^ (z))))
-#define G(x, y, z) (((x) & (y)) | ((z) & ((x) | (y))))
-#define H(x, y, z) ((x) ^ (y) ^ (z))
+#define FF(x,y,z)((z)^((x)&((y)^(z))))
+#define GG(x,y,z)(((x)& (y))|((z)&((x)|(y))))
+#define HH(x,y,z)((x)^(y)^(z))
 
-/************************************************
- *
- * Transform block of data.
- *
- ************************************************/
-void MD4_Transform (MD4_CTX *c) 
-{
-  uint32_t i, t;
-  uint32_t s[4];
-  
-  // increment by 4
-  uint8_t rotf[] = { 3, 7, 11, 19 };
-  uint8_t rotg[] = { 3, 5,  9, 13 };
-  uint8_t roth[] = { 3, 9, 11, 15 };
+void md4_compress(md4_ctx*c) {
+    W i,t,s[4]; 
+    B r[16]={3,7,11,19,3,5,9,13,3,9,11,15};
+    B g[16]={0,4,8,12,1,5,9,13,2,6,10,14,3,7,11,15};
+    B h[16]={0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15};
 
-  // increment by 4 mod 15
-  uint8_t idxg[] = 
-  { 0, 4,  8, 12, 
-    1, 5,  9, 13, 
-    2, 6, 10, 14,  
-    3, 7, 11, 15 };
+    // load state
+    F(4)s[i]=c->s[i];
     
-  // increment by 8 mod 12, 18, 12, 21
-  uint8_t idxh[] = 
-  { 0,  8, 4, 12, 
-    2, 10, 6, 14, 
-    1,  9, 5, 13,  
-    3, 11, 7, 15 };
-
-  for (i=0; i<4; i++) {
-    s[i]=c->s.w[i];
-  }
-  
-  // for 48 rounds
-  for (i=0; i<48; i++) {
-    if (i < 16) {
-      s[0] += F(s[1], s[2], s[3]) + 
-        c->buf.w[i];
-      t = rotf[i%4];
-    } else if (i < 32) {
-      s[0] += G(s[1], s[2], s[3]) + 
-        c->buf.w[idxg[i%16]] + 0x5a827999L;
-      t = rotg[i%4];
-    } else {
-      s[0] += H(s[1], s[2], s[3]) + 
-        c->buf.w[idxh[i%16]] + 0x6ed9eba1L;
-      t = roth[i%4];
+    // permute
+    F(48) {
+      if(i<16){
+        s[0]+=FF(s[1],s[2],s[3])+c->x.w[i];
+        t=r[i%4];
+      } else if(i<32){
+        s[0]+=GG(s[1],s[2],s[3])+c->x.w[g[i%16]]+0x5a827999L;
+        t=r[4+i%4];
+      } else {
+        s[0]+=HH(s[1],s[2],s[3])+c->x.w[h[i%16]]+0x6ed9eba1L;
+        t=r[8+i%4];
+      }
+      t=R(s[0],t);s[0]=s[3];s[3]=s[2];s[2]=s[1];s[1]=t;
     }
-    t=ROTL32(s[0], t);
-    s[0]=s[3];
-    s[3]=s[2];
-    s[2]=s[1];
-    s[1]=t;
-  }
-
-  for (i=0; i<4; i++) {
-    c->s.w[i] += s[i];
-  }
+    // update state
+    F(4)c->s[i]+=s[i];
 }
 
-/************************************************
- *
- * initialize state
- *
- ************************************************/
-void MD4_Init (MD4_CTX *c) {
-  c->len  = 0;
-  c->s.w[0] = 0x67452301;
-  c->s.w[1] = 0xefcdab89;
-  c->s.w[2] = 0x98badcfe;
-  c->s.w[3] = 0x10325476;
+void md4_init(md4_ctx*c) {
+    c->s[0]=0x67452301;
+    c->s[1]=0xefcdab89;
+    c->s[2]=0x98badcfe;
+    c->s[3]=0x10325476;
+    c->len =0;
 }
 
-/************************************************
- *
- * Update state
- *
- ************************************************/
-void MD4_Update (MD4_CTX *c, void *in, uint32_t len) {
-  uint8_t *p = (uint8_t*)in;
-  uint32_t r, idx;
-  
-  if (len==0) return;
-  
-  // get buffer index
-  idx = c->len & (MD4_CBLOCK - 1);
-  
-  // update length
-  c->len += len;
-  
-  while (len > 0) {
-    r = MIN (len, MD4_CBLOCK - idx);
-    memcpy ((void*)&c->buf.b[idx], p, r);
-    if ((idx + r) < MD4_CBLOCK) break;
+void md4_update(md4_ctx*c,const void*in,W len) {
+    B *p=(B*)in;
+    W i, idx;
     
-    MD4_Transform (c);
-    len -= r;
-    idx = 0;
-    p += r;
-  }
+    idx = c->len & 63;
+    c->len += len;
+    
+    for (i=0;i<len;i++) {
+      c->x.b[idx]=p[i]; idx++;
+      if(idx==64) {
+        md4_compress(c);
+        idx=0;
+      }
+    }
 }
 
-/************************************************
- *
- * Finalize.
- *
- ************************************************/
-void MD4_Final (void* dgst, MD4_CTX *c)
-{
-  // see what length we have ere..
-  uint32_t len=c->len & (MD4_CBLOCK - 1);
-  // fill with zeros
-  memset (&c->buf.b[len], 0, MD4_CBLOCK - len);
-  // add the end bit
-  c->buf.b[len] = 0x80;
-  // if exceeding 56 bytes, transform it
-  if (len >= 56) {
-    MD4_Transform (c);
-    // clear
-    memset (c->buf.b, 0, MD4_CBLOCK);
-  }
-  // add total bits
-  c->buf.q[7] = c->len * 8;
-  // compress
-  MD4_Transform(c);
-  // copy digest to buffer
-  memcpy (dgst, c->s.b, MD4_DIGEST_LENGTH);
+void md4_final(void*h,md4_ctx*c) {
+    W i,len,*p=(W*)h;
+    
+    i = len = c->len & 63;
+    while(i<64) c->x.b[i++]=0;
+    c->x.b[len]=0x80;
+    if(len>=56) {
+      md4_compress(c);
+      F(16)c->x.w[i]=0;
+    }
+    c->x.q[7]=c->len*8;
+    md4_compress(c);
+    F(4)p[i]=c->s[i];
 }
+

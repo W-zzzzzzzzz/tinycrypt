@@ -1,51 +1,51 @@
-<h3>Introduction</h3>
+<h3><strong>Introduction</strong></h3>
 
-Just to be clear, this post does not endorse any cryptographic algorithms. It will only illustrate using source code how some magic numbers are created in such algorithms.
+<p>Nothing Up My Sleeve Numbers (NUMSN) are numeric constants in cryptographic algorithms that normally include a reasonable explanation from the designer how they were generated. Explaining how the numbers were created is intended to diminish any fears among users the numbers have some hidden properties that might purposely introduce a security weakness that only the designers know about. <a href="https://archive.org/stream/pocorgtfo08#page/n47/mode/2up">Backdoors up my Sleeve</a> by <a href="https://aumasson.jp/">JP Aumasson</a> suggests using NUMSN <a href="https://github.com/veorq/numsgen">doesn't automatically guarantee the security of a cryptographic algorithm</a>, but any algorithm with numbers absent of a rational explanation or verifiable formula/algorithm, is generally going to be viewed with much more suspicion than if it did. For example, there has been some suspicion surrounding algorithms like SM3, SM4 and Kuznyechik to name a few. The NUMSN I'll cover in this post include: MD2, MD4, MD5, SHA-1, SHA-2, SM4, Bel-T, Salsa, ChaCha, BlaBla, BLAKE2, Blowfish, AES, SEED, SAFER, XTEA, Gimli, RC5, RC6, Kuznyechik and ARIA.</p>
 
-<em>Nothing Up My Sleeve Numbers</em> (NUMSN) are numeric constants in cryptographic algorithms which include from the designer a reasonable explanation for how they were created. 
+<h2>Table of contents</h2>
 
-The purpose of explaining in detail how the numbers were created is intended to diminish any fears among users the numbers have some hidden properties that might purposely introduce a weakness only the designer knows about.
+<ol>
+  <li><a href="#hash">Cryptographic hash algorithms</a>
+    <ol>
+      <li><a href="#md2">MD2</a></li>
+      <li><a href="#md4">MD4</a></li>
+      <li><a href="#md5">MD5</a></li>
+      <li><a href="#sha1">SHA-1</a></li>
+      <li><a href="#sha2">SHA-2</a></li>
+      <li><a href="#sha3">SHA-3</a></li>
+      <li><a href="#sm3"></a>SM3</li>
+      <li><a href="#blake2">BLAKE2</a></li>
+      <li><a href="#siphash">SipHash</a></li>
+      <li><a href="#streebog">Streebog</a></li>
+    </ol>
+  </li>
+  <li><a href="block">Block ciphers</a>
+    <ol>
+      <li><a href="rc5">RC5</a></li>
+      <li><a href="blowfish">Blowfish</a></li>
+      <li><a href="rc5">RC6</a></li>
+      <li><a href="tea">TEA/XTEA</a></li>
+      <li><a href="noekeon">NOEKEON</a></li>
+      <li><a href="aes">AES</a></li>
+      <li><a href="safer">SAFER</a></li>
+      <li><a href="seed">SEED</a></li>
+      <li><a href="aria">ARIA</a></li>
+      <li><a href="belt">Bel-T</a></li>
+      <li><a href="sm4">SM4</a></li>
+      <li><a href="kuznyechik">Kuznyechik</a></li>
+    </ol>
+  </li>
+</ol>
 
-The motivation behind NUMSN is probably related to the <em><a href="http://wiki.crypto.rub.de/Buch/en/download/Understanding_Cryptography_Chptr_3---DES.pdf">Data Encryption Standard</a></em> (DES) which as some of you know was designed by IBM with assistance from the wonderful NSA :) 
+<h3 id="md2"><strong>MD2 cryptographic hash</strong></h3>
 
-The design criteria for DES was never published, and it was revealed the NSA changed the s-boxes without any explanation before it was officially made a standard. 
-
-So, naturally this change to the s-boxes in addition to reducing the key length from 64-bits to 56-bits provoked accusations of tampering, deliberately introducing weaknesses into the cipher. It was suggested by some in the cryptographic community, DES was weakened sufficiently enough to be compromised by the NSA if they ever needed to. 
-
-NSA introducing a weakness beyond reducing the key length from 64-bits to 56-bits was neither proved nor disproved.
-
-It was revealed later, the changes to s-boxes improved resistance to Differential Cryptanalysis, an attack known to IBM designers, but which remained secret until being independently discovered in 1992 by <a href="http://www.cs.technion.ac.il/~biham/Reports/differential-cryptanalysis-of-the-data-encryption-standard-biham-shamir-authors-latex-version.pdf">Adi Shamir and Eli Biham.</a>  
-
-As shown in <a href="https://archive.org/stream/pocorgtfo08#page/n47/mode/2up">Backdoors up my Sleeve</a> by <a href="https://aumasson.jp/">JP Aumasson</a>, using NUMSN <a href="https://github.com/veorq/numsgen">doesn't automatically guarantee the security of a cryptographic algorithm</a>, but any algorithm with numbers absent of a rational explanation or verifiable formula/algorithm, is generally going to be viewed with much more suspicion than if it did.
-
-For example, there's been suspicion surrounding algorithms part of the Chinese Trusted Platform Module (TPM). 
-
-They are as follows:
-
-<ul>
-	<li><a href="http://www.oscca.gov.cn/UpFile/2010122214822692.pdf">SM2</a> (Elliptic Curve Algorithm to rival ECDSA-P256)</li>
-	<li><a href="http://www.oscca.gov.cn/UpFile/20101222141857786.pdf">SM3</a> (Cryptographic Hash to rival SHA-2)</li>
-	<li><a href="http://www.oscca.gov.cn/UpFile/200621016423197990.pdf">SM4</a> (Block Cipher to rival AES-128) </li>
-	<li><a href="https://www.gsma.com/aboutus/wp-content/uploads/2014/12/eea3eia3zucv16.pdf">ZUC</a> (Stream Cipher)</li>
-</ul>
-
-All of the above algorithms contain magic numbers absent of any explanation behind their creation, and even though these ciphers remain unbroken by anyone in the public domain, that doesn't mean they don't have some weaknesses built-in. 
-
-The NUMSN I'll cover in this post include: MD2, MD4, MD5, SHA-1, SHA-2, BLAKE2, Blowfish, AES, SEED, SAFER, XTEA, Gimli, RC5, RC6, Kuznyechik and ARIA.
-
-If you just want to look at source codes for the above <a href="https://github.com/odzhan/magic">see the repo here</a>.
-
-<h3>MD2 cryptographic hash</h3>
-
-<img src="https://tinycrypt.files.wordpress.com/2017/12/md2_sbox.png" alt="" width="344" height="409" class="aligncenter size-full wp-image-2468" />
-
-<a href="https://tools.ietf.org/rfc/rfc1319.txt">RFC 1319</a> published in 1992 by <a href="http://people.csail.mit.edu/rivest/">Ron Rivest</a> provides no explanation for how PI was generated beyond the following:
+<p><a href="https://tools.ietf.org/rfc/rfc1319.txt">RFC 1319</a> published in 1992 by <a href="http://people.csail.mit.edu/rivest/">Ron Rivest</a> provides no explanation for how PI was generated beyond the following:</p>
 
 <blockquote>This step uses a 256-byte "random" permutation constructed from the digits of pi. Let S[i] denote the i-th element of this table. The table is given in the appendix.</blockquote>
 
-Eventually someone asked the question on crypto stack exchange: <a href="https://crypto.stackexchange.com/questions/11935/how-is-the-md2-hash-function-s-table-constructed-from-pi">How is the MD2 S-Table constructed from Pi</a>
+<p>Eventually someone asked the question on crypto stack exchange: <a href="https://crypto.stackexchange.com/questions/11935/how-is-the-md2-hash-function-s-table-constructed-from-pi">How is the MD2 S-Table constructed from Pi</a></p>
 
-<a href="https://www.auditthecrypto.com/">Señor Crypto</a> (Mike Azo) requests explanation from Rivest via Email, and we finally discover the algorithm used.
+<a href="https://www.auditthecrypto.com/">Señor Crypto</a> (Mike Azo) requests an explanation from Rivest via Email, and we finally discover the algorithm used.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>// The first 722 digits of PI</span>
 uint32_t PI<span style='color:#808030;'>[</span><span style='color:#008c00;'>722</span><span style='color:#808030;'>]</span><span style='color:#808030;'>=</span>
@@ -183,9 +183,9 @@ uint32_t md2_rand<span style='color:#808030;'>(</span>uint32_t n<span style='col
 <span style='color:#800080;'>}</span>
 </pre>
 
-<h3>MD4 cryptographic hash</h3>
+<h3 id="md4"><strong>MD4 cryptographic hash</strong></h3>
 
-<a href="https://tools.ietf.org/rfc/rfc1320.txt">RFC 1320</a> published in 1992 by Ron Rivest uses 2 unique constants in the compression function.
+<p><a href="https://tools.ietf.org/rfc/rfc1320.txt">RFC 1320</a> published in 1992 by Ron Rivest uses 2 unique constants in the compression function.</p>
 
 <blockquote>The value 5A..99 is a hexadecimal 32-bit constant, written with the high-order digit first. This constant represents the square root of 2. The octal value of this constant is 013240474631.
 
@@ -193,8 +193,7 @@ The value 6E..A1 is a hexadecimal 32-bit constant, written with the high-order d
 
 See Knuth, The Art of Programming, Volume 2 (Seminumerical Algorithms), Second Edition (1981), Addison-Wesley. Table 2, page 660.</blockquote>
 
-<strong>0x5a827999</strong> is derived from the square root of 2 multiplied by 2**30
-<strong>0x6ed9eba1</strong> is derived from the square root of 3 multiplied by 2**30 
+<p>$latex 0x5a827999$ is derived from the square root of 2 multiplied by $latex 2^{30}$ while $latex 0x6ed9eba1$ is derived from the square root of 3 multiplied by $latex 2^{30}$.</p> 
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#004a43;'>#</span><span style='color:#004a43;font-weight:bold;'>pragma</span><span style='color:#bb7977;font-weight:bold;'> intrinsic(fabs,pow,sin)</span>
 
@@ -220,11 +219,9 @@ uint32_t sqrt2int <span style='color:#808030;'>(</span>uint32_t x<span style='co
 <span style='color:#800080;'>}</span>
 </pre>
    
-<h3>MD5 cryptographic hash</h3>
+<h3 id="md5"><strong>MD5 cryptographic hash</strong></h3>
 
-<a href="https://tools.ietf.org/rfc/rfc1321.txt">RFC 1321</a> published in 1992 uses 64 unique constants in the compression function. These are calculated by passing 1-64 to the trigonometric sine function. Each result is multiplied by 2**32 before conversion to integer. 
-
-<img src="https://tinycrypt.files.wordpress.com/2017/12/md5_tc.png" alt="" width="343" height="216" class="aligncenter size-full wp-image-2453" />
+<p><a href="https://tools.ietf.org/rfc/rfc1321.txt">RFC 1321</a> published in 1992 uses 64 unique constants in the compression function. These are calculated by passing 1-64 to the trigonometric $latex sin$ function. Each result is multiplied by $latex 2^{32}$ before conversion to 32-bit integer.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#004a43;'>#</span><span style='color:#004a43;font-weight:bold;'>pragma</span><span style='color:#bb7977;font-weight:bold;'> intrinsic(fabs,pow,sin)</span>
 
@@ -249,13 +246,9 @@ uint32_t sin2int <span style='color:#808030;'>(</span>uint32_t i<span style='col
 <span style='color:#800080;'>}</span>
 </pre>
 
-<h3>SHA-1 cryptographic hash</h3>
+<h3 id="sha1"><strong>SHA-1 cryptographic hash</strong></h3>
 
-Designed by the NSA and published in 1995, this algorithm was definitely inspired by MD4.
-
-The generation of K constants used in <a href="https://tools.ietf.org/rfc/rfc3174.txt">SHA-1</a> are exactly the same as those generated in MD4. There are 2 additional values derived from 5 and 10 respectively.
-
-<img src="https://tinycrypt.files.wordpress.com/2017/12/sha1_k.png" alt="" width="353" height="37" class="aligncenter size-full wp-image-2454" />
+<p>Designed by the NSA and published in 1995, this algorithm was definitely inspired by MD4. The generation of $latex K$ constants used in <a href="https://tools.ietf.org/rfc/rfc3174.txt">SHA-1</a> are exactly the same as those generated in MD4. There are two additional values derived from 5 and 10 respectively.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#004a43;'>#</span><span style='color:#004a43;font-weight:bold;'>pragma</span><span style='color:#bb7977;font-weight:bold;'> intrinsic(fabs,pow,sqrt)</span>
 
@@ -281,14 +274,10 @@ uint32_t sqrt2int <span style='color:#808030;'>(</span>uint32_t x<span style='co
 <span style='color:#800080;'>}</span>
 </pre>
 
-<h3>SHA-2 cryptographic hash</h3>
+<h3 id="sha2"><strong>SHA-2 cryptographic hash</strong></h3>
 
-<a href="https://tools.ietf.org/rfc/rfc6234.txt">SHA-2</a> was published in 2001. The K constants are generated similar to how T constants are in MD5, except the first 64 prime numbers are used. 
-
-The H values are derived from square root of first 8 primes.
-The K values are derived from cube root of first 64 primes.
-
-<img src="https://tinycrypt.files.wordpress.com/2017/12/sha2_k.png" alt="" width="343" height="263" class="aligncenter size-full wp-image-2455" />
+<p><a href="https://tools.ietf.org/rfc/rfc6234.txt">SHA-2</a> was published in 2001. The K constants are generated similar to how T constants are in MD5, except the first 64 prime numbers are used. The H values are derived from square root of first 8 primes.
+The K values are derived from cube root of first 64 primes.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#004a43;'>#</span><span style='color:#004a43;font-weight:bold;'>pragma</span><span style='color:#bb7977;font-weight:bold;'> intrinsic(fabs,pow,sqrt)</span>
 
@@ -336,15 +325,9 @@ uint32_t cbr2int <span style='color:#808030;'>(</span>uint32_t x<span style='col
 <span style='color:#800080;'>}</span>
 </pre>
 
-<h3>Blowfish Block Cipher</h3>
+<h3 id="blowfish"><strong>Blowfish Block Cipher</strong></h3>
 
-Designed in 1993 and published in 1994, <a href="https://www.schneier.com/academic/blowfish/">Blowfish</a> became very popular among people who did not trust the security of DES.
-
-The P and S boxes are derived from 8336 hexadecimal digits of Pi using <a href="https://en.wikipedia.org/wiki/Bailey%E2%80%93Borwein%E2%80%93Plouffe_formula">Bailey–Borwein–Plouffe</a> formula (BBP).
-
-<img src="https://tinycrypt.files.wordpress.com/2017/12/blowfish.png" alt="" width="337" height="340" class="aligncenter size-full wp-image-2486" />
-
-I've used code by <a href="http://www.experimentalmath.info/bbp-codes/bbp-alg.pdf">David Bailey</a> which <a href="http://www.experimentalmath.info/bbp-codes/">you can find here</a>.
+<p>Designed in 1993 and published in 1994, <a href="https://www.schneier.com/academic/blowfish/">Blowfish</a> became very popular among people who did not trust the security of DES. The P and S boxes are derived from 8336 hexadecimal digits of Pi using <a href="https://en.wikipedia.org/wiki/Bailey%E2%80%93Borwein%E2%80%93Plouffe_formula">Bailey–Borwein–Plouffe</a> formula (BBP). I've used code by <a href="http://www.experimentalmath.info/bbp-codes/bbp-alg.pdf">David Bailey</a> that <a href="http://www.experimentalmath.info/bbp-codes/">you can find here</a>.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#800000;font-weight:bold;'>static</span> <span style='color:#800000;font-weight:bold;'>double</span> expm <span style='color:#808030;'>(</span><span style='color:#800000;font-weight:bold;'>double</span> p<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>double</span> ak<span style='color:#808030;'>)</span>
 
@@ -491,11 +474,9 @@ I've used code by <a href="http://www.experimentalmath.info/bbp-codes/bbp-alg.pd
 <span style='color:#800080;'>}</span>
 </pre>
 
-<h3>Rijndael Block Cipher</h3>
+<h3 id="aes"><strong>Rijndael Block Cipher</strong></h3>
 
-The <a href="http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197.pdf">Advanced Encryption Standard</a> published in 2001 which was designed by <a href="http://jda.noekeon.org/">Joan Daemen</a> and <a href="https://www.esat.kuleuven.be/cosic/people/vincent-rijmen/">Vincent Rijmen</a>.
-
-<img src="https://tinycrypt.files.wordpress.com/2017/12/sbox.png" alt="" width="342" height="406" class="aligncenter size-full wp-image-2461" />
+<p>The <a href="http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197.pdf">Advanced Encryption Standard</a> published in 2001 which was designed by <a href="http://jda.noekeon.org/">Joan Daemen</a> and <a href="https://www.esat.kuleuven.be/cosic/people/vincent-rijmen/">Vincent Rijmen</a>.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>// Multiplication</span>
 uint8_t gf_mul<span style='color:#808030;'>(</span>uint8_t x<span style='color:#808030;'>,</span> uint8_t y<span style='color:#808030;'>,</span> uint8_t p<span style='color:#808030;'>)</span>
@@ -541,11 +522,9 @@ uint8_t gf_mul<span style='color:#808030;'>(</span>uint8_t x<span style='color:#
 <span style='color:#800080;'>}</span>
 </pre>
 
-<h3>SAFER Block Cipher</h3>
+<h3 id="safer"><strong>SAFER Block Cipher</strong></h3>
 
-<a href="http://www.quadibloc.com/crypto/co040301.htm">Secure And Fast Encryption Routine</a> (SAFER) by <a href="https://en.wikipedia.org/wiki/James_Massey">James Lee Massey</a> was submitted to both AES and <a href="https://www.cosic.esat.kuleuven.be/nessie/">NESSIE</a> competitions.
-
-<img src="https://tinycrypt.files.wordpress.com/2017/12/safer_sbox.png" alt="" width="343" height="407" class="aligncenter size-full wp-image-2462" />
+<p><a href="http://www.quadibloc.com/crypto/co040301.htm">Secure And Fast Encryption Routine</a> (SAFER) by <a href="https://en.wikipedia.org/wiki/James_Massey">James Lee Massey</a> was submitted to both AES and <a href="https://www.cosic.esat.kuleuven.be/nessie/">NESSIE</a> competitions.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>// Modular exponentiation</span>
 <span style='color:#800000;font-weight:bold;'>int</span> powmod <span style='color:#808030;'>(</span><span style='color:#800000;font-weight:bold;'>int</span> b<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>int</span> e<span style='color:#808030;'>,</span> <span style='color:#800000;font-weight:bold;'>int</span> m<span style='color:#808030;'>)</span>
@@ -581,11 +560,9 @@ uint8_t gf_mul<span style='color:#808030;'>(</span>uint8_t x<span style='color:#
 <span style='color:#800080;'>}</span>
 </pre>
 
-<h3>SEED Block Cipher</h3>
+<h3 id="seed"><strong>SEED Block Cipher</strong></h3>
 
-<a href="http://seed.kisa.or.kr/html/egovframework/iwt/ds/ko/ref/%5B2%5D_SEED+128_Specification_english_M.pdf">SEED</a> was published in 1998 and directly a response by the Korea Information Security Agency to concerns about export restrictions on cryptography imposed by the US government that only allowed <strong>40-bit RC4 encryption</strong> at the time :)
-
-<img src="https://tinycrypt.files.wordpress.com/2017/12/seed_sbox.png" alt="" width="344" height="410" class="aligncenter size-full wp-image-2463" />
+<p><a href="http://seed.kisa.or.kr/html/egovframework/iwt/ds/ko/ref/%5B2%5D_SEED+128_Specification_english_M.pdf">SEED</a> was published in 1998 and directly a response by the Korea Information Security Agency to concerns about export restrictions on cryptography imposed by the US government that only allowed <strong>40-bit RC4 encryption</strong> at the time.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>// matrix used for s-box 1 generation in seed</span>
 uint8_t A1<span style='color:#808030;'>[</span><span style='color:#008c00;'>8</span><span style='color:#808030;'>]</span><span style='color:#808030;'>[</span><span style='color:#008c00;'>8</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> <span style='color:#800080;'>{</span>
@@ -683,13 +660,9 @@ uint8_t matmul<span style='color:#808030;'>(</span>uint8_t mat<span style='color
 <span style='color:#800080;'>}</span>
 </pre>
 
-<h3>ARIA Block Cipher</h3>
+<h3 id="aria"><strong>ARIA Block Cipher</strong></h3>
 
-<a href="http://210.104.33.10/ARIA/index-e.html">Another algorithm</a> designed by the Korea Information Security Agency published in 2003.
-
-<img src="https://tinycrypt.files.wordpress.com/2017/12/aria_sbox.png" alt="" width="340" height="409" class="aligncenter size-full wp-image-2466" />
-
-This uses a matrix multiplication function from code by <a href="https://mjos.fi/">Markku-Juhani O. Saarinen</a> which does the same thing.
+<p><a href="http://210.104.33.10/ARIA/index-e.html">Another algorithm</a> designed by the Korea Information Security Agency published in 2003. This uses a matrix multiplication function from code by <a href="https://mjos.fi/">Markku-Juhani O. Saarinen</a> which does the same thing.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>// matrix used for s-box 1 generation in aria</span>
 uint8_t A<span style='color:#808030;'>[</span><span style='color:#008c00;'>8</span><span style='color:#808030;'>]</span><span style='color:#808030;'>[</span><span style='color:#008c00;'>8</span><span style='color:#808030;'>]</span> <span style='color:#808030;'>=</span> <span style='color:#800080;'>{</span>
@@ -793,16 +766,17 @@ uint8_t gf_inv<span style='color:#808030;'>(</span>uint8_t a<span style='color:#
 <span style='color:#800080;'>}</span>
 </pre>
 
-<h3>Kuznyechik "GrassHopper" Block Cipher</h3>
+<h3 id="zuc"><strong>Bel-T block cipher</strong></h3>
 
-<a href="https://tools.ietf.org/rfc/rfc7801.txt">GOST R 34.12-2015</a> is an algorithm designed by the Russian government to replace their legacy standard <a href="https://tools.ietf.org/rfc/rfc5830.txt">GOST 28147-89</a>
+<h3 id="zuc"><strong>ZUC stream cipher</strong></h3>
 
-<img src="https://tinycrypt.files.wordpress.com/2017/12/kuz_sbox.png" alt="" width="341" height="409" class="aligncenter size-full wp-image-2464" />
+<h3 id="sm3"><strong>SM3 cryptographic hash</strong></h3>
 
-Although no design criteria for the sboxes was published, some cryptographers managed to reverse engineer the algorithm.
-<a href="https://eprint.iacr.org/2016/071">Reverse-Engineering the S-Box of Streebog, Kuznyechik and STRIBOBr1</a>
+<h3 id="sm4"><strong>SM4 block cipher</strong></h3>
 
-The following code was provided by the authors.
+<h3 id="kuznyechik">Kuznyechik "GrassHopper" Block Cipher / Streebog</h3>
+
+<p><a href="https://tools.ietf.org/rfc/rfc7801.txt">GOST R 34.12-2015</a> is an algorithm designed by the Russian government to replace their legacy standard <a href="https://tools.ietf.org/rfc/rfc5830.txt">GOST 28147-89</a> Although no design criteria for the sboxes was published, some cryptographers managed to reverse engineer the algorithm. <a href="https://eprint.iacr.org/2016/071">Reverse-Engineering the S-Box of Streebog, Kuznyechik and STRIBOBr1.</a> The following code was provided by the authors.</p>
 
 <pre style='color:#000000;background:#ffffff;'>uint8_t inv<span style='color:#808030;'>[</span><span style='color:#008c00;'>16</span><span style='color:#808030;'>]</span>   <span style='color:#808030;'>=</span> 
 <span style='color:#800080;'>{</span><span style='color:#008000;'>0x0</span><span style='color:#808030;'>,</span><span style='color:#008000;'>0x1</span><span style='color:#808030;'>,</span><span style='color:#008000;'>0xc</span><span style='color:#808030;'>,</span><span style='color:#008000;'>0x8</span><span style='color:#808030;'>,</span><span style='color:#008000;'>0x6</span><span style='color:#808030;'>,</span><span style='color:#008000;'>0xf</span><span style='color:#808030;'>,</span><span style='color:#008000;'>0x4</span><span style='color:#808030;'>,</span><span style='color:#008000;'>0xe</span><span style='color:#808030;'>,</span><span style='color:#008000;'>0x3</span><span style='color:#808030;'>,</span><span style='color:#008000;'>0xd</span><span style='color:#808030;'>,</span><span style='color:#008000;'>0xb</span><span style='color:#808030;'>,</span><span style='color:#008000;'>0xa</span><span style='color:#808030;'>,</span><span style='color:#008000;'>0x2</span><span style='color:#808030;'>,</span><span style='color:#008000;'>0x9</span><span style='color:#808030;'>,</span><span style='color:#008000;'>0x7</span><span style='color:#808030;'>,</span><span style='color:#008000;'>0x5</span><span style='color:#800080;'>}</span><span style='color:#800080;'>;</span>
@@ -894,14 +868,14 @@ uint8_t gf_mul<span style='color:#808030;'>(</span>uint8_t a<span style='color:#
 <span style='color:#800080;'>}</span>
 </pre>
 
-<h3>Salsa / ChaCha Stream ciphers</h3>
+<h3 id="chacha">Salsa / ChaCha Stream ciphers</h3>
 
 <a href="https://cr.yp.to/snuffle.html">Salsa</a> published in 2005 and <a href="https://cr.yp.to/chacha.html">ChaCha</a> in 2008 are both designed by <a href="https://cr.yp.to/djb.html">Daniel Bernstein</a>.
 
 The 128-bit key version uses the string "<strong>expand 16-byte k</strong>" to initialize state.
 The 256-bit key version uses the string "<strong>expand 32-byte k</strong>" to initialize state.
 
-<h3>SipHash PRF</h3>
+<h3 id="siphash"><strong>SipHash PRF</strong></h3>
 
 Pseudo Random Function (PRF) <a href="https://131002.net/siphash/">SipHash</a> by <a href="https://aumasson.jp/">Aumasson</a> and <a href="https://cr.yp.to/djb.html">Bernstein</a>
 
@@ -933,12 +907,6 @@ uint32_t euler_number<span style='color:#808030;'>(</span><span style='color:#80
 <span style='color:#800080;'>}</span>
 </pre>
 
-<h3>Summary</h3>
+<h3 id="summary"><strong>Summary</strong></h3>
 
-Wasn't that fun? :P Now it all makes sense, right? 
-
-Although most of what I posted here is just source code, I wanted to compile various algorithms used to generate NUMSN values in one place.
-
-There are still many algorithms out there the designers refuse to explain the source of inspiration for their magic numbers, and this inevitably means people will distrust the algorithm.
-
-For source code to all of the algorithms mentioned above, <a href="https://github.com/odzhan/tinycrypt/tree/master/magic">see here</a>
+<p>Wasn't that fun? :P Now it all makes sense, right? Although most of what I posted here is just source code, I wanted to compile various algorithms used to generate NUMSN values in one place. For source code to all of the algorithms mentioned above, <a href="https://github.com/odzhan/tinycrypt/tree/master/magic">see here.</a></p>
