@@ -27,18 +27,7 @@
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
 
-#define rev32(x) __builtin_bswap32(x)
-#define X(x,y)t=x,x=y,y=t;
-
-typedef unsigned char uint8_t;
-typedef unsigned int uint32_t;
-typedef unsigned long long uint64_t;
-
-typedef union _w64_t {
-  uint8_t b[8];
-  uint32_t w[2];
-  uint64_t q;
-} w64_t;
+#include "des.h"
 
 uint8_t sbox[256] = {
   // S-box 1
@@ -126,6 +115,26 @@ uint8_t splitin6bitword_permtab[]={0x08,
   0x3f, 0x3f, 0x24, 0x29, 0x25, 0x26, 0x27, 0x28,
   0x3f, 0x3f, 0x2a, 0x2f, 0x2b, 0x2c, 0x2d, 0x2e };
 
+void des_str2key (void *str, w64_t* key) {
+    uint32_t x1, r1, *p1;
+    w64_t  *s=(w64_t*)str;
+    int      i, j;
+
+    for (i=0; i<2; i++) {
+      p1=(uint32_t*)&s->b[i*3];
+      x1=SWAP32(*p1);
+      if (i==1) {
+        x1=ROTL32 (x1, 4);
+      }
+      r1=0;
+      for (j=0; j<4; j++) {
+        r1 = ROTL32((r1 | (x1 & 0xFE000000)), 8);
+        x1 <<= 7;
+      }
+      key->w[i] = SWAP32(r1);
+    }
+}
+
 uint8_t pc1[]={0x07,
   0x38, 0x30, 0x28, 0x20, 0x18, 0x10, 0x08, 0x00,
   0x39, 0x31, 0x29, 0x21, 0x19, 0x11, 0x09, 0x01,
@@ -171,8 +180,8 @@ void permute (void *perm, void *in, void *out) {
     }
 }
 
-void des_set_key (void *mk, uint8_t rk[128]) {
-    uint32_t i,r, t=0x7EFC;
+void des_setkey (uint8_t rk[128], void *mk) {
+    uint32_t r, t=0x7EFC;
     uint8_t  *k, k1[8], k2[8];
     
     // permute master key
@@ -188,7 +197,7 @@ void des_set_key (void *mk, uint8_t rk[128]) {
         k=k1;
       }
       permute(pc2,k,&rk[r]);
-      for(i=0;i<8;i++) k1[i]=k[i];
+      memcpy(k1,k,8);
     }
 }
 
@@ -219,31 +228,82 @@ uint32_t des_f (uint32_t *x, w64_t *key) {
       t   |= x1;
       sbp += 32;
     }
-    t = rev32(t);
+    t = SWAP32(t);
 
     permute (p_permtab, &t, &t0);
     return t0.w[0];
 }
 
-// encrypt 64-bits of data
-void des_enc (void *data, uint8_t ks[128]) {
+#include <stdio.h>
+
+// encrypt/decrypt 64-bits of input
+void des_enc (uint8_t ks[128], void *in, 
+  void *out, int enc)
+{
     int      rnd, ofs=1;
     w64_t    p, *key=(w64_t*)ks;
     uint32_t L, R, t;
     
+    if (enc==DES_DECRYPT) {
+      ofs  = -1;
+      key += 15;
+    }
     // apply initial permutation to input
-    permute (ip_permtab, data, &p);
+    permute (ip_permtab, in, &p);
     
     L = p.w[0]; R = p.w[1];
     
-    for (rnd=0; rnd<16; rnd++) {
+    for (rnd=0; rnd<DES_ROUNDS; rnd++)
+    {
       L ^= des_f (&R, key);
       // swap
-      X(L, R);
+      XCHG(L, R);
       key += ofs;
     }
     p.w[0] = R; p.w[1] = L;
     
     // apply inverse permutation
-    permute (inv_ip_permtab, &p, data);
+    permute (inv_ip_permtab, &p, out);
 }
+
+/* perform Triple-DES encryption
+void des3_enc (void *out, void *in, 
+  void *key1, void *key2, void *key3)
+{
+  w64_t c1, c2;
+  des_ctx ctx1, ctx2, ctx3;
+  
+  // encrypt in to c1
+  des_setkey (&ctx, key1);
+  des_enc (&ctx, c1, in, DES_ENCRYPT);
+  
+  // decrypt c1 to c2
+  des_setkey (&ctx, key2);
+  des_enc (&ctx, c2, c1, DES_DECRYPT);
+  
+  // encrypt c2 to out
+  des_setkey (&ctx, key3);
+  des_enc (&ctx, out, c2, DES_ENCRYPT);
+}
+
+// perform Triple-DES decryption
+void des3_dec (void *out, void *in, 
+  void *key1, void *key2, void *key3)
+{
+  w64_t c1, c2;
+  des_ctx ctx;
+  
+  // encrypt in to c1
+  des_setkey (&ctx, key1);
+  des_enc (&ctx, c1, in, DES_ENCRYPT);
+  
+  // decrypt c1 to c2
+  des_setkey (&ctx, key2);
+  des_enc (&ctx, c2, c1, DES_DECRYPT);
+  
+  // encrypt c2 to out
+  des_setkey (&ctx, key3);
+  des_enc (&ctx, out, c2, DES_ENCRYPT);
+}*/
+/**********************************************/
+

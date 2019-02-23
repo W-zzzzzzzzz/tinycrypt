@@ -1,98 +1,38 @@
 
-// test unit for twofish.c
+// test unit for twofish-256
 // odzhan
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <ctype.h>
 
-#include "twofish.h"
-
-size_t hex2bin (void *bin, char hex[]) {
-  size_t len, i;
-  int x;
-  uint8_t *p=(uint8_t*)bin;
+// 256-bit master key
+uint8_t key[32]=
+{0x24, 0x8a, 0x7f, 0x35, 0x28, 0xb1, 0x68, 0xac,
+ 0xfd, 0xd1, 0x38, 0x6e, 0x3f, 0x51, 0xe3, 0x0c,
+ 0x2e, 0x21, 0x58, 0xbc, 0x3e, 0x5f, 0xc7, 0x14,
+ 0xc1, 0xee, 0xec, 0xa0, 0xea, 0x69, 0x6d, 0x48};
+ 
+// 128-bit plain text
+uint8_t plain[16]=
+{0x43, 0x10, 0x58, 0xf4, 0xdb, 0xc7, 0xf7, 0x34,
+ 0xda, 0x4f, 0x02, 0xf0, 0x4c, 0xc4, 0xf4, 0x59};
   
-  len = strlen (hex);
-  
-  if ((len & 1) != 0) {
-    return 0; 
-  }
-  
-  for (i=0; i<len; i++) {
-    if (isxdigit((int)hex[i]) == 0) {
-      return 0; 
-    }
-  }
-  
-  for (i=0; i<len / 2; i++) {
-    sscanf (&hex[i * 2], "%2x", &x);
-    p[i] = (uint8_t)x;
-  } 
-  return len / 2;
-} 
-
-void phex (char *s, void *bin, int len)
-{
-  int i;
-  printf ("\n%s length = %i", s, len);
-  for (i=0; i<len; i++) {
-    if ((i & 15)==0) putchar ('\n');
-    printf (" %02x", ((uint8_t*)bin)[i]);
-  }
-  putchar('\n');
-}
-
-char *tv_key[]=
-{ "248A7F3528B168ACFDD1386E3F51E30C2E2158BC3E5FC714C1EEECA0EA696D48",
-  "2E2158BC3E5FC714C1EEECA0EA696D48D2DED73E59319A8138E0331F0EA149EA" };
-  
-char *tv_pt[]=
-{ "431058F4DBC7F734DA4F02F04CC4F459",
-  "248A7F3528B168ACFDD1386E3F51E30C" };
-  
-char *tv_ct[]=
-{ "37FE26FF1CF66175F5DDF4C33B97A205",
-  "431058F4DBC7F734DA4F02F04CC4F459" };
-  
-int main(void) 
-{
-  uint8_t key[32], pt1[16], pt2[16], ct[16];
-  tf_ctx  ctx;
-  int e, d, i;
-  
-  for (i=0; i<sizeof(tv_key)/sizeof(char*); i++)
-  {
-    hex2bin (key,  tv_key[i]);
-    hex2bin (pt1,  tv_pt[i]);
-    hex2bin (pt2,  tv_pt[i]);
-    hex2bin (ct,   tv_ct[i]);
-  
-    memset (&ctx, 0, sizeof (ctx));
-  
-    tf_setkey (&ctx, key);
-  
-    //phex ("qbox", ctx.qbox, sizeof(ctx.qbox));
-    //phex ("keys", ctx.keys, sizeof(ctx.keys));
-    //phex ("sbox", ctx.sbox, sizeof(ctx.sbox));
-    //phex ("plaintext vector", pt1, 16);
-  
-    // decrypt/encrypt plaintext
-    tf_enc (&ctx, pt1, TF_ENCRYPT);
-  
-    //phex ("ciphertext vector", ct,  16);
-    //phex ("ciphertext result", pt1, 16);
-  
-    e=memcmp (pt1, ct, 16)==0;
-  
-    // decrypt ciphertext
-    tf_enc (&ctx, pt1, TF_DECRYPT);
-    d=memcmp (pt1, pt2, 16)==0;
-  
-    printf ("\nEncryption test #%i %s\nDecryption test #%i %s\n", 
-      (i+1), e ? "passed":"failed", (i+1), d ? "passed":"failed");
-  }
-  return 0;
+// 128-bit cipher text
+uint8_t cipher[16]=
+{0x37, 0xfe, 0x26, 0xff, 0x1c, 0xf6, 0x61, 0x75,
+ 0xf5, 0xdd, 0xf4, 0xc3, 0x3b, 0x97, 0xa2, 0x05};
+ 
+int main(void) {
+    uint8_t data[16];
+    int     equ;
+    
+    memcpy(data, plain, 16);
+    twofish(key, data);
+    equ = (memcmp(data, cipher, 16)==0);
+    printf("Twofish-256 test : %s\n", equ ? "OK" : "FAILED");
+    return 0;
 }
 

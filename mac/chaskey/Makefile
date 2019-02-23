@@ -1,4 +1,4 @@
-msvc:
-		cl /nologo /Os /Ot /DTEST test.c chaskey.c
-all:
-		gcc -DTEST -Wall -Os test.c chaskey.c -otest   
+test:
+	gcc -Wall test.c chaskey.c -otest
+clean:
+	rm -rf *.o test

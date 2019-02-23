@@ -1,11 +1,11 @@
 
-// test unit for DES
-// odzhan
 
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+
+#include <openssl/des.h>
 
 // 64-bit master key (only 56-bits are used)
 uint8_t key[8]=
@@ -19,23 +19,18 @@ uint8_t plain[8]=
 uint8_t cipher[8]=
 {0x84, 0x08, 0x4a, 0x0c, 0xaf, 0x81, 0x13, 0x90};
 
-void des_set_key(void *key, void *ks);
-void des_enc(void *data, void *ks);
-
 int main(void) {
-    uint8_t data[8], ks[128];
-    int     i, equ;
+    DES_cblock       in, out;
+    DES_key_schedule ks;
+    int              i, equ;
     
-    // set master key
-    memcpy(data, key, 8);
+    memcpy(&in,plain,8);
+    memcpy(&out,key,8);
     
     for(i=0;i<256;i++) {
-      // initialize subkeys
-      des_set_key(data, ks);
-      // encrypt plaintext
-      memcpy(data, plain, 8);
-      des_enc(data, ks);
+      DES_set_key_unchecked(&out, &ks);
+      DES_ecb_encrypt(&in, &out, &ks, DES_ENCRYPT);
     }
-    equ=(memcmp(data, cipher, 8)==0);
+    equ=(memcmp(out, cipher, 8)==0);
     printf("DES test : %s\n", equ ? "OK" : "FAILED");
 }

@@ -1,9 +1,10 @@
 
-// test unit for chaskey.c
-// 
-#include "chaskey.h"
+// test unit for chaskey MAC
+// odzhan
 
 #include <stdio.h>
+#include <stdint.h>
+#include <string.h>
 
 const uint32_t vectors[64][4] =
 {
@@ -73,6 +74,9 @@ const uint32_t vectors[64][4] =
   { 0x2DD072E1, 0x42B89EFE, 0xFB26B615, 0x049AA451 }
 };
 
+void chaskey_setkey(void *out, const void *in);
+void chaskey_mac(void *tag, const void *data, uint32_t len, void *key);
+
 int test_vectors() {
     uint8_t m[64];
     uint8_t tag[16];
@@ -94,7 +98,7 @@ int test_vectors() {
       chaskey_mac(tag, m, i, key);
 
       if (memcmp( tag, vectors[i], taglen )) {
-        printf("test vector failed for %d-byte message\n", i);
+        printf("CHASKEY test vector failed for %d-byte message\n", i);
         ok = 0;
       }
     }
@@ -103,7 +107,7 @@ int test_vectors() {
 }
 
 int main() {
-    if (test_vectors()) printf("test vectors ok\n");
+    if (test_vectors()) printf("CHASKEY test : OK\n");
 
     return 0;
 }

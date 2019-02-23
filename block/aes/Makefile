@@ -12,6 +12,8 @@ endif
 
 test:
 	as $(SRC) -oax.o
-	gcc -Wall -Os test.c ax.o -otest
+	gcc -Wall -Os test.c ax.o -otest_$(MACHINE)
+	gcc -Wall -O2 test.c -DLUT aes.c -otest
+	gcc -Wall -Os monte.c -DLUT aes.c -omonte 
 clean:
-	rm *.o test
+	rm *.o test monte test_$(MACHINE)

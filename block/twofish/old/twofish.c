@@ -1,5 +1,8 @@
 /**
-  Copyright (C) 2016 Odzhan. All Rights Reserved.
+  Copyright (C) 2016 Odzhan.
+  Copyright (C) 2001, 2014 Marc Schoolderman
+  
+  All Rights Reserved.
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are
@@ -27,17 +30,13 @@
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
   
-typedef unsigned char uint8_t;
-typedef unsigned int uint32_t;
+#include "twofish.h"
 
-#define rev32(x) __builtin_bswap32(x)
-
-typedef union _w32_t {
-    uint8_t b[4];
-    uint32_t w;
-} w32_t;
-
-void addkey(void *in, uint32_t *keys) {
+/**
+ * core encryption functions start here 
+ */
+void whiten (void *in, uint32_t *keys)
+{
     int      i;
     uint32_t *x=(uint32_t*)in;
     
@@ -46,25 +45,32 @@ void addkey(void *in, uint32_t *keys) {
     }
 }
 
-uint32_t mds(uint32_t w) {
+uint32_t mds(uint32_t w)
+{
     w32_t acc, x;
     int i;
     uint32_t j, x0, y;
 
-    uint8_t matrix[4][4] = { 
-      { 0x01, 0xEF, 0x5B, 0x5B },
-      { 0x5B, 0xEF, 0xEF, 0x01 },
-      { 0xEF, 0x5B, 0x01, 0xEF },
-      { 0xEF, 0x01, 0xEF, 0x5B } };
-
+  // Maximum Distance Separable code
+  // Twofish uses a single 4-by-4 MDS matrix over GF(2**8).
+  // Twofish uses 1,91,239 in a non-circulant matrix.
+  uint8_t matrix[4][4] = 
+  { { 0x01, 0xEF, 0x5B, 0x5B },
+    { 0x5B, 0xEF, 0xEF, 0x01 },
+    { 0xEF, 0x5B, 0x01, 0xEF },
+    { 0xEF, 0x01, 0xEF, 0x5B } };
+    
     x.w = w;
     acc.w = 0;
-
-    for (i=0; i<4; i++) {
-      for (j=0; j<4; j++) {
+   
+    for (i=0; i<4; i++) 
+    {
+      for (j=0; j<4; j++) 
+      {
         x0 = matrix[i][j];
         y  = x.b[j];
-        while (y) {
+        while (y)
+        {
           if (x0 > (x0 ^ 0x169))
             x0 ^= 0x169;
           if (y & 1)
@@ -78,12 +84,16 @@ uint32_t mds(uint32_t w) {
 }
 
 // The G function
-uint32_t round_g(uint8_t *sbp, uint32_t w) {
+uint32_t round_g(tf_ctx *ctx, uint32_t w)
+{
     w32_t    x;
     uint32_t i;
+    uint8_t *sbp;
     
     x.w = w;
 
+    sbp=&ctx->sbox[0];
+    
     for (i=0; i<4; i++) {
       x.b[i] = sbp[x.b[i]];
       sbp += 256;
@@ -93,7 +103,8 @@ uint32_t round_g(uint8_t *sbp, uint32_t w) {
 
 // compute (c * x^4) mod (x^4 + (a + 1/a) * x^3 + a * x^2 + (a + 1/a) * x + 1)
 // over GF(256)
-uint32_t Mod(uint32_t c) {
+uint32_t Mod(uint32_t c)
+{
     uint32_t c1, c2;
     
     c2=(c<<1) ^ ((c & 0x80) ? 0x14d : 0);
@@ -104,24 +115,28 @@ uint32_t Mod(uint32_t c) {
 
 // compute RS(12,8) code with the above polynomial as generator
 // this is equivalent to multiplying by the RS matrix
-uint32_t reedsolomon(uint64_t x) {
+uint32_t reedsolomon(uint64_t x)
+{
     uint32_t i, low, high;
       
-    low  = rev32(x & 0xFFFFFFFF);
+    low  = SWAP32(x & 0xFFFFFFFF);
     high = x >> 32;
     
-    for (i=0; i<8; i++) {
+    for (i=0; i<8; i++)
+    {
       high = Mod(high >> 24) ^ (high << 8) ^ (low & 255);
       low >>= 8;
     }
     return high;
 }
 
-uint8_t gq(uint8_t x, uint8_t *p) {
+uint8_t gq(uint8_t x, uint8_t *p)
+{
     uint8_t a, b, x0, x1, t;
     int8_t i;
     
-    for (i=0; i<2; i++) {
+    for (i=0; i<2; i++)
+    {
       a = (x >> 4) ^ (x & 15);
       b = (x >> 4) ^ ((x >> 1) & 15) ^ ((x << 3) & 0x8);
       
@@ -139,31 +154,41 @@ uint8_t gq(uint8_t x, uint8_t *p) {
     return x;
 }
   
-void tf_init(uint8_t *p_tbl, uint8_t *q_tbl) {
-    uint8_t *p, *q, x, t[256];
-    int i, j;
+/**
+ * Computes the Q-tables
+ */
+void tf_init(tf_ctx *ctx) 
+{
+    int32_t i, j;
+    uint8_t x;
+    uint8_t t[256];
+    uint8_t *q, *p;
     
-    uint8_t qb[64]=
-    { 0x18, 0xd7, 0xf6, 0x23, 0xb0, 0x95, 0xce, 0x4a,
-      0xce, 0x8b, 0x21, 0x53, 0x4f, 0x6a, 0x07, 0xd9,
-      0xab, 0xe5, 0xd6, 0x09, 0x8c, 0x3f, 0x42, 0x17,
-      0x7d, 0x4f, 0x21, 0xe6, 0xb9, 0x03, 0x58, 0xac,
-      0x82, 0xdb, 0x7f, 0xe6, 0x13, 0x49, 0xa0, 0x5c,
-      0xe1, 0xb2, 0xc4, 0x73, 0xd6, 0x5a, 0x9f, 0x80,
-      0xc4, 0x57, 0x61, 0xa9, 0xe0, 0x8d, 0xb2, 0xf3,
-      0x9b, 0x15, 0x3c, 0xed, 0x46, 0xf7, 0x02, 0xa8 };
-
-    // expand Q box
-    for(p=t, i=0; i<64; i++) {
-      *p++ = qb[i] & 15;
-      *p++ = qb[i] >> 4;
+  uint8_t qb[64]=
+  { 0x18, 0xd7, 0xf6, 0x23, 0xb0, 0x95, 0xce, 0x4a,
+    0xce, 0x8b, 0x21, 0x53, 0x4f, 0x6a, 0x07, 0xd9,
+    0xab, 0xe5, 0xd6, 0x09, 0x8c, 0x3f, 0x42, 0x17,
+    0x7d, 0x4f, 0x21, 0xe6, 0xb9, 0x03, 0x58, 0xac,
+    0x82, 0xdb, 0x7f, 0xe6, 0x13, 0x49, 0xa0, 0x5c,
+    0xe1, 0xb2, 0xc4, 0x73, 0xd6, 0x5a, 0x9f, 0x80,
+    0xc4, 0x57, 0x61, 0xa9, 0xe0, 0x8d, 0xb2, 0xf3,
+    0x9b, 0x15, 0x3c, 0xed, 0x46, 0xf7, 0x02, 0xa8 };
+    
+    p = (uint8_t*)&t[0];
+    
+    for (i=0; i<64; i++) {
+      x=qb[i];
+      *p++ = x & 15;
+      *p++ = x >> 4;
     }
-
-    for (i=0; i<256; i++) {
-      p = t;
-      q = q_tbl;
+    
+    for (i=0; i<256; i++) 
+    {
+      p=(uint8_t*)&t[0];
+      q=(uint8_t*)&ctx->qbox[0][0];
       
-      for (j=0; j<2; j++) {
+      for (j=0; j<2; j++) 
+      {
         q[i] = gq((uint8_t)i, p);
         p += 64;
         q += 256;
@@ -172,16 +197,20 @@ void tf_init(uint8_t *p_tbl, uint8_t *q_tbl) {
 }
 
 // The H function
-uint32_t round_h(uint8_t *qbp, uint32_t x_in, uint32_t *L) {
+uint32_t round_h(tf_ctx *ctx, uint32_t x_in, uint32_t *L)
+{
     int      i, j;
     uint32_t r=0x9C53A000;
     w32_t    x;
+    uint8_t  *qbp=(uint8_t*)&ctx->qbox[0][0];
     
     x.w = x_in * 0x01010101;
     
-    for (i=4; i>=0; i--) {
-      for (j=0; j<4; j++) {
-        r = R(r, 1);
+    for (i=4; i>=0; i--) 
+    {
+      for (j=0; j<4; j++)
+      {
+        r=ROTL32(r, 1);
         x.b[j] = qbp[((r & 1) << 8) + x.b[j]];
       }
       if (i>0) {
@@ -191,7 +220,8 @@ uint32_t round_h(uint8_t *qbp, uint32_t x_in, uint32_t *L) {
     return x.w;
 }
 
-void tf_setkey(tf_ctx *ctx, void *key) {
+void tf_setkey(tf_ctx *ctx, void *key)
+{
     uint32_t key_copy[8];
     w32_t    x;
     uint8_t  *sbp;
@@ -244,24 +274,26 @@ void tf_setkey(tf_ctx *ctx, void *key) {
 
 // encrypt/decrypt 128-bits of data
 // encryption which inlines F function
-void twofish(void *mk, void *data) {
+void tf_enc(tf_ctx *ctx, void *data, int enc)
+{
     int      i;
     uint32_t A, B, C, D, T0, T1, t;
     uint32_t *keys, *x=(uint32_t*)data;
 
-    uint32_t keys[8+2*16];
-    uint8_t  qbox[2][256];
-    uint8_t  sbox[4*256];
-  
-    addkey (x, &ctx->keys[0]);
+    whiten (x, &ctx->keys[enc*4]);
     
     keys=(uint32_t*)&ctx->keys[8];
-
+    
+    if (enc==TF_DECRYPT) {
+      keys += 2*14+3;
+    }
+    
     // load data
     A = x[0]; B = x[1];
     C = x[2]; D = x[3];
     
-    for (i=16; i>0; i--) {
+    for (i=16; i>0; i--) 
+    {
       // apply G function
       T0=round_g(ctx, A);
       T1=round_g(ctx, ROTL32(B, 8));
@@ -271,10 +303,18 @@ void twofish(void *mk, void *data) {
       T1 += T0;
       
       // apply F function
-      C ^= T0 + *keys++;
-      C  = ROTR32(C, 1);
-      D  = ROTL32(D, 1);
-      D ^= T1 + *keys++;
+      if (enc==TF_ENCRYPT)
+      {
+        C ^= T0 + *keys++;
+        C  = ROTR32(C, 1);
+        D  = ROTL32(D, 1);
+        D ^= T1 + *keys++;
+      } else {
+        D ^= T1 + *keys--;
+        D  = ROTR32(D, 1);
+        C  = ROTL32(C, 1);
+        C ^= T0 + *keys--;
+      }
       // swap
       XCHG(A, C);
       XCHG(B, D);
@@ -284,6 +324,6 @@ void twofish(void *mk, void *data) {
     x[0] = C; x[1] = D;
     x[2] = A; x[3] = B;
     
-    addkey (data, &ctx->keys[4]);
+    whiten (data, &ctx->keys[enc==TF_DECRYPT?0:4]);
 }
 

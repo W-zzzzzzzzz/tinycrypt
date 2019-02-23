@@ -27,95 +27,81 @@
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
 
-#include "chaskey.h"
+#define R(v,n)(((v)>>(n))|((v)<<(32-(n))))
+#define F(n)for(i=0;i<n;i++)
+typedef unsigned int W;
+typedef unsigned char B;
+
+void chaskey_setkey(void *out, const void *in) {
+    W i, *k=(W*)out;
   
-void chaskey_setkey(void *out, void *in) 
-{
-  int      i;
-  uint32_t *k=(uint32_t*)out;
+    F(16) ((B*)out)[i] = ((B*)in)[i];
   
-  memcpy (out, in, 16);
-  
-  for (i=0; i<2; i++) {
-    k[4] = (k[0] + k[0]) ^ (-(k[3] >> 31) & 0x87);
-    k[5] = (k[1] + k[1]) | (k[0] >> 31); 
-    k[6] = (k[2] + k[2]) | (k[1] >> 31); 
-    k[7] = (k[3] + k[3]) | (k[2] >> 31);
-    
-    k += 4;    
-  }
+    F(2) {
+      k[4] = (k[0] + k[0]) ^ (-(k[3] >> 31) & 0x87);
+      k[5] = (k[1] + k[1]) | (k[0] >> 31); 
+      k[6] = (k[2] + k[2]) | (k[1] >> 31); 
+      k[7] = (k[3] + k[3]) | (k[2] >> 31);
+      k += 4;    
+    }
 }
 
-void chas_permute(uint32_t v[])
-{
-  int i=12;
-  
-  do {
-    v[0] += v[1]; 
-    v[1]=ROTL32(v[1], 5); 
-    v[1] ^= v[0]; 
-    v[0]=ROTL32(v[0],16); 
-    v[2] += v[3]; 
-    v[3]=ROTL32(v[3], 8); 
-    v[3] ^= v[2]; 
-    v[0] += v[3]; 
-    v[3]=ROTL32(v[3],13); 
-    v[3] ^= v[0]; 
-    v[2] += v[1]; 
-    v[1]=ROTL32(v[1], 7); 
-    v[1] ^= v[2]; 
-    v[2]=ROTL32(v[2],16); 
-  } while (--i);
+void permute(void *v) {
+    W i, *x=(W*)v;
+    
+    F(12) {
+      x[0] += x[1];
+      x[1] = R(x[1],27) ^ x[0];
+      x[2] += x[3];
+      x[3] = R(x[3],24) ^ x[2];
+      x[2] += x[1];
+      x[0] = R(x[0],16) + x[3];
+      x[3] = R(x[3],19) ^ x[0];
+      x[1] = R(x[1],25) ^ x[2];
+      x[2] = R(x[2],16);
+    }
 }
 
-void chas_xor(w128_t *out, const void *in, int len) {
-  int i;
-
-  for (i=0; i<len; i++) {
-    out->b[i] ^= ((uint8_t*)in)[i];
-  }
-}
-
-void chaskey_mac (uint8_t *tag, 
-    uint8_t *msg, uint32_t msglen, uint8_t *key) 
-{
-  w128_t v;
-  int   len;
-  
-  // copy 16 bytes of key
-  memcpy(v.b, key, 16);
-
-  // absorb message 
-  for (;;) {
-    len = (msglen < 16) ? msglen : 16;
+void chaskey_mac(void *tag, const void *data, W len, void *key) {
+    B v[16], *p=(B*)data, *t=(B*)tag, *k=(B*)key;
+    W i, r;
     
-    // xor w128_t with msg data
-    chas_xor(&v, msg, len);
+    // copy 128-bit master key to local memory
+    F(16) v[i] = k[i];
 
-    // final?
-    if (msglen <= 16) {
-      if (msglen < 16) {
-        // final? add padding bit
-        v.b[msglen] ^= 1;
-      }
-      key += (msglen == 16) ? 16 : 32;
-      break;
-    }    
-    
-    // apply permutation function
-    chas_permute(v.w);
-    
-    // update position and length
-    msg += 16;
-    msglen -= 16;
-  }
+    // absorb data
+    for (;;) {
+      r = (len > 16) ? 16 : len;
+      
+      // xor v with msg data
+      F(r) v[i] ^= p[i];
 
-  // pre-whiten
-  chas_xor(&v, key, 16);
-  // permute
-  chas_permute(v.w);
-  // post-whiten
-  chas_xor(&v, key, 16);
-  // return tag
-  memcpy(tag, v.b, 16);
+      // final block?
+      if (len <= 16) {
+        if (len < 16) {
+          // add padding bit if less than 16 bytes
+          v[len] ^= 1;
+        }
+        // advance key
+        k += (len == 16) ? 16 : 32;
+        break;
+      }    
+      
+      // encrypt data
+      permute(v);
+      
+      // update position and length
+      p += r;
+      len -= r;
+    }
+
+    // encryption
+    // mix key
+    F(16) v[i]^=k[i];
+    // encrypt
+    permute(v);
+    // mix key
+    F(16) v[i]^=k[i];
+    // return tag
+    F(16) t[i]=v[i];
 }

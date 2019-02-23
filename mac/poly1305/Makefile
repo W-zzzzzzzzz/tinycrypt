@@ -1,4 +1,4 @@
-msvc:
-    cl /nologo /O2 /Ot /DTEST blabla.c
-all:
-    gcc -DTEST -Wall -O2 -Ot blabla.c -oblabla   
+test:
+	gcc -Wall test.c poly1305.c -otest
+clean:
+	rm -rf *.o test
