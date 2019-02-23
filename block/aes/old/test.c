@@ -20,6 +20,19 @@
    0xb5, 0xba, 0x2d, 0x40, 0xa5, 0x01, 0x97, 0x1b };
 #endif
 
+void E(void*);
+
+void aes(void *mk, void *data) {
+    uint8_t ctx[K_LEN+16];
+    
+    memcpy(ctx, data, 16);
+    memcpy(&ctx[16], mk, K_LEN);
+    
+    E(&ctx);
+    
+    memcpy(data, ctx, 16);
+}
+
 void bin2hex(int iter, void *bin, int len) {
     int     i;
     uint8_t *p=bin;
@@ -30,22 +43,20 @@ void bin2hex(int iter, void *bin, int len) {
 }
 
 int main(void) {
-    uint8_t key[AES_KEY_LEN], data[AES_BLK_LEN*2];
+    uint8_t key[K_LEN], data[32];
     int     i, j, equ;
-
-    printf("Running Monte Carlo test...\n");
     
     memset(key, 0, sizeof(key));
     memset(data,  0, sizeof(data));
     
     for(i=0;i<400;i++) {
       for(j=0;j<10000;j++) {
-        #if AES_KEY_LEN == 32
+        #ifdef AES256
           memcpy(&data[16], data, 16);
         #endif
-        aes_ecb(key, data);
+        aes(key, data);
       }
-      #if AES_KEY_LEN == 32
+      #ifdef AES256
         for(j=0;j<16;j++) key[j] ^= data[j+16];
         for(j=0;j<16;j++) key[j+16] ^= data[j];
       #else
@@ -54,9 +65,7 @@ int main(void) {
     }
     equ = (memcmp(data, cipher, 16)==0);
     
-    printf("AES-%i ECB mode for %i-bit CPU : %s\n",
-      AES_KEY_LEN*8, AES_INT_LEN*8, equ ? "OK" : "FAILED");
-      
-    return 0;
+    printf("AES-%i monte carlo test : %s\n",
+      K_LEN*8, equ ? "OK" : "FAILED");
 }
         

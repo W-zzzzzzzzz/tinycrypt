@@ -4,6 +4,10 @@
 
 <p>All code is intentionally optimized for size rather than speed making it suitable for resource constrained environments.</p>
 
+<h4>Side channel attacks</h4>
+
+<p>AES was never intended to be resistant against side channel attacks. However, if you decide to use this code for an embedded project that requires a high level of security, first evaluate whether the code is sufficient against such attacks before including in your project.</p>
+
 <h4>Files</h4>
 
 <p>All files with .s and .asm extensions are compatible with the GNU assembler (GAS) except for the files in the MSVC folder that will assemble with either NASM or YASM.</p>
@@ -14,32 +18,40 @@
     <th>Description</th>
   </tr>
   <tr>
+    <td>ax.asm</td>
+    <td>AES-128 in x86 assembly</td>
+  </tr>
+  <tr>
+    <td>axx.asm</td>
+    <td>AES-128 in AMD64 assembly</td>
+  </tr>
+  <tr>
+    <td>ax.s</td>
+    <td>AES-128 in ARM32 assembly</td>
+  </tr>
+  <tr>
+    <td>axx.s</td>
+    <td>AES-128 in ARM64 assembly</td>
+  </tr>
+  <tr>
+    <td>aesb.c</td>
+    <td>AES-128 in C for 8-bit architectures.</td>
+  </tr>
+  <tr>
     <td>aes.c</td>
-    <td>AES-128,AES-256 in C for 8-bit, 32-bit and 64-bit architectures.</td>
+    <td>AES-128 and AES-256 in C for 32-bit / 64-bit architectures.</td>
   </tr>
   <tr>
     <td>test.c</td>
-    <td>Monte Carlo test for AES-128, AES-256 in ECB mode.</td>
+    <td>Test unit for AES-128</td>
   </tr>
   <tr>
     <td>test2.c</td>
-    <td>Simple test unit for AES-128, AES-256 in ECB and CTR mode.</td>
+    <td>Test unit for AES-256</td>
   </tr>
   <tr>
-    <td>asm/ax.asm</td>
-    <td>AES-128 in x86 assembly.</td>
-  </tr>
-  <tr>
-    <td>asm/axx.asm</td>
-    <td>AES-128 in AMD64 assembly.</td>
-  </tr>
-  <tr>
-    <td>asm/ax.s</td>
-    <td>AES-128 in ARM32 assembly.</td>
-  </tr>
-  <tr>
-    <td>asm/axx.s</td>
-    <td>AES-128 in ARM64 assembly.</td>
+    <td>tweet.c</td>
+    <td>Tweetable version of aes.c</td>
   </tr>
 </table>
 
@@ -136,10 +148,6 @@
     <td>880</td>
   </tr>
 </table>
-
-<h4>Side channel attacks</h4>
-
-<p>AES was never intended to be resistant against side channel attacks. However, if you decide to use this code for an embedded project that requires a high level of security, first evaluate whether the code is sufficient against such attacks before including in your project.</p>
 
 <h4>Licensing information</h4>
 

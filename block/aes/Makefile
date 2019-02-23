@@ -1,19 +1,18 @@
 MACHINE := $(shell uname -m)
 
 ifeq ($(MACHINE), i386)
-	SRC := ax.asm
+	SRC := asm/ax.asm
 else ifeq ($(MACHINE), x86_64)
-	SRC := axx.asm
+	SRC := asm/axx.asm
 else ifeq ($(MACHINE), armv7l)
-	SRC := ax.s
+	SRC := asm/ax.s
 else ifeq ($(MACHINE), aarch64)
-	SRC := axx.s
+	SRC := asm/axx.s
 endif
 
 test:
 	as $(SRC) -oax.o
-	gcc -Wall -Os test.c ax.o -otest_$(MACHINE)
-	gcc -Wall -O2 test.c -DLUT aes.c -otest
-	gcc -Wall -Os monte.c -DLUT aes.c -omonte 
+	gcc -Wall -Os test2.c aes.c -otest2
+	gcc -Wall -O2 test.c aes.c -otest
 clean:
-	rm *.o test monte test_$(MACHINE)
+	rm *.o test test2
