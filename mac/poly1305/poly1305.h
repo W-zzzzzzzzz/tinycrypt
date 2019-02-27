@@ -31,6 +31,7 @@
 #define POLY1305_H
 
 #include "../../macros.h"
+#include "chacha20.h"
 
 #ifdef __cplusplus
 extern "C" {

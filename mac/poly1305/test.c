@@ -7,10 +7,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "cc20.h"
+#include "chacha20.h"
 #include "poly1305.h"
-
-void poly1305_macx(void*, const void*, int, const void*); 
 
 // 2.8.2 AEAD test vector
 
@@ -75,59 +73,59 @@ const uint8_t ae_tag[]=
 { 0x1a,0xe1,0x0b,0x59,0x4f,0x09,0xe2,0x6a,
   0x7e,0x90,0x2e,0xcb,0xd0,0x60,0x06,0x91 };
 
-void aead_test(void)
-{
-  uint8_t  pkey[32], t[128], mac_data[512];
-  uint8_t  ae_nonce[256], tag[16];
-  uint64_t len, pos;
-  int      i, equ;
-  
-  // generate 96-bit nonce
-  memset (ae_nonce, 0, sizeof(ae_nonce));
-  memcpy (ae_nonce, ae_ctr, sizeof(ae_ctr));  
-  memcpy (&ae_nonce[4], ae_iv, sizeof(ae_iv));
-  
-  // generate poly1305 key
-  poly1305_key_gen(pkey, ae_key, ae_nonce);
-  equ = memcmp(ae_tv, pkey, sizeof(pkey))==0;
-  
-  printf ("\nAEAD %s test 1", 
-      equ ? "PASSED" : "FAILED");
-      
-  // encrypt plaintext
-  memcpy (t, ae_plain, sizeof(ae_plain));
-  
-  cc20_encrypt(ae_key, 1, 
-      ae_nonce, t, sizeof(ae_plain));
-      
-  equ = memcmp(ae_cipher, t, sizeof(ae_cipher))==0;
-  
-  printf ("\nAEAD %s test 2", 
-      equ ? "PASSED" : "FAILED");
-      
-  memset(mac_data, 0, sizeof(mac_data));
-  memcpy(mac_data, ae_aad, sizeof(ae_aad));
-  pos = (sizeof(ae_aad) & -16) + 16;
-  
-  memcpy(&mac_data[pos], t, sizeof(ae_cipher));
-  pos += (sizeof(ae_cipher) & -16) + 16;
-  
-  len = sizeof(ae_aad);
-  memcpy(&mac_data[pos], &len, sizeof(len));
-  
-  len = sizeof(ae_cipher);
-  memcpy(&mac_data[pos+8], &len, sizeof(len));
-  
-  poly1305_macx(tag, mac_data, pos+16, pkey); 
-  equ = memcmp(ae_tag, tag, sizeof(ae_tag))==0;
-  
-  printf ("\nAEAD %s test 3", 
-      equ ? "PASSED" : "FAILED");
-      
-  /*for (i=0; i<pos+16; i++) {
-    if ((i & 15)==0) putchar('\n');
-    printf ("%02x ", mac_data[i]);
-  }*/
+void aead_test(void) {
+    uint8_t    pkey[32], t[128], mac_data[512];
+    uint8_t    ae_nonce[256], tag[16];
+    uint64_t   len, pos;
+    int        equ;
+    chacha_ctx c;
+    
+    // generate 96-bit nonce
+    memset (ae_nonce, 0, sizeof(ae_nonce));
+    memcpy (ae_nonce, ae_ctr, sizeof(ae_ctr));  
+    memcpy (&ae_nonce[4], ae_iv, sizeof(ae_iv));
+    
+    // generate poly1305 key
+    poly1305_key_gen(pkey, ae_key, ae_nonce);
+    equ = memcmp(ae_tv, pkey, sizeof(pkey))==0;
+    
+    printf ("AEAD %s test 1\n", 
+        equ ? "PASSED" : "FAILED");
+        
+    // encrypt plaintext
+    memcpy (t, ae_plain, sizeof(ae_plain));
+    
+    chacha20_setkey(&c, ae_key, ae_nonce, 1);
+    chacha20_encrypt(&c, t, sizeof(ae_plain));
+        
+    equ = memcmp(ae_cipher, t, sizeof(ae_cipher))==0;
+    
+    printf ("AEAD %s test 2\n", 
+        equ ? "PASSED" : "FAILED");
+        
+    memset(mac_data, 0, sizeof(mac_data));
+    memcpy(mac_data, ae_aad, sizeof(ae_aad));
+    pos = (sizeof(ae_aad) & -16) + 16;
+    
+    memcpy(&mac_data[pos], t, sizeof(ae_cipher));
+    pos += (sizeof(ae_cipher) & -16) + 16;
+    
+    len = sizeof(ae_aad);
+    memcpy(&mac_data[pos], &len, sizeof(len));
+    
+    len = sizeof(ae_cipher);
+    memcpy(&mac_data[pos+8], &len, sizeof(len));
+    
+    poly1305_mac(tag, mac_data, pos+16, pkey); 
+    equ = memcmp(ae_tag, tag, sizeof(ae_tag))==0;
+    
+    printf ("AEAD %s test 3\n", 
+        equ ? "PASSED" : "FAILED");
+        
+    /*for (i=0; i<pos+16; i++) {
+      if ((i & 15)==0) putchar('\n');
+      printf ("%02x ", mac_data[i]);
+    }*/
 }
 
 // 2.6.2 Poly1305 Key Generation Test Vector
@@ -149,15 +147,15 @@ const uint8_t pkg_tv[]=
   
 void poly1305_keygen_test(void)
 {
-  uint8_t key[32];
-  int     equ;
-  
-  poly1305_key_gen (key, pkg_key, pkg_nonce);
-  
-  equ = memcmp(pkg_tv, key, 32)==0 ? 1 : 0;
-  
-  printf ("\nRFC7539 Poly1305 Key Generator : %s\n", 
-      equ ? "PASSED" : "FAILED");
+    uint8_t key[32];
+    int     equ;
+    
+    poly1305_key_gen (key, pkg_key, pkg_nonce);
+    
+    equ = memcmp(pkg_tv, key, 32)==0 ? 1 : 0;
+    
+    printf ("RFC8439 Poly1305 Key Generator : %s\n", 
+        equ ? "PASSED" : "FAILED");
 }
 
 // Message to be Authenticated: 
@@ -183,15 +181,15 @@ const uint8_t pm_tv[]=
 
 void poly1305_mac_test(void)
 {
-  uint8_t tag[16];
-  int     equ;
-  
-  poly1305_macx (tag, pm_msg, sizeof(pm_msg), pm_key);
-  
-  equ = memcmp(pm_tv, tag, 16)==0 ? 1 : 0;
-  
-  printf ("\nRFC7539 Poly1305 MAC test : %s\n", 
-      equ ? "PASSED" : "FAILED");
+    uint8_t tag[16];
+    int     equ;
+    
+    poly1305_mac(tag, pm_msg, sizeof(pm_msg), pm_key);
+    
+    equ = memcmp(pm_tv, tag, 16)==0 ? 1 : 0;
+    
+    printf ("RFC8439 Poly1305 MAC test : %s\n", 
+        equ ? "PASSED" : "FAILED");
 }
 
 // 2.4.2.  Example and Test Vector for the ChaCha20 Cipher
@@ -240,28 +238,30 @@ const uint8_t ss_cipher[]=
   0xb4,0x0b,0x8e,0xed,0xf2,0x78,0x5e,0x42,
   0x87,0x4d }; 
   
-// ChaCha20 section 2.4.2 of RFC7539
+// ChaCha20 section 2.4.2 of RFC8439
 void chacha20_test(void)
 {
-  uint8_t    r[CC20_STATE_LEN*2];
-  uint8_t    equ;
-  
-  memcpy (r, ss_plain, sizeof(ss_plain));
-  
-  cc20_encrypt(ss_key, 1, ss_nonce, r, sizeof(ss_plain));
-  
-  equ = memcmp(r, ss_cipher, sizeof(ss_plain)) == 0;
-  
-  printf ("\nRFC7539 ChaCha20 test : %s\n", 
-      equ ? "PASSED" : "FAILED");
+    uint8_t    r[512];
+    uint8_t    equ;
+    chacha_ctx c;
+    
+    memcpy (r, ss_plain, sizeof(ss_plain));
+    
+    chacha20_setkey(&c, ss_key, ss_nonce, 1);
+    chacha20_encrypt(&c, r, sizeof(ss_plain));
+    
+    equ = memcmp(r, ss_cipher, sizeof(ss_plain)) == 0;
+    
+    printf ("RFC8439 ChaCha20 test : %s\n", 
+        equ ? "PASSED" : "FAILED");
 }
 
 int main(int argc, char *argv[])
 {  
-  chacha20_test();
-  poly1305_mac_test();
-  poly1305_keygen_test();
-  aead_test();
-  
-  return 0;
+    chacha20_test();
+    poly1305_mac_test();
+    poly1305_keygen_test();
+    aead_test();
+    
+    return 0;
 }

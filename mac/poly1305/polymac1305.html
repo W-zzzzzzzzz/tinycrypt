@@ -1,46 +1,10 @@
-<strong>Introduction</strong>
+<h3><strong>Introduction</strong></h3>
 
-<a href="https://cr.yp.to/mac.html">Poly1305</a> is a cryptographic <em>Message Authentication Code</em> (MAC) designed and published in 2004 by <a href="https://cr.yp.to/djb.html">Daniel J. Bernstein</a>. It can be used to verify the data integrity and authenticity of a message. 
+<p><a href="https://cr.yp.to/mac.html">Poly1305</a> is a cryptographic Message Authentication Code (MAC) that provides 128-bit security. It was designed and published in 2004 by <a href="https://cr.yp.to/djb.html">Daniel J. Bernstein</a>. It can be used to verify the integrity and authenticity of a message. <a href="https://www.imperialviolet.org/">Adam Langley</a> from Google has published details of an alternative to AES-128-GCM in <a href="https://tools.ietf.org/rfc/rfc7539.txt">RFC 8439</a> that uses ChaCha20 and Poly1305 for Authenticated Encryption Associated Data (AEAD). The reasons to use ChaCha20-Poly1305 instead of AES-GCM are not for lack of confidence in AES, but simply due to its performance on ARM architectures that do not have hardware acceleration. Vlad Krasnov from Cloudflare offers a sound review of both poly1305 and chacha20 in <a href="https://blog.cloudflare.com/it-takes-two-to-chacha-poly/">It takes two to ChaCha (Poly)</a>. The C code here is derived from <a href="https://cr.yp.to/mac/poly1305aes-20050218.tar.gz">a reference implementation</a> provided by Dan on his site except I'm using test vectors and specification from RFC 8439.</p>
 
-<a href="https://www.imperialviolet.org/">Adam Langley</a> has published details in <a href="https://tools.ietf.org/rfc/rfc7539.txt">RFC 7539</a> which uses ChaCha20 and Poly1305 for <em>Authenticated Encryption Associated Data</em> (AEAD) as an alternative to AES-GCM (<em>Galois Counter Mode</em>)
+<h3><strong>Addition</strong></h3>
 
-The reasons to use ChaCha20-Poly1305 instead of AES-GCM are not for lack of confidence in AES but due to its performance on ARM architectures that do not have hardware acceleration.
-
-<strong>Dan's ciphers</strong>
-
-Many of Dan's designs have become popular in the last number of years and there are some good observations on the reasons why in an essay titled <em><a href="http://www.metzdowd.com/pipermail/cryptography/2016-March/028824.html">On the Impending Crypto Monoculture</a></em> by <a href="https://www.cs.auckland.ac.nz/~pgut001/">Peter Gutmann</a>. 
-
-It's not a case of Dan being a crypto king (although he does awesome work). IMHO the choice of using his algorithms comes down to a number of reasons. 
-
-<ul>
-	<li>Provably secure</li>
-
-	<li>Patent free</li>
-
-	<li>Low overhead in hardware and software</li>
-
-	<li>Simple and secure implementations already provided by author</li>
-
-	<li>Not tainted by government agencies</li>
-</ul>
-
-Dan's designs are intended to be resistant to timing attacks, side channel analysis which AES was never intended to be.
-
-CCM, EAX and GCM can be challenging to implement correctly. Poly1305 is simple with just addition, modular multiplication and therefore less prone to error.
-
-Vlad Krasnov from Cloudflare offers a sound review of both poly1305 and chacha20 in <a href="https://blog.cloudflare.com/it-takes-two-to-chacha-poly/">It takes two to ChaCha (Poly)</a>
- 
-<strong>About C code</strong>
-
-As most of you might know, the codes presented here in all entries are optimized for size so if you want an implementation optimized for speed, this will certainly disappoint you.
-
-As per usual with these entries, I'll show code in C first and then x86 assembly. If you can spot ways to optimize the code for size, feel free to <a href="https://github.com/odzhan/poly1305/">fork the project</a> and submit a pull request with your name included in source code as author. 
-
-The C code here is derived from <a href="https://cr.yp.to/mac/poly1305aes-20050218.tar.gz">a reference implementation</a> provided by Dan on his site except I'm following the design presented by Langley in RFC 7539 for ChaCha20. The RFC is easy to follow and if you want to better understand implementation, I highly recommend it.
-
-<strong>Addition</strong>
-
-The addition is performed on 8-bit bytes stored as 32-bit words. At the end of every number added to the accumulator is a byte: 0, 1 or 252. So rather than expecting the caller to pad a buffer with zeros, poly1305_add() takes care of this.
+<p>The addition is performed on 8-bit bytes stored as 32-bit words. At the end of every number added to the accumulator is a byte: 0, 1 or 252. So rather than expecting the caller to pad a buffer with zeros, poly1305_add() takes care of this.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#3f5fbf;'>/**********************************************</span>
 <span style='color:#3f5fbf;'>&#xa0;*</span>
@@ -70,7 +34,7 @@ The addition is performed on 8-bit bytes stored as 32-bit words. At the end of e
 <span style='color:#800080;'>}</span>
 </pre>
 
-Even though ADC (Add with Carry) is available and in fact works fine I've stuck with the original reference provided by MR. Dan. Function expects accumulator in EDI, the input bytes in ESI, inlen in ECX and last byte in AL. ADC only increments <em>p</em> if <em>i</em> is less than <em>inlen</em>.
+<p>Even though ADC (Add with Carry) is available and in fact works fine I've stuck with the original reference provided by Dan. Function expects accumulator in EDI, the input bytes in ESI, inlen in ECX and last byte in AL. ADC only increments <var>p</var> if <var>i</var> is less than <var>inlen</var>.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>; ***************************************</span>
 <span style='color:#696969;'>;</span>
@@ -109,7 +73,7 @@ Even though ADC (Add with Carry) is available and in fact works fine I've stuck 
  
 <strong>Modular Multiplication</strong>
 
-The modulus is 2^130-5 or 3fffffffffffffffffffffffffffffffb and Dan explains in his paper the reason for choosing this number specifically.  
+<p>The modulus is $latex 2^{130-5}$ or <var>0x3fffffffffffffffffffffffffffffffb</var> and Dan explains in his paper the reason for choosing this number specifically.</p>
 
 <blockquote>I chose 2^130-5 because its sparse form makes divisions particularly easy in both software and hardware. My encoding of messages as polynomials takes advantage of the gap between 2^128 and 2^130-5.</blockquote>
 
@@ -160,7 +124,7 @@ The modulus is 2^130-5 or 3fffffffffffffffffffffffffffffffb and Dan explains in 
 <span style='color:#800080;'>}</span>
 </pre>
 
-The assembly sticks close to the original C code provided. I attempted to use a different implementation of modular multiplication but the reduction in code was negligible.
+<p>The assembly sticks close to the original C code provided. I attempted to use a different implementation of modular multiplication but the reduction in code was negligible.</p>
 
 <pre style='color:#000000;background:#ffffff;'><span style='color:#696969;'>; ***************************************</span>
 <span style='color:#696969;'>;</span>
@@ -259,7 +223,7 @@ The assembly sticks close to the original C code provided. I attempted to use a 
 
 <strong>MAC function</strong>
 
-This is the main function called to generate 128-bit MAC of message. First r is "clamped"
+<p>This is the main function called to generate 128-bit MAC of message. First r is "clamped".</p>
 
 <blockquote>I constrained r to simplify and accelerate implementations of Poly1305-AES in various contexts. A wider range of r|e.g., all 128-bit integers would allow a quantitatively better security bound, but the current bound DL=2106 will be perfectly satisfactory for the foreseeable future, whereas slower authenticator computations would not be perfectly satisfactory.</blockquote>
 
@@ -334,8 +298,4 @@ This is the main function called to generate 128-bit MAC of message. First r is 
 <span style='color:#800080;'>}</span>
 </pre>
 
-<strong>Summary</strong>
-
-Assembly generated by MSVC 2010 with /O2 /Os flags results in <strong>507 bytes</strong>. The assembly implementation is currently <strong>339 bytes</strong> but may shrink in the future.
-
-See <a href="https://github.com/odzhan/tinycrypt/tree/master/mac/poly1305">here</a> for future updates or if you want to contribute.
+<p><a href="https://github.com/odzhan/tinycrypt/tree/master/mac/poly1305">Sources here</a>.</p>

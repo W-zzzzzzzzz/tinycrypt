@@ -84,16 +84,13 @@ void poly1305_mulmod(
       acc[i] = u;
     }
     
-    for (u=0, j=0; j<2; j++)
-    {
-      for (i=0; i<16; i++) 
-      { 
+    for (u=0, j=0; j<2; j++) {
+      for (i=0; i<16; i++) { 
         u += acc[i];
         acc[i] = u & 255; 
         u >>= 8; 
       }
-      if (!j) 
-      {
+      if (!j) {
         u += acc[16];
         acc[16] = u & 3;
         u = (u >> 2) * 5;
@@ -170,4 +167,16 @@ void poly1305_mac (
     for (i=0; i<16; i++) {
       out[i] = acc[i];
     }
+}
+
+/**********************************************
+ *
+ * poly1305 key generation
+ *
+ **********************************************/
+void poly1305_key_gen(void *out, const void *key, const void *nonce) {
+    chacha_ctx c;
+    
+    chacha20_setkey(&c, key, nonce, 0);
+    chacha20_keystream(&c, out, 32);
 }
