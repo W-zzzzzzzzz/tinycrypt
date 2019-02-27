@@ -1,155 +1,30 @@
 
 // test unit for tea.c
 // odzhan
-#include "tea.h"
-
-#include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <time.h>
 
-char *test_keys[] =
-{ "00000000000000000000000000000000",
-  "0000000000000000000000000a3aea41",
-  "00000000000000000a3aea4129788e4e",
-  "000000000a3aea4129788e4e5ea98bc8",
-  "f2bf605c1cd07270ebc51345ab383a8f" };
-     
-char *test_plaintexts[] =
-{ "0000000000000000",
-  "40a9ba9400000000",
-  "d836827d00000000",
-  "02acede700000000",
-  "adc4d980359689cf" };
-    
-char *test_ciphertexts[] =
-{ "0a3aea4140a9ba94",
-  "29788e4ed836827d",
-  "5ea98bc802acede7",
-  "af284eb88820b6b6",
-  "b3f1b02b11ed23c0" };
-   
-typedef struct enc_t {
-  char *pt;
-  char *ct;
-} enc;
-   
-enc enc_pt[] =
-{ { "0000000000000000", "0a3aea4140a9ba94" },
-  { "0a3aea4140a9ba94", "b9354a861ea75492" },
-  { "b9354a861ea75492", "1dbae8aaae2bba9a" },
-  { "1dbae8aaae2bba9a", "0eb60bc90296522d" }};
+uint8_t key[16]=
+{ 0xf2,0xbf,0x60,0x5c,0x1c,0xd0,0x72,0x70,
+  0xeb,0xc5,0x13,0x45,0xab,0x38,0x3a,0x8f };
 
-size_t hex2bin (void *bin, char hex[]) {
-  size_t  len, i;
-  int     x;
-  uint8_t *p=(uint8_t*)bin;
-  
-  len = strlen (hex);
-  
-  if ((len & 1) != 0) {
-    return 0; 
-  }
-  
-  for (i=0; i<len; i++) {
-    if (isxdigit((int)hex[i]) == 0) {
-      return 0; 
-    }
-  }
-  
-  for (i=0; i<len / 2; i++) {
-    sscanf (&hex[i * 2], "%2x", &x);
-    p[i] = (uint8_t)x;
-  } 
-  return len / 2;
-} 
+uint8_t plain[8]=
+{ 0xad,0xc4,0xd9,0x80,0x35,0x96,0x89,0xcf };
 
-void dump_hex(void *b, int len)
-{
-  int i;
-  for (i=0; i<len; i++) {
-    printf ("%02x", ((uint8_t*)b)[i]);
-  }
-}
+uint8_t cipher[8]=
+{ 0xb3,0xf1,0xb0,0x2b,0x11,0xed,0x23,0xc0 };
 
-void enc_test (void)
-{
-  int    i;
-  w64_t  pt, ct;
-  w128_t key;
-  
-  printf ("\nRunning Encrypt tests");
-  memset (key.b, 0, TEA_KEY_LEN);
+void tea(void *mk, void *data);
 
-  for (i=0; i<sizeof(pt)/sizeof(enc); i++)
-  {
-    if (!hex2bin (pt.b, enc_pt[i].pt)) printf ("plaintext error");
-    if (!hex2bin (ct.b, enc_pt[i].ct)) printf ("ciphertext error");
-    
-    TEA_Encrypt (&pt, &key, TEA_ENCRYPT);
-    
-    if (memcmp (pt.b, ct.b, TEA_BLK_LEN) != 0) {
-      printf ("\nFailed for \"%s\"", test_plaintexts[i]);
-      printf ("\nGot : ");
-      dump_hex(pt.b, 8);
-      printf (" instead of ");
-      dump_hex(ct.b, 8);
-    }
-  }
-}
+int main() {
+    uint8_t data[8];
+    int     equ;
 
-int run_tests (void)
-{
-  int    i, fails=0;
-  w64_t  pt, ct;
-  w128_t key;
-  
-  for (i=0; i<sizeof(test_plaintexts)/sizeof(char*); i++)
-  {
-    if (!hex2bin (key.b, test_keys[i])) printf  ("key error");
-    if (!hex2bin (ct.b, test_ciphertexts[i])) printf ("ciphertext error");
-    if (!hex2bin (pt.b, test_plaintexts[i])) printf ("plaintext error");
-    
-    TEA_Encrypt (&pt, &key, TEA_ENCRYPT);
-    
-    if (memcmp (pt.b, ct.b, TEA_BLK_LEN) != 0) {
-      printf ("\nFailed for \"%s\"", test_plaintexts[i]);
-      printf ("\nGot : ");
-      dump_hex(pt.b, 8);
-      printf (" instead of ");
-      dump_hex(ct.b, 8);
-      
-      ++fails;
-    }
-  }
-  return fails;
-}
-
-// do not use this for real application
-// initialize with more appropriate source of information!
-// time() is not random but you should know that already..
-void fill_rand (uint8_t out[], int len) {
-  int i;
-  srand(time(0));
-  for (i=0; i<len; i++) {
-    out[i] = (uint8_t)rand();
-  }
-}
-
-void dump (char txt[], uint8_t in[], int len) {
-  int i;
-  printf ("\n%s : ", txt);
-  for (i=0; i<len; i++) {
-    printf ("%02x", in[i]);
-  }
-}
-
-int main (int argc, char *argv[])
-{
-  int f = run_tests();
-  if (!f) printf("Passed Test OK\n");
-  //enc_test();
-  return 0;
+    memcpy(data, plain, 8);
+    tea(key, data);
+    equ = (memcmp(data, cipher, 8)==0);
+    printf("TEA test : %s\n", equ ? "OK" : "FAILED");
+    return 0;
 }

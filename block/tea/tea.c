@@ -26,52 +26,24 @@
   STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
-  
-#include "tea.h"
 
-void TEA_Encrypt (void *data, void *key, int enc)
-{
-  w64_t  *v=(w64_t*)data;
-  w128_t *k=(w128_t*)key;
-  
-  uint32_t v0, v1, i, sum=0x9e3779b9;
-  
-  if (enc==TEA_DECRYPT) {
-    sum <<= 5;
-  }
-  
-  v0 = (v->w[0]); 
-  v1 = (v->w[1]);
-  
-  if (enc==TEA_ENCRYPT)
-  {
-    for (i=0; i<TEA_ROUNDS; i++) 
-    {         
-      v0 += ((v1 << 4) + k->w[0]) ^ 
-             (v1 + sum) ^ 
-            ((v1 >> 5) + k->w[1]);
-            
-      v1 += ((v0 << 4) + k->w[2]) ^ 
-             (v0 + sum) ^ 
-            ((v0 >> 5) + k->w[3]);
-            
-      sum += 0x9e3779b9;
+typedef unsigned int u32;
+
+#include <stdio.h>
+
+void tea(void *mk, void *data) {
+    u32 i, idx=0, v0, v1, t, *v=data, *k=mk, sum=0x9e3779b9;
+    
+    v0=v[0]; v1=v[1];
+    
+    for(i=0;;i++, idx+=2) {
+      if(sum == 0x9e3779b9*33) break;
+      v0 += (((v1 << 4) + k[idx%4]) ^ 
+             ((v1 >> 5) + k[(idx+1)%4]) ^ (v1 + sum));
+      t=v0; v0=v1; v1=t;
+      if(idx & 3) {
+        sum += 0x9e3779b9;
+      }
     }
-  } else {
-    for (i=0; i<TEA_ROUNDS; i++) 
-    {
-      v1 -= ((v0 << 4) + k->w[2]) ^ 
-             (v0 + sum) ^ 
-            ((v0 >> 5) + k->w[3]);
-              
-      v0 -= ((v1 << 4) + k->w[0]) ^ 
-             (v1 + sum) ^ 
-            ((v1 >> 5) + k->w[1]);
-            
-      sum -= 0x9e3779b9;
-    }  
-  }
-  v->w[0] = (v0); 
-  v->w[1] = (v1);
+    v[0]=v0; v[1]=v1;
 }
-

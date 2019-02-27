@@ -1,4 +1,4 @@
-msvc:
-		cl /nologo /O2 /DTEST test.c tea.c
-all:
-		gcc -DTEST -Wall -O2 test.c tea.c -otest	 
+test:
+	gcc -Wall -Os test.c tea.c -otest
+clean:
+	rm -rf *.o test

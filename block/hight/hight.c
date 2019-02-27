@@ -30,7 +30,7 @@
 #include "hight.h"
 
 // use lookup table for constants
-#ifdef LUT
+#ifndef DYNAMIC
 uint8_t rc[128]=
 { 0x5a, 0x6d, 0x36, 0x1b, 0x0d, 0x06, 0x03, 0x41,
   0x60, 0x30, 0x18, 0x4c, 0x66, 0x33, 0x59, 0x2c,
@@ -96,7 +96,7 @@ void hight128_setkey(void *in, void *out)
     wk=(w128_t*)out;
     sk=(uint8_t*)out;
     
-    // apply key whitening
+
     wk->w[0] = mk->w[3];
     wk->w[1] = mk->w[0];
 
