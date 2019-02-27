@@ -32,17 +32,22 @@
 void rc6(void*mk,void*p){
     W A=0xB7E15163,B,C,D,i,X,Y,S[44],L[8],*x=p,*k=mk;
 
+    // copy 256-bit key to local memory
     F(8)L[i]=k[i];
     k=S;
     
     F(44)S[i]=A,A+=0x9E3779B9;
     A=B=0;
     
+    // create subkeys
     F(44*3)
       A=S[i%44]=R(S[i%44]+A+B,3),
       B=L[i%8]=R(L[i%8]+A+B,A+B);
       
-    A=*x;B=x[1];C=x[2];D=x[3];
+    // load 128-bit plaintext
+    A=x[0];B=x[1];C=x[2];D=x[3];
+    
+    // encrypt
     B+=*k++;D+=*k++;
 
     F(20)
@@ -53,6 +58,7 @@ void rc6(void*mk,void*p){
       X=A,A=B,B=C,C=D,D=X;
       
     A+=*k++;C+=*k++;
-    *x=A;x[1]=B;x[2]=C;x[3]=D;
+    // store 128-bit ciphertext
+    x[0]=A;x[1]=B;x[2]=C;x[3]=D;
 }
       

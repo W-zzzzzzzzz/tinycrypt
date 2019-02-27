@@ -34,7 +34,7 @@
 typedef unsigned char B;
 typedef unsigned int W;
 
-#ifdef LUT
+#ifndef DYNAMIC
 // sbox
 B H[256] =
   { 0xB1, 0x94, 0xBA, 0xC8, 0x0A, 0x08, 0xF5, 0x3B,
@@ -107,8 +107,10 @@ W G(W x, W *key, int idx, int r) {
 void belt(void *mk, void *data) {
     W a,b,c,d,i,j,t,e,*x=(W*)data,*k=(W*)mk;
     
+    // load 128-bit plaintext
     a=x[0],b=x[1],c=x[2],d=x[3];
     
+    // encrypt
     for(i=0,j=0;i<8;) {
       b^=G(a,k,j++, 5),c^=G(d,k,j++,  21),
       a-=G(b,k,j++,13),e =G(b+c,k,j++,21),
@@ -116,5 +118,6 @@ void belt(void *mk, void *data) {
       b^=G(a,k,j++,21),c^=G(d,k,j++,   5),
       X(a,b),X(c,d),X(b,c);
     }
+    // save 128-bit ciphertext
     x[0]=b,x[1]=d,x[2]=a,x[3]=c;
 }

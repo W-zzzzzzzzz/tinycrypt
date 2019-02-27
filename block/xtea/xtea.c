@@ -36,8 +36,10 @@ void xtea_encrypt(void *key, void *buf) {
     uint32_t *k=(uint32_t*)key;
     uint32_t *v=(uint32_t*)buf;
     
+    // load 64-bit plaintext
     v0 = v[0]; v1 = v[1];
     
+    // apply 32 rounds
     for (i=64; i>0; i--) {
       t = sum;
       if (i & 1) {
@@ -50,5 +52,6 @@ void xtea_encrypt(void *key, void *buf) {
          
       XCHG(v0, v1);
     }
+    // save 64-bit ciphertext
     v[0] = v0; v[1] = v1;
 }
