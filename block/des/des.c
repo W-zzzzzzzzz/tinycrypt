@@ -35,7 +35,7 @@ typedef unsigned int uint32_t;
 typedef unsigned long long uint64_t;
 
 typedef union _w64_t {
-  uint8_t b[8];
+  uint8_t  b[8];
   uint32_t w[2];
   uint64_t q;
 } w64_t;

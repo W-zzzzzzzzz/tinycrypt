@@ -90,7 +90,8 @@
   // 128-bit version for 8-bit architectures
 
   void aes_ecb(void *mk, void *data) {
-      u8 a,b,c,d,i,j,t,x[AES_BLK_LEN],k[AES_KEY_LEN],rc=1,*s=(u8*)data;
+      u8 a,b,c,d,i,j,t,x[AES_BLK_LEN],
+        k[AES_KEY_LEN],rc=1,*s=(u8*)data;
       
       // copy 128-bit plain text + 128-bit master key to x
       for(i=0;i<AES_BLK_LEN;i++) {
@@ -164,7 +165,7 @@
           r=(r+1)&1;
           // SubBytes and ShiftRows
           for(i=0;i<AES_BLK_LEN;i++) {
-            ((u8*)x)[(i%4)+(((i/4)-(i%4))%4)*4] = S(((u8*)s)[i]);
+            ((u8*)x)[(i%4)+(((i/4)-(i%4))%4)*4]=S(((u8*)s)[i]);
           }
           // if not round 15, MixColumns    
           if((c!=128) | r) {
