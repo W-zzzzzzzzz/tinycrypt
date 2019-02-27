@@ -183,7 +183,8 @@ void des_set_key (void *mk, uint8_t rk[128]) {
       permute(shiftkey,k1,k2);
       k=k2;
       
-      if(t&1) {
+      // shift key 
+      if(t & 1) {
         permute(shiftkey,k2,k1);
         k=k1;
       }

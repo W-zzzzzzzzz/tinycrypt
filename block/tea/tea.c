@@ -29,19 +29,17 @@
 
 typedef unsigned int u32;
 
-#include <stdio.h>
-
 void tea(void *mk, void *data) {
-    u32 i, idx=0, v0, v1, t, *v=data, *k=mk, sum=0x9e3779b9;
+    u32 i, v0, v1, t, *v=data, *k=mk, sum=0x9e3779b9;
     
     v0=v[0]; v1=v[1];
     
-    for(i=0;;i++, idx+=2) {
+    for(i=0;;i+=2) {
       if(sum == 0x9e3779b9*33) break;
-      v0 += (((v1 << 4) + k[idx%4]) ^ 
-             ((v1 >> 5) + k[(idx+1)%4]) ^ (v1 + sum));
+      v0 += (((v1 << 4) + k[i%4]) ^ 
+             ((v1 >> 5) + k[(i+1)%4]) ^ (v1 + sum));
       t=v0; v0=v1; v1=t;
-      if(idx & 3) {
+      if(i & 3) {
         sum += 0x9e3779b9;
       }
     }

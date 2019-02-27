@@ -1,41 +1,31 @@
-<strong>Introduction</strong>
+<h3><strong>Introduction</strong></h3>
 
-<a href="http://www.cix.co.uk/~klockstone/tea.pdf">Tiny Encryption Algorithm</a> was published in November 1994 by Cambridge computer scientists, <a href="https://en.wikipedia.org/wiki/David_Wheeler_%28British_computer_scientist%29">David John Wheeler</a> and <a href="https://en.wikipedia.org/wiki/Roger_Needham">Roger Needham</a>
+<p><a href="http://www.cix.co.uk/~klockstone/tea.pdf">Tiny Encryption Algorithm</a> (TEA) is a 64-bit block cipher with support for 128-bit keys. It was published in November 1994 by Cambridge computer scientists, <a href="https://en.wikipedia.org/wiki/David_Wheeler_%28British_computer_scientist%29">David John Wheeler</a> and <a href="https://en.wikipedia.org/wiki/Roger_Needham">Roger Needham</a>. TEA is not subject to any patents. This along with its simplicity made it attractive to various developers, particularly in the field of microelectronics where memory is limited. Others just wanted a simple encryption algorithm free of license restrictions. It was popular enough that even Microsoft developers used it to secure firmware on the first xbox consoles as one hacker noted in 2007.</p>
 
-TEA is not subject to any patents. This along with its simplicity made it attractive to various developers, particularly in the field of microelectronics where memory is limited. (well, I'm sure it probably was 20 years ago)
+<p><blockquote>After reading Bruce Schneier's book on crypto, we learned that TEA was a really bad choice as a hash. The book says that TEA must never be used as a hash, because it is insecure if used this way. If you flip both bit 16 and 31 of a 32 bit word, the hash will be the same. We could easily patch a jump in the second bootloader so that it would not be recognized. This modified jump lead us directly into flash memory.
 
-Others just wanted a simple encryption algorithm free of license restrictions. It was popular enough that even Microsoft developers used it to secure firmware on the first xbox consoles as one hacker noted in 2007.
+But why did they make this mistake? Obviously the designers knew nothing about crypto - again! - and just added code without understanding it and without even reading the most basic books on the topic. A possible explanation why they chose TEA would be that they might have searched the internet for a "tiny" encryption algorithm - and got TEA. </blockquote></p>
 
-<blockquote>After reading Bruce Schneier's book on crypto, we learned that TEA was a really bad choice as a hash. The book says that TEA must never be used as a hash, because it is insecure if used this way. If you flip both bit 16 and 31 of a 32 bit word, the hash will be the same. We could easily patch a jump in the second bootloader so that it would not be recognized. This modified jump lead us directly into flash memory.
+<pre style='color:#000000;background:#ffffff;'><span style='color:#800000; font-weight:bold; '>typedef</span> <span style='color:#800000; font-weight:bold; '>unsigned</span> <span style='color:#800000; font-weight:bold; '>int</span> u32<span style='color:#800080; '>;</span>
 
-But why did they make this mistake? Obviously the designers knew nothing about crypto - again! - and just added code without understanding it and without even reading the most basic books on the topic. A possible explanation why they chose TEA would be that they might have searched the internet for a "tiny" encryption algorithm - and got TEA. </blockquote>
-
-What follows is a tiny implementation of TEA in x86 assembly. It is not written for speed and I do not endorse it as a secure block cipher. This isn't about promoting any specific encryption algorithm, just exploring the ways in which they can be optimized for size.
-
-First, the C implementations provided by the authors with some slight modifications. Key size is 128-bit, block size is 64-bit with 32 rounds.
-
-<pre style='color:#000000;background:#ffffff;'><span style='color:#004a43;'>#</span><span style='color:#004a43;'>define</span><span style='color:#004a43;'> TEA_ENCRYPT 0</span>
-<span style='color:#004a43;'>#</span><span style='color:#004a43;'>define</span><span style='color:#004a43;'> TEA_DECRYPT 1</span>
-
-<span style='color:#004a43;'>#</span><span style='color:#004a43;'>define</span><span style='color:#004a43;'> TEA_BLK_LEN 8</span>
-<span style='color:#004a43;'>#</span><span style='color:#004a43;'>define</span><span style='color:#004a43;'> TEA_KEY_LEN 16</span>
-
-<span style='color:#004a43;'>#</span><span style='color:#004a43;'>define</span><span style='color:#004a43;'> TEA_ROUNDS 32</span>
-
-<span style='color:#800000;font-weight:bold;'>typedef</span> <span style='color:#800000;font-weight:bold;'>union</span> tea_blk_t <span style='color:#800080;'>{</span>
-  uint8_t b<span style='color:#808030;'>[</span><span style='color:#008c00;'>8</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
-  uint16_t w<span style='color:#808030;'>[</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
-  uint32_t d<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
-  uint64_t q<span style='color:#800080;'>;</span>
-<span style='color:#800080;'>}</span> tea_blk<span style='color:#800080;'>;</span>
-
-<span style='color:#800000;font-weight:bold;'>typedef</span> <span style='color:#800000;font-weight:bold;'>union</span> tea_key_t <span style='color:#800080;'>{</span>
-  uint8_t b<span style='color:#808030;'>[</span><span style='color:#008c00;'>16</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
-  uint16_t w<span style='color:#808030;'>[</span><span style='color:#008c00;'>8</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
-  uint32_t d<span style='color:#808030;'>[</span><span style='color:#008c00;'>4</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>
-  uint64_t q<span style='color:#808030;'>[</span><span style='color:#008c00;'>2</span><span style='color:#808030;'>]</span><span style='color:#800080;'>;</span>  
-<span style='color:#800080;'>}</span> tea_key<span style='color:#800080;'>;</span>
+<span style='color:#800000; font-weight:bold; '>void</span> tea<span style='color:#808030; '>(</span><span style='color:#800000; font-weight:bold; '>void</span> <span style='color:#808030; '>*</span>mk<span style='color:#808030; '>,</span> <span style='color:#800000; font-weight:bold; '>void</span> <span style='color:#808030; '>*</span>data<span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+    u32 i<span style='color:#808030; '>,</span> v0<span style='color:#808030; '>,</span> v1<span style='color:#808030; '>,</span> t<span style='color:#808030; '>,</span> <span style='color:#808030; '>*</span>v<span style='color:#808030; '>=</span>data<span style='color:#808030; '>,</span> <span style='color:#808030; '>*</span>k<span style='color:#808030; '>=</span>mk<span style='color:#808030; '>,</span> sum<span style='color:#808030; '>=</span><span style='color:#008000; '>0x9e3779b9</span><span style='color:#800080; '>;</span>
+    
+    v0<span style='color:#808030; '>=</span>v<span style='color:#808030; '>[</span><span style='color:#008c00; '>0</span><span style='color:#808030; '>]</span><span style='color:#800080; '>;</span> v1<span style='color:#808030; '>=</span>v<span style='color:#808030; '>[</span><span style='color:#008c00; '>1</span><span style='color:#808030; '>]</span><span style='color:#800080; '>;</span>
+    
+    <span style='color:#800000; font-weight:bold; '>for</span><span style='color:#808030; '>(</span>i<span style='color:#808030; '>=</span><span style='color:#008c00; '>0</span><span style='color:#800080; '>;</span><span style='color:#800080; '>;</span>i<span style='color:#808030; '>+</span><span style='color:#808030; '>=</span><span style='color:#008c00; '>2</span><span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+      <span style='color:#800000; font-weight:bold; '>if</span><span style='color:#808030; '>(</span>sum <span style='color:#808030; '>=</span><span style='color:#808030; '>=</span> <span style='color:#008000; '>0x9e3779b9</span><span style='color:#808030; '>*</span><span style='color:#008c00; '>33</span><span style='color:#808030; '>)</span> <span style='color:#800000; font-weight:bold; '>break</span><span style='color:#800080; '>;</span>
+      v0 <span style='color:#808030; '>+</span><span style='color:#808030; '>=</span> <span style='color:#808030; '>(</span><span style='color:#808030; '>(</span><span style='color:#808030; '>(</span>v1 <span style='color:#808030; '>&lt;</span><span style='color:#808030; '>&lt;</span> <span style='color:#008c00; '>4</span><span style='color:#808030; '>)</span> <span style='color:#808030; '>+</span> k<span style='color:#808030; '>[</span>i<span style='color:#808030; '>%</span><span style='color:#008c00; '>4</span><span style='color:#808030; '>]</span><span style='color:#808030; '>)</span> <span style='color:#808030; '>^</span> 
+             <span style='color:#808030; '>(</span><span style='color:#808030; '>(</span>v1 <span style='color:#808030; '>></span><span style='color:#808030; '>></span> <span style='color:#008c00; '>5</span><span style='color:#808030; '>)</span> <span style='color:#808030; '>+</span> k<span style='color:#808030; '>[</span><span style='color:#808030; '>(</span>i<span style='color:#808030; '>+</span><span style='color:#008c00; '>1</span><span style='color:#808030; '>)</span><span style='color:#808030; '>%</span><span style='color:#008c00; '>4</span><span style='color:#808030; '>]</span><span style='color:#808030; '>)</span> <span style='color:#808030; '>^</span> <span style='color:#808030; '>(</span>v1 <span style='color:#808030; '>+</span> sum<span style='color:#808030; '>)</span><span style='color:#808030; '>)</span><span style='color:#800080; '>;</span>
+      t<span style='color:#808030; '>=</span>v0<span style='color:#800080; '>;</span> v0<span style='color:#808030; '>=</span>v1<span style='color:#800080; '>;</span> v1<span style='color:#808030; '>=</span>t<span style='color:#800080; '>;</span>
+      <span style='color:#800000; font-weight:bold; '>if</span><span style='color:#808030; '>(</span>i <span style='color:#808030; '>&amp;</span> <span style='color:#008c00; '>3</span><span style='color:#808030; '>)</span> <span style='color:#800080; '>{</span>
+        sum <span style='color:#808030; '>+</span><span style='color:#808030; '>=</span> <span style='color:#008000; '>0x9e3779b9</span><span style='color:#800080; '>;</span>
+      <span style='color:#800080; '>}</span>
+    <span style='color:#800080; '>}</span>
+    v<span style='color:#808030; '>[</span><span style='color:#008c00; '>0</span><span style='color:#808030; '>]</span><span style='color:#808030; '>=</span>v0<span style='color:#800080; '>;</span> v<span style='color:#808030; '>[</span><span style='color:#008c00; '>1</span><span style='color:#808030; '>]</span><span style='color:#808030; '>=</span>v1<span style='color:#800080; '>;</span>
+<span style='color:#800080; '>}</span>
 </pre>
+
 
 <strong>Encryption</strong>
 
