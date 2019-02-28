@@ -1,11 +1,11 @@
 <h3><strong>Introduction</strong></h3>
 
-<p>Nothing Up My Sleeve Numbers (NUMSN) are numeric constants in cryptographic algorithms that normally include a reasonable explanation from the designer how they were generated. Explaining how the numbers were created is intended to diminish any fears among users the numbers have some hidden properties that might purposely introduce a security weakness that only the designers know about. <a href="https://archive.org/stream/pocorgtfo08#page/n47/mode/2up">Backdoors up my Sleeve</a> by <a href="https://aumasson.jp/">JP Aumasson</a> suggests using NUMSN <a href="https://github.com/veorq/numsgen">doesn't automatically guarantee the security of a cryptographic algorithm</a>, but any algorithm with numbers absent of a rational explanation or verifiable formula/algorithm, is generally going to be viewed with much more suspicion than if it did. For example, there has been some suspicion surrounding algorithms like SM3, SM4 and Kuznyechik to name a few. The NUMSN I'll cover in this post include: MD2, MD4, MD5, SHA-1, SHA-2, SM4, Bel-T, Salsa, ChaCha, BlaBla, BLAKE2, Blowfish, AES, SEED, SAFER, XTEA, Gimli, RC5, RC6, Kuznyechik and ARIA.</p>
+<p>Nothing Up My Sleeve Numbers (NUMSN) are numeric constants in cryptographic algorithms that normally include a reasonable explanation from the designer how they were generated. Explaining how the numbers were created is intended to diminish any fears among users the numbers have some hidden properties that might purposely introduce a security weakness that only the designers know about. <a href="https://archive.org/stream/pocorgtfo08#page/n47/mode/2up">Backdoors up my Sleeve</a> by <a href="https://aumasson.jp/">JP Aumasson</a> suggests using NUMSN <a href="https://github.com/veorq/numsgen">doesn't automatically guarantee the security of a cryptographic algorithm</a>, but any algorithm with numbers absent of a rational explanation or verifiable formula/algorithm, is generally going to be viewed with much more suspicion than if it did.</p>
 
 <h2>Table of contents</h2>
 
 <ol>
-  <li><a href="#hash">Cryptographic hash algorithms</a>
+  <li>Cryptographic hash algorithms
     <ol>
       <li><a href="#md2">MD2</a></li>
       <li><a href="#md4">MD4</a></li>
@@ -19,11 +19,10 @@
       <li><a href="#streebog">Streebog</a></li>
     </ol>
   </li>
-  <li><a href="block">Block ciphers</a>
+  <li>Block ciphers
     <ol>
-      <li><a href="rc5">RC5</a></li>
+      <li><a href="rc5">RC5/RC6</a></li>
       <li><a href="blowfish">Blowfish</a></li>
-      <li><a href="rc5">RC6</a></li>
       <li><a href="tea">TEA/XTEA</a></li>
       <li><a href="noekeon">NOEKEON</a></li>
       <li><a href="aes">AES</a></li>
@@ -33,11 +32,20 @@
       <li><a href="belt">Bel-T</a></li>
       <li><a href="sm4">SM4</a></li>
       <li><a href="kuznyechik">Kuznyechik</a></li>
+      <li><a href="lea">LEA</a></li>
+    </ol>
+  </li>
+  <li>Stream ciphers
+    <ol>
+      <li><a href="chacha">ChaCha/Salsa</a></li>
+      <li><a href="blabla">BlaBla</a></li>
+      <li><a href="rabbit">Rabbit</a></li>
+      <li><a href="zuc">ZUC</a></li>
     </ol>
   </li>
 </ol>
 
-<h3 id="md2"><strong>MD2 cryptographic hash</strong></h3>
+<h3 id="md2"><strong>MD2</strong></h3>
 
 <p><a href="https://tools.ietf.org/rfc/rfc1319.txt">RFC 1319</a> published in 1992 by <a href="http://people.csail.mit.edu/rivest/">Ron Rivest</a> provides no explanation for how PI was generated beyond the following:</p>
 
@@ -183,7 +191,7 @@ uint32_t md2_rand<span style='color:#808030;'>(</span>uint32_t n<span style='col
 <span style='color:#800080;'>}</span>
 </pre>
 
-<h3 id="md4"><strong>MD4 cryptographic hash</strong></h3>
+<h3 id="md4"><strong>MD4</strong></h3>
 
 <p><a href="https://tools.ietf.org/rfc/rfc1320.txt">RFC 1320</a> published in 1992 by Ron Rivest uses 2 unique constants in the compression function.</p>
 
@@ -219,7 +227,7 @@ uint32_t sqrt2int <span style='color:#808030;'>(</span>uint32_t x<span style='co
 <span style='color:#800080;'>}</span>
 </pre>
    
-<h3 id="md5"><strong>MD5 cryptographic hash</strong></h3>
+<h3 id="md5"><strong>MD5</strong></h3>
 
 <p><a href="https://tools.ietf.org/rfc/rfc1321.txt">RFC 1321</a> published in 1992 uses 64 unique constants in the compression function. These are calculated by passing 1-64 to the trigonometric $latex sin$ function. Each result is multiplied by $latex 2^{32}$ before conversion to 32-bit integer.</p>
 
@@ -246,7 +254,7 @@ uint32_t sin2int <span style='color:#808030;'>(</span>uint32_t i<span style='col
 <span style='color:#800080;'>}</span>
 </pre>
 
-<h3 id="sha1"><strong>SHA-1 cryptographic hash</strong></h3>
+<h3 id="sha1"><strong>SHA-1</strong></h3>
 
 <p>Designed by the NSA and published in 1995, this algorithm was definitely inspired by MD4. The generation of $latex K$ constants used in <a href="https://tools.ietf.org/rfc/rfc3174.txt">SHA-1</a> are exactly the same as those generated in MD4. There are two additional values derived from 5 and 10 respectively.</p>
 
@@ -274,7 +282,7 @@ uint32_t sqrt2int <span style='color:#808030;'>(</span>uint32_t x<span style='co
 <span style='color:#800080;'>}</span>
 </pre>
 
-<h3 id="sha2"><strong>SHA-2 cryptographic hash</strong></h3>
+<h3 id="sha2"><strong>SHA-2</strong></h3>
 
 <p><a href="https://tools.ietf.org/rfc/rfc6234.txt">SHA-2</a> was published in 2001. The K constants are generated similar to how T constants are in MD5, except the first 64 prime numbers are used. The H values are derived from square root of first 8 primes.
 The K values are derived from cube root of first 64 primes.</p>
@@ -766,13 +774,13 @@ uint8_t gf_inv<span style='color:#808030;'>(</span>uint8_t a<span style='color:#
 <span style='color:#800080;'>}</span>
 </pre>
 
-<h3 id="zuc"><strong>Bel-T block cipher</strong></h3>
+<h3 id="zuc"><strong>Bel-T</strong></h3>
 
-<h3 id="zuc"><strong>ZUC stream cipher</strong></h3>
+<h3 id="zuc"><strong>ZUC</strong></h3>
 
-<h3 id="sm3"><strong>SM3 cryptographic hash</strong></h3>
+<h3 id="sm3"><strong>SM3</strong></h3>
 
-<h3 id="sm4"><strong>SM4 block cipher</strong></h3>
+<h3 id="sm4"><strong>SM4</strong></h3>
 
 <h3 id="kuznyechik">Kuznyechik "GrassHopper" Block Cipher / Streebog</h3>
 

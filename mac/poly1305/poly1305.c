@@ -63,9 +63,7 @@ void poly1305_add(
  * "P" is 2^130-5 or 3fffffffffffffffffffffffffffffffb
  *
  **********************************************/
-void poly1305_mulmod(
-    uint32_t acc[17],
-    const uint32_t r[17])
+void poly1305_mulmod(uint32_t acc[17], const uint32_t r[17])
 {
     uint32_t hr[17];
     uint32_t i, j, u;
@@ -109,21 +107,22 @@ void poly1305_mac (
     const uint8_t *in, 
     uint32_t inlen, 
     const uint8_t *k)
-{
+    {
     uint32_t i, len, neg;
     uint32_t r[17], acc[17];
     uint8_t  minusp[16]={5};
-    
-    // copy r
+
+    // copy key to local memory
     for (i=0; i<16; i++) {
       r[i] = k[i];
     }
     // clamp r
+    // r &= 0xffffffc0ffffffc0ffffffc0fffffff
     r[ 3] &= 15;
     r[ 7] &= 15;
     r[11] &= 15;
     r[15] &= 15;
-    
+
     r[ 4] &= 252;
     r[ 8] &= 252;
     r[12] &= 252;
@@ -155,14 +154,14 @@ void poly1305_mac (
 
     poly1305_add (acc, minusp, 16, 252);
     neg = -(acc[16] >> 7);
-    
+
     for (i=0; i<17; i++) {
       acc[i] ^= neg & (r[i] ^ acc[i]);
     }
-    
+
     // add s
     poly1305_add (acc, &k[16], 16, 0);
-    
+
     // return tag
     for (i=0; i<16; i++) {
       out[i] = acc[i];
