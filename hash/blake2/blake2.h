@@ -36,7 +36,7 @@ typedef struct _blake2_ctx {
     W s[16], idx, outlen;
     union {
       B b[BLOCKLEN];
-      W w[BLOCKLEN/WORDLEN];
+      W w[BLOCKLEN/(WORDLEN/8)];
     }x;
     Q len;
 } blake2_ctx;
