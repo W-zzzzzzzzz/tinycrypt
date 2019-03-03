@@ -1,4 +1,4 @@
-msvc:
-    cl /nologo /O2 /Ot /DTEST blabla.c
-all:
-    gcc -DTEST -Wall -O2 -Ot blabla.c -oblabla   
+test:
+	gcc -Wall -Os test.c crc16.c crc32.c crc64.c -otest
+clean:
+	rm -f *.o test

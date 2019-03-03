@@ -32,14 +32,24 @@
 
 #include "../../macros.h"
 
+typedef struct _crc_param_t {
+    char    *str;    // description
+    uint64_t poly;   // polynomial
+    uint64_t iv;     // initial value
+    int      refin;  // reverse input
+    int      refout; // reverse output
+    uint64_t xor;    // xor output
+    uint64_t check;
+} crc_param;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-  uint16_t crc16(uint16_t, uint32_t, void*);
-  uint32_t crc32(uint32_t, uint32_t, void*);
-  uint32_t crc32c(uint32_t, uint32_t, void*);
-
+  uint16_t crc16(const void *input, size_t len, crc_param*);
+  uint32_t crc32(const void *input, size_t len, crc_param*);
+  uint64_t crc64(const void *input, size_t len, crc_param*);
+   
 #ifdef __cplusplus
 }
 #endif
