@@ -39,7 +39,7 @@ typedef struct _crc_param_t {
     int      rin;     // reverse bits of input
     int      rout;    // reverse bits of output
     uint64_t xor;     // xor final value
-    uint64_t check;   // weak key
+    uint64_t tv;      // test vector for "123456789"
     uint64_t wordlen; // length of CRC in bits
 } crc_param;
 
