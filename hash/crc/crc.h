@@ -33,14 +33,14 @@
 #include "../../macros.h"
 
 typedef struct _crc_param_t {
-    char    *str;    // description
-    uint64_t poly;   // polynomial
-    uint64_t iv;     // initial value
-    int      refin;  // reverse input
-    int      refout; // reverse output
-    uint64_t xor;    // xor output
-    uint64_t check;
-    uint64_t bitlen;
+    char    *str;     // description
+    uint64_t poly;    // polynomial
+    uint64_t iv;      // initial value
+    int      rin;     // reverse bits of input
+    int      rout;    // reverse bits of output
+    uint64_t xor;     // xor final value
+    uint64_t check;   // weak key
+    uint64_t wordlen; // length of CRC in bits
 } crc_param;
 
 #ifdef __cplusplus

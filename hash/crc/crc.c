@@ -5,34 +5,33 @@
 
 static uint64_t crc_table[256];
 
-static uint64_t reflect(uint64_t bitlen, uint64_t x) {
+// reverse bits of x
+static uint64_t rbit(uint64_t x, uint64_t wordlen) {
     uint64_t i, r = 0;
     
-    for(i=0; i<bitlen; i++) {
+    for(i=0; i<wordlen; i++) {
       if((x & (1ULL << i)) != 0) {
-        r |= ((1ULL << (bitlen - i - 1)));
+        r |= ((1ULL << (wordlen - i - 1)));
       }
     }
     return r;
 }
  
-static void create_table(crc_param *p) {
+static void create_table(crc_param *p, uint64_t m) {
     int      j;
-    uint64_t i, r, m=~0ULL;
-    
-    if(p->bitlen<64) m = (1ULL << p->bitlen) - 1;
+    uint64_t i, r;
     
     for(i=0; i<256; i++) {
-      r = (p->refin) ? reflect(p->bitlen, i) : i << (p->bitlen - 8);
+      r = (p->rin) ? rbit(i, p->wordlen) : i << (p->wordlen - 8);
 
       for (j=0; j<8; j++) {
-        if (r & (1ULL << (p->bitlen - 1))) {
+        if (r & (1ULL << (p->wordlen - 1))) {
           r = ((r << 1ULL) ^ p->poly);
         } else {
           r <<= 1ULL;
         }
       }
-      r = (p->refout) ? reflect(p->bitlen, r) : r;
+      r = (p->rout) ? rbit(r, p->wordlen) : r;
       crc_table[i] = (r & m);
     }
 }
@@ -42,19 +41,20 @@ uint64_t crc(const void *input, size_t len, crc_param *p) {
     uint8_t  *data=(uint8_t*)input;
     int      i;
     
-    if(p->bitlen<64) m = (1ULL << p->bitlen) - 1;
+    if(p->wordlen<64) m = (1ULL << p->wordlen) - 1;
 
-    create_table(p);
+    create_table(p, m);
     
-    crc = p->refin ? reflect(p->bitlen, p->iv) : p->iv;
+    crc = p->rin ? rbit(p->iv, p->wordlen) : p->iv;
     
     for(i=0; i<len; i++) {
-      if (p->refout) {
+      if (p->rout) {
         crc = (crc >> 8) ^ crc_table[(crc&0xFF)^data[i]];
       } else {
-        crc = (crc << 8) ^ crc_table[(crc>>(p->bitlen-8))^data[i]];  
+        crc = (crc << 8) ^ crc_table[(crc>>(p->wordlen-8))^data[i]];  
       }
       crc &= m;
     }
     return (crc ^ p->xor) & m;
 }
+
