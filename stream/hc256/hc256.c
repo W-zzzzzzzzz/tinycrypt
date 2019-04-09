@@ -29,11 +29,13 @@
 
 #include "hc.h"
 
+#define R(v,n)(((v)>>(n))|((v)<<(32-(n))))
+
 // key stream generation function
 uint32_t hc256_generate(hc_ctx* c) {
     uint32_t r, i, i3, i10, i12, i1023;
     uint32_t *x0, *x1;
-    uint32_t w0, w1, t;
+    uint32_t w0, t;
     
     // load counter
     t = c->ctr;
@@ -41,8 +43,7 @@ uint32_t hc256_generate(hc_ctx* c) {
     // update counter % 2048
     c->ctr = (c->ctr+1) & 0x7ff;
     
-    x0 = c->P;
-    x1 = c->Q;
+    x0 = c->P; x1 = c->Q;
     
     // switch from P to Q every 1024 iterations
     if (t > 0x3ff) {
@@ -57,24 +58,23 @@ uint32_t hc256_generate(hc_ctx* c) {
     i1023 = (i - 1023) & 0x3ff;
 
     x0[i] += x0[i10] + 
-            (ROTR32(x0[i3], 10) ^ ROTL32(x0[i1023], 9)) + 
-            x1[(x0[i3] ^ x0[i1023]) & 0x3ff];
+       (R(x0[i3],10) ^ R(x0[i1023],23)) + 
+      x1[(x0[i3] ^ x0[i1023]) & 0x3ff];
     
     i12 = (i - 12) & 0x3ff;
     
-    w0 = x0[i];
-    w1 = x0[i12];
+    w0 = x0[i12];
 
     for (r=0, t=0; t<4; t++) {
-      r += x1[w1 & 255];
-      w1 >>= 8;
+      r += x1[w0 & 255];
+      w0 >>= 8;
       x1 += 1024/4;
     }
-    return r ^ w0;
+    return r ^ x0[i];
 }
 
-#define SIG0(x)(ROTR32((x),  7) ^ ROTR32((x), 18) ^ ((x) >>  3))
-#define SIG1(x)(ROTR32((x), 17) ^ ROTR32((x), 19) ^ ((x) >> 10))
+#define SIG0(x)(R((x), 7) ^ R((x),18) ^ ((x) >>  3))
+#define SIG1(x)(R((x),17) ^ R((x),19) ^ ((x) >> 10))
 
 // both key and iv must be 32 bytes each / 256-bits!
 void hc256_setkey(hc_ctx *c, void *key_iv) {

@@ -65,7 +65,7 @@ void blabla_stream(blabla_ctx *s, void *out) {
     uint16_t v[8]={0xC840,0xD951,0xEA62,0xFB73,
                    0xFA50,0xCB61,0xD872,0xE943};
             
-    // store internal state in buffer
+    // store internal state in output buffer
     F(16)x[i] = s->q[i];
     
     // permute buffer

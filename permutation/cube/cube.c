@@ -34,14 +34,14 @@
 typedef unsigned int W;
 typedef unsigned char B;
 
-void cube2(void*p)
-{
-  int i;
-  int r;
-  W y[16];
-  W *x=p;
+void cube2(void *p) {
+  int i, r;
+  W   y[16], *x=p;
+  B   c = 1;
 
   for (r = 0;r < 16;++r) {
+    x[0]^=c;c=(c<<1)^(-(c>>7)&0xF5);
+    
     for (i = 0;i < 16;++i) x[i + 16] += x[i];
     for (i = 0;i < 16;++i) y[i ^ 8] = x[i];
     for (i = 0;i < 16;++i) x[i] = ROTATE(y[i],25);
@@ -57,12 +57,12 @@ void cube2(void*p)
   }
 }
 
-void cube(void*p) {
-    W   i,r,k,y[16],*s=p;
-    int j;
-    B   c=1;
+void cube(void *p) {
+    W i,j,k,r,*s=p,y[16];
+    B c=1;
     
     F(r,16) {
+      s[0]^=c;c=(c<<1)^(-(c>>7)&0xF5);
       for(k=25,j=8;j>0;k-=4,j-=4) {          
         F(i,16)s[i+16]+=s[i];
         F(i,16)y[i^j]=s[i];
@@ -82,16 +82,24 @@ void cube(void*p) {
 #include <stdint.h>
 #include <string.h>
 
-char *tv_state[]=
-{"534D1C35DBE88600CCF525E53DE91A8C83425B17A53A1A8AAC00850AB08CB7C6FD40825F5132D1EE01BCB857C0C77A7614B76BF552C9E516E87AFC96AADABCB667261935DEB144A8378B1FEFE30A2977DC046EF05D2F5BD15FD7CAF3049DA9FEA013322093ADF1499686F6DCA85826AFA9362D186694C4118CD41D2A4EC18116",
-  "18E3DAB218E3DAB218E3DAB218E3DAB218E3DAB218E3DAB218E3DAB218E3DAB218E3DAB218E3DAB218E3DAB218E3DAB218E3DAB218E3DAB218E3DAB218E3DAB27AC45A267AC45A267AC45A267AC45A267AC45A267AC45A267AC45A267AC45A267AC45A267AC45A267AC45A267AC45A267AC45A267AC45A267AC45A267AC45A26"};
-
+uint8_t tv[]=
+{0x68,  0x85,  0x33,  0x09,  0xBB,  0x6D,  0x8D,  0xE1, 
+ 0xB7,  0x88,  0x64,  0x2C,  0x5B,  0xE6,  0x7D,  0x9D, 
+ 0xB7,  0x6B,  0xE2,  0x5B,  0x6B,  0x20,  0xB8,  0xE1, 
+ 0x36,  0xFC,  0x93,  0x1D,  0xA0,  0x1D,  0x57,  0x10, 
+ 0x88,  0x4F,  0x31,  0x6F,  0xE9,  0xDE,  0x3E,  0x35, 
+ 0x74,  0xFD,  0x98,  0xB0,  0xCC,  0xA8,  0x70,  0xAA, 
+ 0xB6,  0x46,  0x1E,  0x0A,  0x50,  0x77,  0xAF,  0xF3, 
+ 0x40,  0x02,  0xEC,  0xCD,  0xD4,  0xAC,  0xA8,  0xFC };
+ 
 void bin2hex(char *str, uint8_t *x, int len) {
     int i;
     
     printf("%s : ", str);
-    for (i=0; i<len; i++)
-      printf("%02X", x[i]);
+    for (i=0; i<len; i++) {
+      if (!(i & 7)) putchar('\n');
+      printf(" 0x%02X, ", x[i]);
+    }
     printf("\n");
 }
 
@@ -99,11 +107,14 @@ int main(void) {
     uint8_t s[128];
     int     i;
     
-    memset(s, 0xFF, sizeof(s));
-    
+    memset(s, 0, sizeof(s));
     F(i,10) cube(s);
-    
     bin2hex("state", s, 64);
+    
+    memset(s, 0, sizeof(s));
+    F(i,10) cube2(s);
+    bin2hex("state", s, 64);
+    
     return 0;
 }
 

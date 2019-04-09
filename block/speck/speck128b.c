@@ -26,23 +26,28 @@
   STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
   ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE. */
-  
-#ifndef SPECK_H
-#define SPECK_H
 
-#include "../../macros.h"
+#define R(v,n)(((v)>>(n))|((v)<<(64-(n))))
+#define F(n)for(i=0;i<n;i++)
+typedef unsigned long long W;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+void speck128b(void *mk, void *data) {
+    W k[4],*x=data,i,t;
 
-  void speck64(void*, void*);
-  void speck128a(void*, void*);
-  void speck128b(void*, void*);
+    // copy 256-bit master key to local memory
+    F(4)k[i]=((W*)mk)[i];
     
-#ifdef __cplusplus
+    // apply 34 rounds
+    F(34) {
+      // encrypt plaintext
+      // linear/nonlinear layers, add key
+      x[1]=(R(x[1],8)+x[0])^k[0];
+      x[0]=R(x[0],61)^x[1];
+      // create next subkey
+      // linear/nonlinear layers, add round counter
+      t=k[3];
+      k[3]=(R(k[1],8)+k[0])^i;
+      k[0]=R(k[0],61)^k[3];
+      k[1]=k[2]; k[2]=t;
+    }
 }
-#endif
-
-#endif
-

@@ -37,7 +37,7 @@
 #define SIG0(x)(R(x,7)^R(x,18)^((x)>>3))
 #define SIG1(x)(R(x,17)^R(x,19)^((x)>>10))
 
-void sha256_compress(sha256_ctx*c) {
+void sha256_compress(sha256_ctx *c) {
     W t1,t2,i,w[64],x[8];
     
     W k[64]=

@@ -30,8 +30,8 @@
 #include "sm4.h"
 
 #ifndef DYNAMIC
-uint8_t affine(uint8_t x) {     
-    uint8_t m=0xA7,s=0,t;
+B A(B x) {     
+    B m=0xA7,s=0,t;
     
     do {
       for(t=x&m;t;t>>=1)s^=(t&1);
@@ -42,20 +42,20 @@ uint8_t affine(uint8_t x) {
     return s^0xD3; 
 }
 
-uint8_t S(uint8_t x) {
-    uint8_t i, c, y;
+B S(B x) {
+    B i, c, y;
     
     // affine transformation
-    x = affine(x);
+    x = A(x);
     
     // multiplicative inverse
     // uses x^8 + x^7 + x^6 + x^5 + x^4 + x^2 + 1 as IRP
     if (x) {
-      for(c=i=0,y=1;--i;y=(!c&&y==x)?c=1:y,y^=(y<<1)^(y>>7)*0xF5);
+      for(c=i=0,y=1;--i;y=(!c&&y==x)?c=1:y,y^=(y<<1)^((-(y>>7))&0xF5));
       x=y;
     }
     // affine transformation
-    return affine(x);
+    return A(x);
 }
 
 #else
