@@ -30,7 +30,7 @@
 #ifndef XOODOO_H
 #define XOODOO_H
 
-#include "../include/macros.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {

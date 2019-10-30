@@ -30,7 +30,7 @@
 ; -----------------------------------------------
 ; Xoodoo Permutation Function in x86 assembly
 ;
-; size: 187 bytes
+; size: 183 bytes
 ;
 ; global calls use cdecl convention
 ;
@@ -49,29 +49,29 @@
 
 xoodoo:
 _xoodoo:
-    pushad
+    pusha
     mov    esi, [esp+32+4]   ; esi = state
-    push   4
-    pop    ecx
-    xor    eax, eax
-    cdq
-    pushad                   ; allocate 32 bytes of memory
+    xor    ecx, ecx          ; ecx = 0
+    mul    ecx               ; eax = 0, edx = 0
+    pusha                    ; allocate 32 bytes of memory
     mov    edi, esp          ; edi = e
-xoo_main:
-    pushad
-    call   ld_rc
-    dw     0x58,  0x38, 0x3c0, 0xd0
-    dw     0x120, 0x14,  0x60, 0x2c
-    dw     0x380, 0xf0, 0x1a0, 0x12
-ld_rc:
+    call   L0
+    dw 0x058, 0x038, 0x3c0, 0x0d0
+    dw 0x120, 0x014, 0x060, 0x02c
+    dw 0x380, 0x0f0, 0x1a0, 0x012
+L0:
     pop    ebx                  ; ebx = rc
-    movzx  ebp, word[ebx+2*ecx] ; ebp = rc[r]
+L1:
+    pusha                       ; save all
+    movzx  ebp, word[ebx+eax*2] ; ebp = rc[r]
+    mov    cl, 4                ; i = 4
+    pusha                       ; save all
     ;
     ; Theta
     ;
-    ; e[i] = R(x[i] ^ x[i+4] ^ x[i+8], 18);
-    ; e[i]^= R(e[i], 9);
-xd_l1:
+    ; e[i] = ROTR32(x[i] ^ x[i+4] ^ x[i+8], 18)
+    ; e[i]^= ROTR32(e[i], 9)
+L2:
     lodsd                    ; eax  = x[i]
     xor    eax, [esi+16-4]   ; eax ^= x[i+4]
     xor    eax, [esi+32-4]   ; eax ^= x[i+8]
@@ -80,81 +80,84 @@ xd_l1:
     ror    ebx, 9
     xor    eax, ebx
     stosd                    ; e[i] = eax
-    loop   xd_l1
-    ; x[i]^= e[(i - 1) & 3];
+    loop   L2
+    
+    ; x[i]^= e[(i - 1) & 3]  ;
     dec    edx               ; edx = -1
     mov    cl, 12
-xd_l2:
+L3:
     mov    eax, edx             ; eax = edx & 3
     and    eax, 3
-    mov    eax, [edi+4*eax-48]  ; eax = e[(i - 1) & 3]
+    mov    eax, [edi+4*eax-16]  ; eax = e[(i - 1) & 3]
     inc    edx                  ; i++
-    xor    [esi+4*edx-48], eax  ; x[i] ^= eax
-    loop   xd_l2
-xd_lx:
-    ; X(x[7], x[4]);
-    mov    eax, [esi+7*4-48]
-    xchg   eax, [esi+4*4-48]
+    xor    [esi+4*edx-16], eax  ; x[i] ^= eax
+    loop   L3
+L4:
+    ; XCHG(x[7], x[4])
+    mov    eax, [esi+7*4-16]
+    xchg   eax, [esi+4*4-16]
 
-    ; X(x[4], x[5]);
-    xchg   eax, [esi+5*4-48]
+    ; XCHG(x[4], x[5])
+    xchg   eax, [esi+5*4-16]
 
-    ; X(x[5], x[6]);
-    xchg   eax, [esi+6*4-48]
-    ; x[7] = x[6];
-    mov    [esi+7*4-48], eax
+    ; XCHG(x[5], x[6])
+    xchg   eax, [esi+6*4-16]
+    ; x[7] = x[6]
+    mov    [esi+7*4-16], eax
 
-    ; x[0] ^= rc[r];
-    xor    [esi-48], ebp
-xd_l6:
-    ; w0 = x[i+0];
-    mov    w0, [esi-48]
+    ; x[0] ^= rc[r]
+    xor    [esi-16], ebp
+    popa
+L5:
+    ; x0 = x[i+0]
+    lodsd
 
-    ; w1 = x[i+4];
-    mov    w1, [esi+16-4]
+    ; x1 = x[i+4]
+    mov    ebx, [esi+16-4]
 
-    ; w2 = ROTR32(x[i+8], 21);
-    mov    w2, [esi+32-4]
-    ror    w2, 21
+    ; x2 = ROTR32(x[i+8], 21)
+    mov    edx, [esi+32-4]
+    ror    edx, 21
 
-    ; x[i+8] = ROTR32((~w0 & w1) ^ w2, 24);
-    not    w0
-    and    w0, w1
-    xor    w0, w2
-    ror    w0, 24
-    mov    [esi+32-4], w0
+    ; x[i+8] = ROTR32((~x0 & x1) ^ x2, 24)
+    not    eax
+    and    eax, ebx
+    xor    eax, edx
+    ror    eax, 24
+    mov    [esi+32-4], eax
 
-    ; x[i+4] = ROTR32((~w2 & w0) ^ w1, 31);
-    push   w2
-    not    w2
-    and    w2, [esi-4]
-    xor    w2, w1
-    rol    w2, 1
-    mov    [esi+16-4], w2
-    pop    w2
+    ; x[i+4] = ROTR32((~x2 & x0) ^ x1, 31)
+    push   edx
+    not    edx
+    and    edx, [esi-4]
+    xor    edx, ebx
+    rol    edx, 1
+    mov    [esi+16-4], edx
+    pop    edx
 
-    ; x[i+0] ^= ~w1 & w2;
-    not    w1
-    and    w1, w2
-    xor    [esi-4], w1
-    loop   xd_l6
+    ; x[i+0] ^= ~x1 & x2
+    not    ebx
+    and    ebx, edx
+    xor    [esi-4], ebx
+    loop   L5
+    
+    ; XCHG(x[8], x[10])
+    ; XCHG(x[9], x[11])
+    mov    eax, [esi+8*4-16]
+    mov    ebp, [esi+9*4-16]
 
-    ; XCHG(x[8], x[10]);
-    ; XCHG(x[9], x[11]);
-    mov    eax, [esi+8*4]
-    mov    ebp, [esi+9*4]
+    xchg   eax, [esi+10*4-16]
+    xchg   ebp, [esi+11*4-16]
 
-    xchg   eax, [esi+10*4]
-    xchg   ebp, [esi+11*4]
+    mov    [esi+8*4-16], eax
+    mov    [esi+9*4-16], ebp
 
-    mov    [esi+8*4], eax
-    mov    [esi+9*4], ebp
-
-    popad
+    popa
 
     ; --r
-    dec    ecx
-    jns    xoo_main
+    inc    eax
+    cmp    al, 12
+    jnz    L1
 
     ; release memory
     popad
