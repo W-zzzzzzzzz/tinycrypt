@@ -187,6 +187,8 @@ void tf_setkey(tf_ctx *ctx, void *key) {
     }
 }
 
+// 0b110101 01111100 11010011 11001110
+
 uint32_t mds(uint32_t w) {
     w32_t acc, x;
     int i;
