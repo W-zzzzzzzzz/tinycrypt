@@ -73,24 +73,35 @@ int sha256_selftest(void)
     return 0;
 }
 
+uint8_t sha2_tv[32] = {
+  0x31, 0xC3, 0x0A, 0x45, 0x43, 0xC3, 0x1B, 0x27, 
+  0xA9, 0x99, 0x7C, 0x5B, 0xBE, 0x86, 0x8C, 0x13, 
+  0x14, 0x09, 0x3E, 0x76, 0x2E, 0xAC, 0x84, 0xC8, 
+  0x59, 0x19, 0xD6, 0x8D, 0x49, 0xBD, 0x49, 0xC9 };
+
 int main(int argc, char **argv)
 {
+    uint8_t    buf[128], dgst[32];
+    sha256_ctx ctx;
     int        i;
-    sha256_ctx c;
-    uint8_t    dgst[32];
     
-    if (argc>1) {
-      sha256_init(&c);
-      sha256_update(&c, argv[1], strlen(argv[1]));
-      sha256_final(dgst, &c);
+    memset(buf, 0, sizeof(buf));
+    
+    sha256_init(&ctx);
+    
+    for(i=1; i<128; i++) {
+      buf[i] = i;
       
-      for(i=0;i<32;i++) {
-        printf("%02x", dgst[i]);
-      }
-      putchar('\n');
+      sha256_update(&ctx, buf, i);
     }
-    printf("sha256_selftest() = %s\n",
-         sha256_selftest() ? "FAIL" : "OK");
+    sha256_final(dgst, &ctx);
+    
+    printf("SHA256 Hash = ");
+    for(i=0; i<32; i++) {
+      if((i & 7) == 0) putchar('\n');
+      printf("0x%02X, ", dgst[i]);
+    }
+    putchar('\n');
 
     return 0;
 }
