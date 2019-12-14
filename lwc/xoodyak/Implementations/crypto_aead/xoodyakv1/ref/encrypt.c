@@ -41,6 +41,7 @@ int crypto_aead_encrypt(
     Xoodyak_Encrypt(&instance, m, c, (size_t)mlen);
     Xoodyak_Squeeze(&instance, c + mlen, TAGLEN);
     *clen = mlen + TAGLEN;
+    
     #if 0
     {
         unsigned int i;

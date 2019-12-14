@@ -8,7 +8,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifdef _MSC_VER
 #include <windows.h>
+#endif
 
 #include <openssl/des.h>
 

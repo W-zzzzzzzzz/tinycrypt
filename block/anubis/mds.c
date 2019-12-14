@@ -25,10 +25,10 @@ uint32_t mds(uint32_t w) {
       {13,  9,  4,  1} };
 #elif defined(HADAMARD)
     uint8_t m[4][4] = {
-      { 0x01, 0x02, 0xfc, 0xfe },
-      { 0x02, 0x01, 0xfe, 0xfc },
-      { 0xfc, 0xfe, 0x01, 0x02 },
-      { 0xfe, 0xfc, 0x02, 0x01 } };
+      { 0x01, 0x02, 0xfc, 0xfe },   // rotate
+      { 0x02, 0x01, 0xfe, 0xfc },   // swap
+      { 0xfc, 0xfe, 0x01, 0x02 },   // rotate
+      { 0xfe, 0xfc, 0x02, 0x01 } }; // swap
 #else
     uint8_t m[4][4] = { 
       { 0x01, 0x02, 0x04, 0x06 },
@@ -80,6 +80,41 @@ void sbox(uint32_t s[]) {
     s[0] = a; s[1] = b; s[2] = c; s[3] = d;
 }
 
+// Multiplication
+uint8_t gf_mul(uint8_t x, uint8_t y, uint8_t p)
+{
+    uint8_t z = 0;
+
+    while (y) {
+      if (y & 1) {
+        z ^= x;
+      }
+      x = (x << 1) ^ (x & 0x80 ? p : 0x00);
+      y >>= 1;
+    }
+    return z;
+}
+
+// modular inverse
+uint8_t gf_inv(uint8_t a) {
+    uint8_t j, b = a;
+    for (j = 14; --j;)
+        b = gf_mul(b, j & 1 ? b : a, 0x1b); 
+    return b;
+}
+
+uint32_t mulinv32(uint32_t x) {
+    int      i;
+    uint32_t r;
+    
+    for(r=i=0; i<4; i++) {
+      r <<= 8;
+      r |= gf_inv(x & 0xFF);
+      x >>= 8;
+    }
+    return r;
+}
+
 int main(void) {
     union {
       uint8_t  b[16];
@@ -87,18 +122,18 @@ int main(void) {
     } s;
     int  i;
     
-    for(i=0; i<16; i++) s.b[i] = (i+1);
+    for(i=0; i<16; i++) s.b[i] = i;
     
     printf("\nBefore MDS\n");
     for(i=0; i<16; i++) printf("%02x ", s.b[i]);
-    sbox(s.w);
-    for(i=0; i<4; i++)  s.w[i] = mds(s.w[i]);
+    //sbox(s.w);
+    for(i=0; i<4; i++)  s.w[i] = mulinv32(s.w[i]);
     
     printf("\n\nAfter MDS and Sbox\n");
     for(i=0; i<16; i++) printf("%02x ", s.b[i]);
     
-    for(i=0; i<4; i++)  s.w[i] = mds(s.w[i]);
-    sbox(s.w);
+    for(i=0; i<4; i++)  s.w[i] = mulinv32(s.w[i]);
+    //sbox(s.w);
         
     printf("\n\nAfter MDS and Sbox\n");
     for(i=0; i<16; i++) printf("%02x ", s.b[i]);
