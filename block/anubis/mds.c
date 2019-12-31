@@ -113,7 +113,7 @@ uint32_t mulinv32(uint32_t x) {
     return r;
 }
 
-void pi(uint8_t *a) {
+void permute(uint8_t *a) {
     uint8_t tmp;
 
     tmp   = a[ 1]; 
@@ -282,51 +282,163 @@ getPermutation(k, N) {
 }
      
 */
+
+#define ROTR64(v,n)(((v)>>(n))|((v)<<(64-(n))))
+#define ROTL64(v,n)(((v)<<(n))|((v)>>(64-(n))))
+
+// bit permutation layer for PRESENT block cipher
+uint64_t p_layer(uint64_t x, int inv) {
+    uint64_t t, r;
+    int      i;
+    
+    r = 0x0030002000100000;
+    
+    for(t=i=0; i<64; i++) {
+      if(inv) {
+        // decryption
+        t |= (((x >> (r & 255)) & 1) << i);
+      } else {
+        // encryption
+        t |= ((x >> i) & 1) << (r & 255);
+      }
+      r  = ROTR64(r+1, 16);
+    }
+    return t;
+}
+
+// bit permutation layer.
+// pi holds 8 bytes of 0-7
+uint32_t p_layer2(uint32_t x, uint8_t pi[8], int inv) {
+    uint32_t i, j, t;
+
+    // for 32-bits
+    for(t=i=0; i<4; i++) {
+      t <<= 8;
+      // for each 8-bits
+      for(j=0; j<8; j++) {
+        // transpose bit based on value of pi[j]
+        if(inv) {
+          t |= (((x >> pi[j]) & 1) << j);
+        } else {
+          t |= (((x >> j) & 1) << pi[j]);
+        }
+      }
+      // discard 8-bits
+      x >>= 8;
+    }
+    return t;
+}
+
+// byte substitution
+uint32_t s_layer(uint32_t x, uint8_t sbox[16], int inv) {
+    union {
+      uint8_t  b[4];
+      uint32_t w;
+    } t;
+    uint8_t *s=sbox, sbox_inv[16];
+    uint8_t i;
+    
+    if(inv) {
+      // create inverse sbox
+      for(i=0; i<16; i++) {
+        sbox_inv[sbox[i]] = i;
+      }
+      s=sbox_inv;
+    }
+    
+    // apply sbox
+    for(i=0; i<4; i++) {
+      t.b[i] = ((s[(x & 0xF0)>>4]<<4) | s[(x & 0x0F)]);
+      x >>= 8;
+    }
+    return t.w;
+}
+
+void p_test(void) {
+    uint8_t  t, pi[8];    // pi=permutation
+    int      i, j;
+    union {
+      uint8_t  b[4];
+      uint32_t w;
+    } x;                  // x=data
+    
+    // the seed for rand is just an example
+    srand(time(0));
+    
+    // initialize pi to 0-7
+    for(i=0; i<8; i++) pi[i] = i;
+    
+    // randomize pi
+    for(i=1; i<=8; i++) {
+      j = rand() % i;
+      // swap
+      t = pi[i]; pi[i] = pi[j]; pi[j] = t;
+    }
+    
+    bin2hex("\n\npi", pi, 8);
+    
+    // generate some data
+    for(i=0; i<4; i++) {
+      x.b[i] = rand();
+    }
+    
+    bin2hex("\n\nOriginal: ", x.b, 4);
+    
+    // apply bit permutation
+    x.w = p_layer2(x.w, pi, 0);
+    
+    bin2hex("\n\nAfter PI: ", x.b, 4);
+    
+    x.w = p_layer2(x.w, pi, 1);
+    
+    bin2hex("\n\nInverse PI", x.b, 4);
+}
+    
 int main(void) {
     union {
       uint8_t  b[16];
       uint32_t w[4];
+      uint64_t q[2];
     } s;
-    int  i, j, t;
-
-    uint8_t s1[256], s2[256];
+    int      i, j, t;
+    uint64_t r = 0x0123456789ABCDEF;
+    uint8_t  s1[256], s2[256];
+    uint8_t perm[16];
+    
+    //p_test();
     
     // seed the generator
     srand(time(0));
     
     // initialize sbox
-    for(i=0; i<256; i++) s1[i] = i;
+    for(i=0; i<16; i++) perm[i] = s1[i] = i;
     
     // apply random permutation
-    for(i=255; i>0; i--) {
-      for(;;) {
-        j = rand() % 256; // 0 <= j <= i-1
-        if(j < i) break;
-      }
+    for(i=0; i<16; i++) {
+      j = rand() % 16; // 0 <= j <= i-1
       // swap
-      t = s1[i]; s1[i] = s1[j]; s1[j] = t;
+      t = perm[i]; perm[i] = perm[j]; perm[j] = t;
     }
     
     // create the inverse table
-    for(i=0; i<256; i++) s2[s1[i]] = i;
+    // for(i=0; i<256; i++) s2[s1[i]] = i;
     
-    for(i=0; i<16; i++) s.b[i] = (i+1); //rand();
+    for(i=0; i<8; i++) s.b[i] = rand();
     
     printf("\nBefore MDS\n");
-    for(i=0; i<16; i++) printf("%02x ", s.b[i]);
-    //sbox(s.w);
-    for(i=0; i<16; i++)  s.b[i] = s1[s.b[i]];
-    //pi(s.b);
-        
+    for(i=0; i<8; i++) printf("%02x ", s.b[i]);
+
+    s.w[0] = s_layer(s.w[0], perm, 0);
+    s.w[1] = s_layer(s.w[1], perm, 0);
+
     printf("\n\nAfter MDS and Sbox\n");
-    for(i=0; i<16; i++) printf("%02x ", s.b[i]);
+    for(i=0; i<8; i++) printf("%02x ", s.b[i]);
     
-    //pi(s.b);
-    for(i=0; i<16; i++)  s.b[i] = s2[s.b[i]];
-    //sbox(s.w);
-        
+    s.w[0] = s_layer(s.w[0], perm, 1);
+    s.w[1] = s_layer(s.w[1], perm, 1);
+    
     printf("\n\nAfter MDS and Sbox\n");
-    for(i=0; i<16; i++) printf("%02x ", s.b[i]);
+    for(i=0; i<8; i++) printf("%02x ", s.b[i]);
     putchar('\n');
     
     return 0;
