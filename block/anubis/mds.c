@@ -283,6 +283,7 @@ getPermutation(k, N) {
      
 */
 
+#define ROTR32(v,n)(((v)>>(n))|((v)<<(32-(n))))
 #define ROTR64(v,n)(((v)>>(n))|((v)<<(64-(n))))
 #define ROTL64(v,n)(((v)<<(n))|((v)>>(64-(n))))
 
@@ -394,6 +395,59 @@ void p_test(void) {
     bin2hex("\n\nInverse PI", x.b, 4);
 }
     
+// linear layer from serpent using even-mansour construction
+void xpermute(void *mk, void *p) {
+    uint32_t *x=(uint32_t*)p;
+    uint32_t *k=(uint32_t*)mk;
+    int      i;
+    
+    x[0]^=k[0];x[1]^=k[1];
+    x[2]^=k[2];x[3]^=k[3];
+      
+    for(i=0; i<8; i++) {
+      x[0]=ROTR32(x[0],19);
+      x[2]=ROTR32(x[2],29);
+      x[1]^=x[0]^x[2];
+      x[3]^=x[2]^(x[0]<<3);
+      x[1]=ROTR32(x[1],31);
+      x[3]=ROTR32(x[3],25);
+      x[0]^=x[1]^x[3];
+      x[2]^=x[3]^(x[1]<<7);
+      x[0]=ROTR32(x[0],27);
+      x[2]=ROTR32(x[2],10);
+    }
+    
+    x[0]^=k[0];x[1]^=k[1];
+    x[2]^=k[2];x[3]^=k[3];
+}
+
+void zpermute(void *mk, void *p) {
+    uint8_t rc = 128;
+    uint32_t t;
+    uint32_t *k=(uint32_t*)mk;
+    uint32_t *x=(uint32_t*)p;
+    
+    for(;;) {
+      x[0]^=rc;
+      t=x[0]^x[2];
+      t^=ROTR32(t,8)^ROTR32(t,24);
+      x[1]^=t;
+      x[3]^=t;
+      x[0]^=k[0];
+      x[1]^=k[1];
+      x[2]^=k[2];
+      x[3]^=k[3];
+      t=x[1]^x[3];
+      t^=ROTR32(t,8)^ROTR32(t,24);
+      x[0]^=t;
+      x[2]^=t;
+      // 16th round?
+      if(rc==212)break;
+      // update round constant
+      rc=((rc<<1)^(-(rc>>7)&27));
+    }
+}
+
 int main(void) {
     union {
       uint8_t  b[16];
@@ -411,7 +465,13 @@ int main(void) {
     srand(time(0));
     
     // initialize sbox
-    for(i=0; i<16; i++) perm[i] = s1[i] = i;
+    for(i=0; i<16; i++) perm[i] = rand(); s1[i] = rand();
+    
+    for(i=0; i<4; i++) {
+      xpermute(s1, perm);
+      bin2hex("result", perm, 16);
+    }
+    return 0;
     
     // apply random permutation
     for(i=0; i<16; i++) {
