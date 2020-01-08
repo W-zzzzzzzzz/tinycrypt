@@ -28,10 +28,10 @@
 ;  POSSIBILITY OF SUCH DAMAGE.
 ;
 
-; LZRW1 decompressor in 64 bytes of x86 assembly
+; LZRW1 decompressor in 62 bytes of x86 assembly
 ; 
-; uint32_t lzrw_decompress(uint32_t inlen, void *outbuf, void *inbuf);
-
+; uint32_t lzrw1_decompress(uint32_t inlen, void *outbuf, void *inbuf);
+;
     bits 32
     
     %ifndef BIN
@@ -44,12 +44,12 @@ _lzrw1_decompressx:
     pushad
     lea    esi, [esp+32+4]
     lodsd
-    xchg   eax, ecx        ; ecx = inlen
+    xchg   eax, ebp        ; ebp = inlen
     lodsd
     xchg   edi, eax        ; edi = outbuf
     lodsd
     xchg   esi, eax        ; esi = inbuf
-    lea    ebp, [esi+ecx]  ; ebp = inbuf + inlen
+    add    ebp, esi        ; ebp = inbuf + inlen
 L0:
     push   16 + 1          ; bits = 16
     pop    edx
@@ -69,9 +69,9 @@ L2:
     movsb                  ; *out++ = *in++;
     jmp    L1
 L3:
-    xor    eax, eax
     lodsb                  ; ofs = (*in & 0xF0) << 4
     aam    16
+    cwde
     movzx  ecx, al
     inc    ecx
     lodsb                  ; ofs |= *in++ & 0xFF;
