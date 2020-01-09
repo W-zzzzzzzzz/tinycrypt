@@ -16,7 +16,7 @@
 ; Minus the Turbo Pascal preamble/postamble, assembles to 78 bytes.
 ;---------------------------------------------------------------
 ;
-; Updated 2020/01/09: Converted to 32-bit, assembles to 81 bytes.
+; Updated 2020/01/09: Converted to 32-bit, assembles to 80 bytes.
 ; Uses cdecl calling convention: uint32_t lz4_decompress(void *outbuf, uint32_t inlen, void *inbuf);
 ;
 ; yasm -fwin32 lz4.asm -olz4.obj
@@ -40,16 +40,15 @@ _lz4_decompress:
         lodsd
         xchg    eax, ebx        ; EBX = chunk size
         lodsd
-        xchg    eax, esi        ; ESI = input / start of chunk
+        xchg    eax, esi        ; ESI = input
         
         add     ebx, esi        ; EBX = threshold to stop decompression
-        xor     eax, eax
 @@parsetoken:                   ; ECX = 0 here because of REP at end of loop
+        xor     ecx, ecx
+        mul     ecx
         lodsb                   ; grab token to AL
-        movzx   edx, al         ; preserve packed token in DL
-        push    4
-        pop     ecx
-        shr     al, cl          ; unpack upper 4 bits
+        mov     dl, al          ; preserve packed token in DL
+        shr     al, 4           ; unpack upper 4 bits
         call    buildfullcount  ; build full literal count if necessary
         rep     movsb           ; if ECX = 0 nothing happens
 
@@ -57,13 +56,11 @@ _lz4_decompress:
 ;offset token is ignored.  If we're at the end of our compressed chunk, stop.
 
         cmp     esi, ebx        ; are we at the end of our compressed chunk?
-        jae     @@done          ; if so, jump to exit; otherwise, process match
-@@copymatches:
+        jae     exit_lz4        ; if so, jump to exit; otherwise, process match
         lodsw                   ; AX = match offset
         xchg    edx, eax        ; AX = packed token, DX = match offset
         and     al, 0Fh         ; unpack match length token
         call    buildfullcount  ; build full match count if necessary
-@@domatchcopy:
         push    esi             ; xchg with ax would destroy ah
         mov     esi, edi
         sub     esi, edx
@@ -71,7 +68,6 @@ _lz4_decompress:
         rep     movsb           ; copy match run if any left
         pop     esi
         jmp     @@parsetoken
-
 buildfullcount:
                                 ; CH has to be 0 here to ensure AH remains 0
         cmp     al, 0Fh         ; test if unpacked literal length token is 15?
@@ -84,7 +80,7 @@ buildloop:
         je      buildloop       ; if so, keep going
 builddone:
         ret
-_lz4_decompress@@done:
+exit_lz4:
         sub     edi, [esp+32+4] ; subtract original offset from where we are now
         mov     [esp+28], edi   ; EAX = decompressed size
         popad

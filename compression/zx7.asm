@@ -62,8 +62,7 @@ _zx7_decompress:
         dec     ebx
         jnz     @@dzx7s_len_value_loop
         inc     ecx                     ; adjust length
-
-; determine offset
+        ; determine offset
         mov     bl, [esi]               ; load offset flag (1 bit) +
                                         ; offset value (7 bits)
         inc     esi
@@ -80,7 +79,7 @@ _zx7_decompress:
         inc     bh                      ; add 128 to DE
 @@dzx7s_offset_end:
         shr     ebx, 1                  ; insert fourth bit into E
-; copy previous sequence
+        ; copy previous sequence
         push    esi
         mov     esi, edi
         sbb     esi, ebx                ; destination = destination - offset - 1
