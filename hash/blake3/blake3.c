@@ -19,7 +19,7 @@ W v_idx[8]=
 Q sigma[7]=
 { 0xfedcba9876543210, 0x8fe95cb1d407a362,
   0x18fb0956e72dca43, 0x61852b04fd3e9c7a,
-  0x461035278eafb9dc, 0x7462a03d1fc85be9,
+  0x461035278eafb9dc, 0x7462a03d1fc85be9,h
   0xd743c2ae689105fb };
         
 void blake3_permute(uint32_t *s, uint32_t *m) {
