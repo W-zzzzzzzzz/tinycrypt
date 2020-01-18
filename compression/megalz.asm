@@ -1,5 +1,5 @@
 ;
-;  Size-optimized MegaLZ decompressor for Z80, by introspec (v.2 31/07/2019, 92 bytes)
+;  Size-optimized MegaLZ decompressor for Z80, by introspec <zxintrospec@gmail.com> (v.2 31/07/2019, 92 bytes)
 ;
 ;  Converted to x86 assembly, by odzhan (15/01/2020, 117 bytes)
 ;

@@ -72,7 +72,7 @@ static ucl_bool __ucl_assert_fail(const char *s, unsigned line)
 #undef ACCCHK_ASSERT
 #define ACCCHK_ASSERT(expr)     ACC_COMPILE_TIME_ASSERT_HEADER(expr)
 
-#include "acc/acc_chk.ch"
+#include "acc_chk.ch"
 
     ACCCHK_ASSERT_IS_SIGNED_T(ucl_int)
     ACCCHK_ASSERT_IS_UNSIGNED_T(ucl_uint)
