@@ -1,82 +1,95 @@
+/**
+  Copyright © 2015 Odzhan. All Rights Reserved.
 
-// this test code was originally written by Markku-Juhani O. Saarinen
-// i've adapted to work with this
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions are
+  met:
 
+  1. Redistributions of source code must retain the above copyright
+  notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+  notice, this list of conditions and the following disclaimer in the
+  documentation and/or other materials provided with the distribution.
+
+  3. The name of the author may not be used to endorse or promote products
+  derived from this software without specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY AUTHORS "AS IS" AND ANY EXPRESS OR
+  IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+  DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  POSSIBILITY OF SUCH DAMAGE. */
+  
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef TEST
+#include <openssl/sha.h>
+
+#define sha1_ctx SHA_CTX
+#define sha1_init SHA1_Init
+#define sha1_update SHA1_Update
+#define sha1_final SHA1_Final
+#else
 #include "sha1.h"
+#endif
 
-void sha1(void *out, const void *in, size_t inlen)
-{
-    sha1_ctx ctx;
-
-    sha1_init(&ctx);
-    sha1_update(&ctx, in, inlen);
-    sha1_final(out, &ctx);
-}
-
-// Deterministic sequences (Fibonacci generator).
-
-static void selftest_seq(uint8_t *out, size_t len, uint32_t seed)
-{
-    size_t i;
-    uint32_t t, a , b;
-
-    a = 0xDEAD4BAD * seed;              // prime
-    b = 1;
-
-    for (i = 0; i < len; i++) {         // fill the buf
-        t = a + b;
-        a = b;
-        b = t;
-        out[i] = (t >> 24) & 0xFF;
-    }
-}
-
-
-int sha1_selftest(void)
-{
-    // Grand hash of hash results.
-    const uint8_t sha1_res[20] = {
-      0x0c, 0xce, 0x6c, 0x1a, 0x08, 0x73, 0xdb, 0x99,
-      0xd4, 0x91, 0xd1, 0xc7, 0x82, 0x48, 0x24, 0x18,
-      0x20, 0xd9, 0x36, 0xe9 };
-    // Parameter sets.
-    const size_t s2_in_len[6] = { 0,  3,  64, 65, 255, 1024 };
-
-    size_t i, j, inlen;
-    uint8_t in[1024], md[20];
-    sha1_ctx ctx;
-
-    // 160-bit hash for testing.
-    sha1_init(&ctx);
-
-    for (j = 0; j < 6; j++) {
-        inlen = s2_in_len[j];
-
-        selftest_seq(in, inlen, inlen);
-        sha1(md, in, inlen);
-        sha1_update(&ctx, md, 20);
-    }
-
-    // Compute and compare the hash of hashes.
-    sha1_final(md, &ctx);
+int sha1_selftest(void) {
     
-    for (i = 0; i < 20; i++) {
-      if (md[i] != sha1_res[i])
-        return -1;
+    uint32_t i, equ=0;
+    uint8_t  dgst[20], buf[64];
+    sha1_ctx ctx;
+    uint8_t  sha1_tv[]=
+      {0x34, 0x68, 0x5b, 0xc2, 0xfa, 0x72, 0x09, 0x24, 
+       0x5c, 0xdc, 0xb6, 0xb8, 0x17, 0xf2, 0x95, 0x09, 
+       0x48, 0xfb, 0xf2, 0x1f};
+    
+    memset(dgst, 0, sizeof(dgst));
+    
+    for(i=0; i<64; i++) {
+      memset(buf, 0, sizeof(buf));
+      buf[i] = (uint8_t)i;
+      
+      sha1_init(&ctx);
+      sha1_update(&ctx, buf, (i + 1));
+      sha1_update(&ctx, dgst, 20);
+      sha1_final(dgst, &ctx);
     }
-
-    return 0;
+    
+    equ = (memcmp(dgst, sha1_tv, 20)==0);
+    return equ;
 }
 
 int main(int argc, char **argv)
 {
+    sha1_ctx ctx;
+    int      i;
+    uint8_t  dgst[20];
+    
+    if(argc == 2) {
+      sha1_init(&ctx);
+      sha1_update(&ctx, argv[1], strlen(argv[1]));
+      sha1_final(dgst, &ctx);
+      
+      printf("SHA-1 : ");
+      for(i=0; i<20; i++) {
+        printf("%02x", dgst[i]);
+      }
+      putchar('\n');
+      return 0;
+    }
+    
     printf("sha1_selftest() = %s\n",
-         sha1_selftest() ? "FAIL" : "OK");
-
+         sha1_selftest() ? "OK" : "FAIL");
+         
     return 0;
 }

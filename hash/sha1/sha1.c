@@ -116,5 +116,5 @@ void sha1_final(void *out, sha1_ctx *c) {
     // compress it
     sha1_compress(c);
     // return hash
-    F(8)p[i]=rev32(c->s[i]);
+    F(5)p[i]=rev32(c->s[i]);
 }
