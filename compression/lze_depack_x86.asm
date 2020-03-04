@@ -2,7 +2,7 @@
 ;   Copyright (C)1995,2008 GORRY.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  Converted to x86 assembly, by odzhan (22/02/2020, 100 bytes)
+;  Converted to x86 assembly, by odzhan (22/02/2020, 97 bytes)
 ;
         bits 32
 
@@ -23,59 +23,57 @@ _lze_depack:
     mov    esi, [esp+32+4] ; esi = in
     mov    edi, [esp+32+8] ; edi = out
     
-    mov    dh, 1
-    call   init_getbit
-BitTest:  
-    dec    dh
-    jnz    lbl1
-    mov    dl, [esi]
+    call   init
+GetOneBit:  
+    add    dl, dl            ; 
+    jnz    xit
+ReloadByte:
+    mov    dl, [esi]         ; dl = *src++;
     inc    esi
-    mov    dh, 8
-lbl1:
-    add    dl, dl
+    rcl    dl, 1             ; cy = (dl & 0x80);
+xit:
     ret
-init_getbit:
+init:
     pop    ebp
-DECODE_LZE_lp0:
-DECODE_LZE_1:
+    mov    dl, 128
+lze_cl:
     movsb
-DECODE_LZE_lp1:
+lze_main:
     call   ebp
-    jc     DECODE_LZE_1
-DECODE_LZE_0:
-    or     eax, -1
+    jc     lze_cl
+    mov    ah, -1
     call   ebp
-    jc     DECODE_LZE_01
-DECODE_LZE_00:
+    jc     lze_copy3
     xor    ecx, ecx
     call   ebp
     adc    ecx, ecx
     call   ebp
     adc    ecx, ecx
     lodsb
-DECODE_LZE_00_1:
+lze_copy1:
     inc    ecx
-DECODE_LZE_00_2:
+lze_copy2:
     movsx  eax, ax
     push   esi
     lea    esi, [edi+eax]
     inc    ecx
     rep    movsb
     pop    esi
-    jmp    DECODE_LZE_lp1
-DECODE_LZE_01:
+    jmp    lze_main
+lze_copy3:
     lodsw
     xchg   al, ah
     mov    ecx, eax
-    shr    eax, 3
+    shr    eax, 3            ; /= 8
     or     ah, 0e0h
-    and    ecx, 7
-    jnz    DECODE_LZE_00_1
-    mov    cl, [esi]
+    and    ecx, 7            ; %= 8
+    jnz    lze_copy1
+    mov    cl, [esi]         ; len = *src++;
     inc    esi
-    or     cl, cl
-    jnz    DECODE_LZE_00_2
-DECODE_LZE_e:
+    ; EOF?
+    or     cl, cl            ; if(len==0) break;
+    jnz    lze_copy2
+    ; return (out - (uint8_t*)outbuf);
     sub    edi, [esp+32+8]
     mov    [esp+28], edi
     popad
