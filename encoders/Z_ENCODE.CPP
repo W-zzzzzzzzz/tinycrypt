@@ -41,7 +41,9 @@ void compress(BYTE* ibuf, DWORD isize, BYTE* obuf)
 //    }
 
     DWORD c=0, z=7000, d=0;
-    while ((ibuf[i+c]==0)&&(i+c<isize)&&(c+1<=255+4)) c++;
+    // search for long strings of zero not exceeding total input
+    while ((ibuf[i+c] == 0) && (i+c < isize) && (c+1 <= 255+4)) c++;
+    
     if (c==2) z=7001;
     if (c==3) z=7002;
     if (c>=4) z=7003;
@@ -53,7 +55,10 @@ void compress(BYTE* ibuf, DWORD isize, BYTE* obuf)
       for (int j=MAX(i-kind,0); j<i; j++)
       {
         DWORD c=0;
+        // find match
         while ((ibuf[i+c] == ibuf[j+c]) && (j+c<i) && (c+1<=255+2)) c++;
+        
+        // got one?
         if (maxc<=c)
         {
           maxc=c;
